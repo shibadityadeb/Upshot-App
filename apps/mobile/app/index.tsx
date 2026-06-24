@@ -1,23 +1,21 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { Redirect } from 'expo-router';
+import { useAuthStore } from '../src/store/auth.store';
 
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Phase 1 complete</Text>
-    </View>
-  );
-}
+  const user = useAuthStore((s) => s.user);
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  text: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1B2CC1',
-  },
-});
+  if (!user) return <Redirect href="/(auth)/login" />;
+
+  switch (user.role) {
+    case 'admin':
+      return <Redirect href="/(admin)/dashboard" />;
+    case 'company':
+      return <Redirect href="/(company)/dashboard" />;
+    case 'ambassador':
+      return <Redirect href="/(ambassador)/dashboard" />;
+    case 'student':
+    case 'people':
+    default:
+      return <Redirect href="/(people)/events" />;
+  }
+}
