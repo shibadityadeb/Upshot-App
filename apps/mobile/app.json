@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Upshot Brand Media",
+    "slug": "upshot-brand-media",
+    "version": "1.0.0",
+    "scheme": "upshot",
+    "platforms": ["ios", "android"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "plugins": ["expo-router"]
+  }
+}

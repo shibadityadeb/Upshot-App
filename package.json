@@ -1,0 +1,21 @@
+{
+  "name": "upshot-monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "yarn workspace @upshot/mobile start",
+    "type-check": "yarn workspaces run type-check",
+    "db:generate": "yarn workspace @upshot/database db:generate",
+    "db:push": "yarn workspace @upshot/database db:push",
+    "db:migrate": "yarn workspace @upshot/database db:migrate",
+    "db:studio": "yarn workspace @upshot/database db:studio",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
