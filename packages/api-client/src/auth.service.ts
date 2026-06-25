@@ -1,12 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { PrismaClient } from '@upshot/database';
 import type { ApiResponse, User, UserRole, RegisterStudentPayload } from '@upshot/types';
 
 export class AuthService {
-  constructor(
-    private supabase: SupabaseClient,
-    private prisma: PrismaClient,
-  ) {}
+  constructor(private supabase: SupabaseClient) {}
 
   async signIn(email: string, password: string): Promise<ApiResponse<{ user: User }>> {
     const { error } = await this.supabase.auth.signInWithPassword({ email, password });
@@ -43,31 +39,32 @@ export class AuthService {
     if (!userId) return { data: null, error: { code: 'NO_USER', message: 'User creation failed' } };
 
     try {
-      // Look up ambassador if referral code provided
       let ambassadorId: string | null = null;
       if (ambassador_code) {
-        const ambassador = await this.prisma.ambassador.findFirst({
-          where: { referralCode: ambassador_code, isActive: true },
-        });
+        const { data: ambassador } = await this.supabase
+          .from('ambassadors')
+          .select('id, referral_count')
+          .eq('referral_code', ambassador_code)
+          .eq('is_active', true)
+          .single();
         if (ambassador) {
           ambassadorId = ambassador.id;
-          await this.prisma.ambassador.update({
-            where: { id: ambassadorId },
-            data: { referralCount: { increment: 1 } },
-          });
+          await this.supabase
+            .from('ambassadors')
+            .update({ referral_count: ambassador.referral_count + 1 })
+            .eq('id', ambassadorId);
         }
       }
 
-      await this.prisma.student.create({
-        data: {
-          userId,
-          college: college ?? null,
-          course: course ?? null,
-          yearOfStudy: year_of_study ?? null,
-          ambassadorCode: ambassador_code ?? null,
-          referredBy: ambassadorId,
-        },
+      const { error: studentError } = await this.supabase.from('students').insert({
+        user_id: userId,
+        college: college ?? null,
+        course: course ?? null,
+        year_of_study: year_of_study ?? null,
+        ambassador_code: ambassador_code ?? null,
+        referred_by: ambassadorId,
       });
+      if (studentError) throw new Error(studentError.message);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Student insert failed';
       return { data: null, error: { code: 'STUDENT_INSERT', message: msg } };
@@ -90,11 +87,30 @@ export class AuthService {
 
   async getCurrentUser(): Promise<ApiResponse<{ user: User }>> {
     const { data: sessionData } = await this.supabase.auth.getSession();
-    const userId = sessionData.session?.user?.id;
-    if (!userId) return { data: null, error: { code: 'NO_SESSION', message: 'Not authenticated' } };
+    const authUser = sessionData.session?.user;
+    if (!authUser) return { data: null, error: { code: 'NO_SESSION', message: 'Not authenticated' } };
 
-    const profile = await this.prisma.profile.findUnique({ where: { id: userId } });
-    if (!profile) return { data: null, error: { code: 'NOT_FOUND', message: 'Profile not found' } };
+    const { data: profile } = await this.supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    if (!profile) {
+      // Profile trigger may not have fired yet — build from auth metadata
+      const fallback: User = {
+        id: authUser.id,
+        email: authUser.email ?? '',
+        full_name: authUser.user_metadata?.full_name ?? '',
+        avatar_url: null,
+        role: (authUser.user_metadata?.role as UserRole) ?? 'student',
+        phone: null,
+        is_active: true,
+        created_at: authUser.created_at,
+        updated_at: authUser.created_at,
+      };
+      return { data: { user: fallback }, error: null };
+    }
 
     return { data: { user: profile as unknown as User }, error: null };
   }
@@ -103,20 +119,18 @@ export class AuthService {
     userId: string,
     updates: Partial<Pick<User, 'full_name' | 'avatar_url' | 'phone'>>,
   ): Promise<ApiResponse<{ user: User }>> {
-    try {
-      const profile = await this.prisma.profile.update({
-        where: { id: userId },
-        data: {
-          fullName: updates.full_name,
-          avatarUrl: updates.avatar_url,
-          phone: updates.phone,
-        },
-      });
-      return { data: { user: profile as unknown as User }, error: null };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Update failed';
-      return { data: null, error: { code: 'UPDATE_FAILED', message: msg } };
-    }
+    const { data: profile, error } = await this.supabase
+      .from('profiles')
+      .update({
+        full_name: updates.full_name,
+        avatar_url: updates.avatar_url,
+        phone: updates.phone,
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+    if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
+    return { data: { user: profile as unknown as User }, error: null };
   }
 
   async resetPassword(email: string): Promise<ApiResponse<null>> {

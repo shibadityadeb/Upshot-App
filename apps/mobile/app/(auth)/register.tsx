@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Alert,
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -86,11 +85,7 @@ export default function RegisterScreen() {
     };
     const success = await registerStudent(payload);
     if (success) {
-      Alert.alert(
-        'Registration Successful!',
-        'Please check your email to verify your account, then sign in.',
-        [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }],
-      );
+      router.replace('/');
     }
   };
 

@@ -74,9 +74,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: false, error: result.error.message });
       return false;
     }
-    // Do NOT auto-sign-in — user must verify email or go to login
-    await api.auth.signOut();
-    set({ isLoading: false });
+    set({ user: result.data?.user ?? null, isLoading: false });
     return true;
   },
 
