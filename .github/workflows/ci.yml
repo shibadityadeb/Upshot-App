@@ -80,4 +80,4 @@ jobs:
 
       - name: Export web bundle
         working-directory: apps/mobile
-        run: npx expo export --platform web --output-dir /tmp/web-build
+        run: npx expo export --platform web --output-dir dist
