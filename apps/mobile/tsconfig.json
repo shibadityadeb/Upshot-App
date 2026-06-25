@@ -6,5 +6,12 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["app", "src", "**/*.ts", "**/*.tsx"]
+  "include": [
+    "app",
+    "src",
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
 }

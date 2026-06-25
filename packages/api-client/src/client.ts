@@ -1,8 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { PrismaClient } from '@upshot/database';
 
 let supabaseInstance: SupabaseClient | null = null;
-let prismaInstance: PrismaClient | null = null;
 
 export function getSupabaseClient(
   url?: string,
@@ -23,16 +21,6 @@ export function getSupabaseClient(
   return supabaseInstance;
 }
 
-export function getPrismaClient(): PrismaClient {
-  if (prismaInstance) return prismaInstance;
-  prismaInstance = new PrismaClient();
-  return prismaInstance;
-}
-
 export function resetClients(): void {
   supabaseInstance = null;
-  if (prismaInstance) {
-    prismaInstance.$disconnect();
-    prismaInstance = null;
-  }
 }

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@upshot/database';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   ApiResponse,
   Task,
@@ -7,72 +7,79 @@ import type {
 } from '@upshot/types';
 
 export class TasksService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private supabase: SupabaseClient) {}
 
   async getMyTasks(userId: string): Promise<ApiResponse<Task[]>> {
-    const tasks = await this.prisma.task.findMany({
-      where: { assignedTo: userId },
-      include: { event: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return { data: tasks as unknown as Task[], error: null };
+    const { data, error } = await this.supabase
+      .from('tasks')
+      .select('*, events(*)')
+      .eq('assigned_to', userId)
+      .order('created_at', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as Task[], error: null };
   }
 
   async getAllTasksAdmin(): Promise<ApiResponse<Task[]>> {
-    const tasks = await this.prisma.task.findMany({
-      include: { event: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return { data: tasks as unknown as Task[], error: null };
+    const { data, error } = await this.supabase
+      .from('tasks')
+      .select('*, events(*)')
+      .order('created_at', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as Task[], error: null };
   }
 
   async getTaskById(id: string): Promise<ApiResponse<Task>> {
-    const task = await this.prisma.task.findUnique({
-      where: { id },
-      include: { event: true },
-    });
-    if (!task) return { data: null, error: { code: 'NOT_FOUND', message: 'Task not found' } };
-    return { data: task as unknown as Task, error: null };
+    const { data, error } = await this.supabase
+      .from('tasks')
+      .select('*, events(*)')
+      .eq('id', id)
+      .single();
+    if (error || !data) return { data: null, error: { code: 'NOT_FOUND', message: 'Task not found' } };
+    return { data: data as unknown as Task, error: null };
   }
 
   async createTask(adminId: string, payload: CreateTaskPayload): Promise<ApiResponse<Task>> {
-    const task = await this.prisma.task.create({
-      data: {
+    const { data, error } = await this.supabase
+      .from('tasks')
+      .insert({
         title: payload.title,
         description: payload.description,
-        eventId: payload.event_id ?? null,
-        assignedTo: payload.assigned_to,
-        assignedBy: adminId,
+        event_id: payload.event_id ?? null,
+        assigned_to: payload.assigned_to,
+        assigned_by: adminId,
         status: 'assigned',
-        dueDate: payload.due_date ? new Date(payload.due_date) : null,
-        coinValue: payload.coin_value,
-      },
+        due_date: payload.due_date ?? null,
+        coin_value: payload.coin_value,
+      })
+      .select()
+      .single();
+    if (error || !data) return { data: null, error: { code: 'CREATE_FAILED', message: error?.message ?? 'Failed' } };
+
+    await this.supabase.from('notifications').insert({
+      user_id: payload.assigned_to,
+      title: 'New task assigned',
+      body: `You have been assigned a new task: "${payload.title}".`,
+      type: 'task_assigned',
+      reference_id: data.id,
     });
 
-    await this.prisma.notification.create({
-      data: {
-        userId: payload.assigned_to,
-        title: 'New task assigned',
-        body: `You have been assigned a new task: "${payload.title}".`,
-        type: 'task_assigned',
-        referenceId: task.id,
-      },
-    });
-
-    return { data: task as unknown as Task, error: null };
+    return { data: data as unknown as Task, error: null };
   }
 
   async submitTask(taskId: string, payload: SubmitTaskPayload): Promise<ApiResponse<Task>> {
-    const task = await this.prisma.task.update({
-      where: { id: taskId },
-      data: {
+    const { data, error } = await this.supabase
+      .from('tasks')
+      .update({
         status: 'submitted',
-        submissionUrl: payload.submission_url ?? null,
-        submissionNote: payload.submission_note ?? null,
-        submittedAt: new Date(),
-      },
-    });
-    return { data: task as unknown as Task, error: null };
+        submission_url: payload.submission_url ?? null,
+        submission_note: payload.submission_note ?? null,
+        submitted_at: new Date().toISOString(),
+      })
+      .eq('id', taskId)
+      .select()
+      .single();
+    if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
+    return { data: data as unknown as Task, error: null };
   }
 
   async reviewTask(
@@ -83,46 +90,45 @@ export class TasksService {
   ): Promise<ApiResponse<Task>> {
     const newStatus = approved ? 'approved' : 'rejected';
 
-    const task = await this.prisma.task.update({
-      where: { id: taskId },
-      data: {
-        status: newStatus as any,
-        reviewedAt: new Date(),
-        reviewNote: reviewNote ?? null,
-      },
-    });
+    const { data, error } = await this.supabase
+      .from('tasks')
+      .update({
+        status: newStatus,
+        reviewed_at: new Date().toISOString(),
+        review_note: reviewNote ?? null,
+      })
+      .eq('id', taskId)
+      .select()
+      .single();
+    if (error || !data) return { data: null, error: { code: 'UPDATE_FAILED', message: error?.message ?? 'Failed' } };
 
     if (approved) {
-      // Award coins — the DB trigger on coin_transactions updates wallet_balances
-      await this.prisma.coinTransaction.create({
-        data: {
-          userId: task.assignedTo,
-          type: 'earned',
-          amount: task.coinValue,
-          description: `Task completed: ${task.title}`,
-          referenceId: taskId,
-          referenceType: 'task',
-        },
+      await this.supabase.from('coin_transactions').insert({
+        user_id: data.assigned_to,
+        type: 'earned',
+        amount: data.coin_value,
+        description: `Task completed: ${data.title}`,
+        reference_id: taskId,
+        reference_type: 'task',
       });
     }
 
-    await this.prisma.notification.create({
-      data: {
-        userId: task.assignedTo,
-        title: `Task ${newStatus}`,
-        body: approved
-          ? `Your task "${task.title}" was approved! You earned ${task.coinValue} coins.`
-          : `Your task "${task.title}" was rejected.${reviewNote ? ` Reason: ${reviewNote}` : ''}`,
-        type: 'task_review',
-        referenceId: taskId,
-      },
+    await this.supabase.from('notifications').insert({
+      user_id: data.assigned_to,
+      title: `Task ${newStatus}`,
+      body: approved
+        ? `Your task "${data.title}" was approved! You earned ${data.coin_value} coins.`
+        : `Your task "${data.title}" was rejected.${reviewNote ? ` Reason: ${reviewNote}` : ''}`,
+      type: 'task_review',
+      reference_id: taskId,
     });
 
-    return { data: task as unknown as Task, error: null };
+    return { data: data as unknown as Task, error: null };
   }
 
   async deleteTask(taskId: string): Promise<ApiResponse<null>> {
-    await this.prisma.task.delete({ where: { id: taskId } });
+    const { error } = await this.supabase.from('tasks').delete().eq('id', taskId);
+    if (error) return { data: null, error: { code: 'DELETE_FAILED', message: error.message } };
     return { data: null, error: null };
   }
 }

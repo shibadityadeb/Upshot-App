@@ -4,10 +4,16 @@
     "slug": "upshot-brand-media",
     "version": "1.0.0",
     "scheme": "upshot",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "experiments": {
       "typedRoutes": true
     },
-    "plugins": ["expo-router"]
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
