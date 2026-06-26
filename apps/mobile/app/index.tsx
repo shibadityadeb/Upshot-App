@@ -3,6 +3,9 @@ import { useAuthStore } from '../src/store/auth.store';
 
 export default function Index() {
   const user = useAuthStore((s) => s.user);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+
+  if (!isInitialized) return null;
 
   if (!user) return <Redirect href="/(auth)/login" />;
 

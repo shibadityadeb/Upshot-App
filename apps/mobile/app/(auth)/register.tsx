@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -12,32 +13,28 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
-import { colors, typography, spacing } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, spacing } from '../../src/constants/theme';
 import type { RegisterStudentPayload } from '@upshot/types';
 
-const TOTAL_STEPS = 3;
+const LOGO = require('../../assets/logo.png') as number;
+const TOTAL_STEPS = 2;
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { registerStudent, isLoading, error, clearError } = useAuthStore();
   const [step, setStep] = useState(1);
 
-  // Step 1
+  // Step 1 — Account
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Step 2
-  const [college, setCollege] = useState('');
-  const [course, setCourse] = useState('');
-  const [yearOfStudy, setYearOfStudy] = useState('');
-
-  // Step 3
+  // Step 2 — Professional + optional code
+  const [profession, setProfession] = useState('');
+  const [orgName, setOrgName] = useState('');
   const [ambassadorCode, setAmbassadorCode] = useState('');
 
-  // Validation
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const clearField = (field: string) => {
@@ -55,33 +52,32 @@ export default function RegisterScreen() {
     if (!email.trim()) errs.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(email)) errs.email = 'Enter a valid email';
     if (!password) errs.password = 'Password is required';
-    else if (password.length < 8) errs.password = 'Password must be at least 8 characters';
+    else if (password.length < 8) errs.password = 'At least 8 characters';
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleNext = () => {
     if (step === 1 && !validateStep1()) return;
-    setStep(step + 1);
+    setStep(2);
   };
 
   const handleBack = () => {
     if (step === 1) {
       router.back();
     } else {
-      setStep(step - 1);
+      setStep(1);
     }
   };
 
-  const handleRegister = async (withCode: boolean) => {
+  const handleRegister = async () => {
     const payload: RegisterStudentPayload = {
       email: email.trim(),
       password,
       full_name: fullName.trim(),
-      college: college.trim() || undefined,
-      course: course.trim() || undefined,
-      year_of_study: yearOfStudy ? parseInt(yearOfStudy, 10) : undefined,
-      ambassador_code: withCode && ambassadorCode.trim() ? ambassadorCode.trim() : undefined,
+      profession: profession.trim() || undefined,
+      organisation_name: orgName.trim() || undefined,
+      ambassador_code: ambassadorCode.trim() || undefined,
     };
     const success = await registerStudent(payload);
     if (success) {
@@ -94,16 +90,14 @@ export default function RegisterScreen() {
       <SafeAreaView style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Text style={styles.backText}>{'<'} Back</Text>
+            <Text style={styles.backText}>{'← Back'}</Text>
           </TouchableOpacity>
         </View>
         <ProgressDots current={step} total={TOTAL_STEPS} />
         <View style={styles.logoContainer}>
-          <View style={styles.logoRow}>
-            <Text style={styles.logoUp}>UP</Text>
-            <Text style={styles.logoShot}>SHOT</Text>
+          <View style={styles.logoBadge}>
+            <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
           </View>
-          <Text style={styles.logoBrand}>BRAND MEDIA</Text>
         </View>
       </SafeAreaView>
 
@@ -128,10 +122,10 @@ export default function RegisterScreen() {
           {step === 1 && (
             <>
               <Text style={styles.formTitle}>Create your account</Text>
-              <Text style={styles.formSubtitle}>Step 1 of 3 — Basic information</Text>
+              <Text style={styles.formSubtitle}>Step 1 of 2 — Basic information</Text>
               <Input
                 label="Full Name"
-                placeholder="John Doe"
+                placeholder="Jane Doe"
                 value={fullName}
                 onChangeText={(t) => { clearField('fullName'); setFullName(t); }}
                 autoCapitalize="words"
@@ -159,65 +153,32 @@ export default function RegisterScreen() {
                   </TouchableOpacity>
                 }
               />
-              <Input
-                label="Phone (optional)"
-                placeholder="+91 98765 43210"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-              <Button title="Next" onPress={handleNext} style={styles.actionBtn} />
+              <Button title="Continue" onPress={handleNext} style={styles.actionBtn} />
             </>
           )}
 
           {step === 2 && (
             <>
-              <Text style={styles.formTitle}>Academic details</Text>
-              <Text style={styles.formSubtitle}>Step 2 of 3 — Optional, you can skip</Text>
+              <Text style={styles.formTitle}>Professional details</Text>
+              <Text style={styles.formSubtitle}>Step 2 of 2 — Optional, you can skip</Text>
               <Input
-                label="College / Institute"
-                placeholder="e.g. IIT Delhi"
-                value={college}
-                onChangeText={setCollege}
+                label="Profession"
+                placeholder="e.g. Marketing Manager, Founder, Student"
+                value={profession}
+                onChangeText={setProfession}
                 autoCapitalize="words"
               />
               <Input
-                label="Course"
-                placeholder="e.g. B.Tech Computer Science"
-                value={course}
-                onChangeText={setCourse}
+                label="Company / Organisation"
+                placeholder="e.g. Acme Corp, IIT Delhi, Freelance"
+                value={orgName}
+                onChangeText={setOrgName}
                 autoCapitalize="words"
               />
+              <View style={styles.divider} />
+              <Text style={styles.referralLabel}>Have a referral code?</Text>
               <Input
-                label="Year of Study"
-                placeholder="e.g. 2"
-                value={yearOfStudy}
-                onChangeText={setYearOfStudy}
-                keyboardType="numeric"
-              />
-              <Button title="Next" onPress={handleNext} style={styles.actionBtn} />
-              <Button
-                title="Skip for now"
-                onPress={handleNext}
-                variant="ghost"
-                style={styles.skipBtn}
-              />
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <Text style={styles.formTitle}>Ambassador code</Text>
-              <Text style={styles.formSubtitle}>Step 3 of 3 — Optional</Text>
-              <View style={styles.infoBox}>
-                <Text style={styles.infoIcon}>🎁</Text>
-                <Text style={styles.infoText}>
-                  If someone referred you to Upshot, enter their ambassador code
-                  below. This helps them earn rewards!
-                </Text>
-              </View>
-              <Input
-                label="Ambassador Code"
+                label="Ambassador Code (optional)"
                 placeholder="e.g. AMIT2F4C"
                 value={ambassadorCode}
                 onChangeText={setAmbassadorCode}
@@ -225,16 +186,17 @@ export default function RegisterScreen() {
               />
               <Button
                 title="Create Account"
-                onPress={() => handleRegister(true)}
+                onPress={handleRegister}
                 loading={isLoading}
-                disabled={!ambassadorCode.trim()}
+                disabled={isLoading}
                 style={styles.actionBtn}
               />
               <Button
                 title="Skip and Register"
-                onPress={() => handleRegister(false)}
+                onPress={handleRegister}
                 variant="ghost"
                 loading={isLoading}
+                disabled={isLoading}
                 style={styles.skipBtn}
               />
             </>
@@ -257,12 +219,13 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
     <View style={dotStyles.container}>
       {Array.from({ length: total }, (_, i) => {
         const isActive = i + 1 === current;
+        const isPast = i + 1 < current;
         return (
           <View
             key={i}
             style={[
               dotStyles.dot,
-              isActive ? dotStyles.active : dotStyles.inactive,
+              isActive ? dotStyles.active : isPast ? dotStyles.past : dotStyles.inactive,
             ]}
           />
         );
@@ -276,7 +239,7 @@ const dotStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
-    marginVertical: spacing.md,
+    marginVertical: Gap.base,
   },
   dot: {
     height: 8,
@@ -285,6 +248,10 @@ const dotStyles = StyleSheet.create({
   active: {
     width: 28,
     backgroundColor: colors.accent,
+  },
+  past: {
+    width: 28,
+    backgroundColor: 'rgba(255,255,255,0.5)',
   },
   inactive: {
     width: 8,
@@ -299,45 +266,35 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.primary,
-    paddingBottom: spacing.lg,
-    paddingHorizontal: spacing.md,
+    paddingBottom: Gap.lg,
+    paddingHorizontal: Gap.base,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   backButton: {
-    paddingVertical: spacing.sm,
-    paddingRight: spacing.md,
+    paddingVertical: Gap.sm,
+    paddingRight: Gap.base,
   },
   backText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: FontSize.body,
+    fontWeight: Font.medium,
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: spacing.sm,
+    marginTop: Gap.sm,
   },
-  logoRow: {
-    flexDirection: 'row',
+  logoBadge: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  logoUp: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  logoShot: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.accent,
-  },
-  logoBrand: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 4,
-    marginTop: 2,
+  logoImage: {
+    width: 130,
+    height: 34,
   },
   formSheet: {
     flex: 1,
@@ -346,81 +303,75 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
   },
   formContent: {
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
+    padding: Gap.xl,
+    paddingTop: Gap.xxl,
   },
   formTitle: {
-    fontSize: typography.heading2,
-    fontWeight: '700',
+    fontSize: FontSize.h1,
+    fontWeight: Font.bold,
     color: colors.text,
     marginBottom: 4,
   },
   formSubtitle: {
-    fontSize: typography.body,
+    fontSize: FontSize.body,
     color: colors.textSecondary,
-    marginBottom: spacing.lg,
+    marginBottom: Gap.lg,
   },
   errorBox: {
     backgroundColor: colors.error + '18',
     borderRadius: 10,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    padding: Gap.base,
+    marginBottom: Gap.base,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   errorText: {
     color: colors.error,
-    fontSize: 14,
+    fontSize: FontSize.body,
     flex: 1,
   },
   errorDismiss: {
     color: colors.error,
-    fontSize: 13,
-    fontWeight: '600',
-    marginLeft: spacing.sm,
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    marginLeft: Gap.sm,
   },
   toggleText: {
     color: colors.primary,
-    fontWeight: '600',
-    fontSize: 13,
+    fontWeight: Font.semibold,
+    fontSize: FontSize.small,
   },
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: colors.accent + '18',
-    borderRadius: 10,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
+  divider: {
+    height: 0.5,
+    backgroundColor: colors.border,
+    marginVertical: Gap.base,
   },
-  infoIcon: {
-    fontSize: 20,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
+  referralLabel: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.textSecondary,
+    marginBottom: Gap.sm,
   },
   actionBtn: {
-    marginTop: spacing.sm,
+    marginTop: Gap.sm,
   },
   skipBtn: {
-    marginTop: spacing.sm,
+    marginTop: Gap.xs,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: spacing.xl,
+    marginTop: Gap.xxl,
   },
   footerText: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: FontSize.body,
   },
   footerLink: {
     color: colors.primary,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
   },
 });

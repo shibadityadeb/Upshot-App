@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +13,9 @@ import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
-import { colors, typography, spacing } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, spacing } from '../../src/constants/theme';
+
+const LOGO = require('../../assets/logo.png') as number;
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -41,12 +44,10 @@ export default function LoginScreen() {
     <View style={styles.screen}>
       <SafeAreaView style={styles.header}>
         <View style={styles.logoContainer}>
-          <View style={styles.logoRow}>
-            <Text style={styles.logoUp}>UP</Text>
-            <Text style={styles.logoShot}>SHOT</Text>
+          <View style={styles.logoBadge}>
+            <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
           </View>
-          <Text style={styles.logoBrand}>BRAND MEDIA</Text>
-          <Text style={styles.logoTagline}>Your daily dose of insights & stories</Text>
+          <Text style={styles.logoTagline}>India's leading Media & Community Network</Text>
         </View>
       </SafeAreaView>
 
@@ -103,7 +104,7 @@ export default function LoginScreen() {
             title="Sign In"
             onPress={handleSignIn}
             loading={isLoading}
-            disabled={!email.trim() || !password}
+            disabled={isLoading || !email.trim() || !password}
             style={styles.signInBtn}
           />
 
@@ -136,30 +137,21 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
   },
-  logoRow: {
-    flexDirection: 'row',
+  logoBadge: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  logoUp: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  logoShot: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: colors.accent,
-  },
-  logoBrand: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 4,
-    marginTop: 4,
+  logoImage: {
+    width: 150,
+    height: 40,
   },
   logoTagline: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 8,
+    fontSize: FontSize.small,
+    color: 'rgba(255,255,255,0.65)',
+    marginTop: 14,
+    textAlign: 'center',
   },
   formSheet: {
     flex: 1,
@@ -172,15 +164,15 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
   },
   formTitle: {
-    fontSize: typography.heading2,
-    fontWeight: '700',
+    fontSize: FontSize.h1,
+    fontWeight: Font.bold,
     color: colors.text,
     marginBottom: 4,
   },
   formSubtitle: {
-    fontSize: typography.body,
+    fontSize: FontSize.body,
     color: colors.textSecondary,
-    marginBottom: spacing.lg,
+    marginBottom: Gap.lg,
   },
   errorBox: {
     backgroundColor: colors.error + '18',
