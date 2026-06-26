@@ -1,7 +1,22 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/auth.store';
-import { colors } from '../../src/constants/theme';
+
+const TAB_BAR_STYLE = {
+  backgroundColor: '#FFFFFF',
+  borderTopWidth: 0.5,
+  borderTopColor: '#E4E4E7',
+  height: 60,
+  paddingBottom: 8,
+  paddingTop: 6,
+};
+
+const LABEL_STYLE = {
+  fontSize: 10,
+  fontWeight: '600' as const,
+  letterSpacing: 0.2,
+  marginTop: 2,
+};
 
 export default function AdminLayout() {
   const user = useAuthStore((s) => s.user);
@@ -12,33 +27,46 @@ export default function AdminLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-        },
+        tabBarActiveTintColor: '#1B2CC1',
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarStyle: TAB_BAR_STYLE,
+        tabBarLabelStyle: LABEL_STYLE,
       }}
     >
       <Tabs.Screen
         name="dashboard"
-        options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📊</Text> }}
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => <Ionicons name="grid-outline" size={size} color={color} />,
+        }}
       />
       <Tabs.Screen
         name="events"
-        options={{ title: 'Events', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📅</Text> }}
+        options={{
+          title: 'Events',
+          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
+        }}
       />
       <Tabs.Screen
         name="people"
-        options={{ title: 'People', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👥</Text> }}
+        options={{
+          title: 'People',
+          tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={size} color={color} />,
+        }}
       />
       <Tabs.Screen
         name="tasks"
-        options={{ title: 'Tasks', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>✅</Text> }}
+        options={{
+          title: 'Tasks',
+          tabBarIcon: ({ color, size }) => <Ionicons name="checkbox-outline" size={size} color={color} />,
+        }}
       />
       <Tabs.Screen
         name="settings"
-        options={{ title: 'Settings', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>⚙️</Text> }}
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" size={size} color={color} />,
+        }}
       />
     </Tabs>
   );

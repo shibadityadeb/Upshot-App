@@ -35,6 +35,9 @@ export interface Company {
   description: string | null;
   contact_person_id: string;
   is_verified: boolean;
+  can_discover_workforce: boolean;
+  previous_work_description: string | null;
+  logo_placeholder_color: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +63,9 @@ export interface Event {
   approved_by: string | null;
   approved_at: string | null;
   rejection_reason: string | null;
+  project_type: string | null;
+  budget_range: string | null;
+  vertical_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -134,6 +140,8 @@ export interface Student {
   college: string | null;
   course: string | null;
   year_of_study: number | null;
+  profession: string | null;
+  organisation_name: string | null;
   ambassador_code: string | null;
   referred_by: string | null;
   created_at: string;
@@ -187,6 +195,8 @@ export interface CreateEventPayload {
   max_attendees?: number;
   requirements?: string;
   coin_reward: number;
+  project_type?: string;
+  budget_range?: string;
 }
 
 export interface UpdateEventStatusPayload {
@@ -215,5 +225,56 @@ export interface RegisterStudentPayload {
   college?: string;
   course?: string;
   year_of_study?: number;
+  profession?: string;
+  organisation_name?: string;
   ambassador_code?: string;
+}
+
+// ─── Phase 3: Verticals, Content, Workforce ──────────────
+
+export interface Vertical {
+  id: string;
+  name: string;
+  slug: string;
+  tagline?: string;
+  description?: string;
+  color: string;
+  cover_url?: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ContentPost {
+  id: string;
+  vertical_id: string;
+  vertical?: Vertical;
+  title: string;
+  subtitle?: string;
+  body?: string;
+  cover_url?: string;
+  speaker_name?: string;
+  speaker_role?: string;
+  speaker_avatar_url?: string;
+  content_type: 'episode' | 'article' | 'event_recap' | 'thought_leadership' | 'announcement';
+  is_featured: boolean;
+  published_at?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+export interface WorkforceProfile {
+  id: string;
+  user_id: string;
+  user?: User;
+  city?: string;
+  state?: string;
+  bio?: string;
+  skills: string[];
+  experience_years: number;
+  past_work_description?: string;
+  portfolio_url?: string;
+  is_available: boolean;
+  created_at: string;
+  updated_at: string;
 }
