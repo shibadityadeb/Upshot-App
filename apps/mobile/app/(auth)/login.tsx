@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { useRouter, Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
@@ -26,8 +26,14 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSignIn = async () => {
-    const success = await signIn(email.trim(), password);
-    if (success) router.replace('/');
+    try {
+      // Navigation is handled automatically by (auth)/_layout.tsx Redirect
+      // when user state updates — no router.replace needed here
+      await signIn(email.trim(), password);
+    } catch (e) {
+      // Unexpected throw — surface a visible message
+      console.warn('[Login] signIn threw:', e);
+    }
   };
 
   const handleChangeEmail = (text: string) => {
@@ -94,11 +100,12 @@ export default function LoginScreen() {
             }
           />
 
-          <Link href="/(auth)/forgot-password" asChild>
-            <TouchableOpacity style={styles.forgotLink}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity
+            style={styles.forgotLink}
+            onPress={() => router.push('/(auth)/forgot-password')}
+          >
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </TouchableOpacity>
 
           <Button
             title="Sign In"
@@ -110,11 +117,9 @@ export default function LoginScreen() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>New to Upshot? </Text>
-            <Link href="/(auth)/register" asChild>
-              <TouchableOpacity>
-                <Text style={styles.footerLink}>Create account</Text>
-              </TouchableOpacity>
-            </Link>
+            <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+              <Text style={styles.footerLink}>Create account</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
