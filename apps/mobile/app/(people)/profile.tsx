@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
+import type { WorkforceProfile } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import {
   AvatarCircle,
@@ -26,11 +27,6 @@ import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
 
-interface WorkforceProfile {
-  bio?: string;
-  skills?: string;
-  full_name?: string;
-}
 
 export default function PeopleProfile() {
   const router = useRouter();
@@ -55,9 +51,9 @@ export default function PeopleProfile() {
         api.workforce.getMyProfile(user.id),
       ]);
       if (balRes.data) setBalance(balRes.data.current_balance ?? 0);
-      if (wfRes.data) {
-        setWorkforceProfile(wfRes.data as WorkforceProfile);
-        setEditBio((wfRes.data as WorkforceProfile).bio ?? '');
+      if (wfRes) {
+        setWorkforceProfile(wfRes);
+        setEditBio(wfRes.bio ?? '');
       }
     } catch (e) {
       console.warn(e);
@@ -88,7 +84,7 @@ export default function PeopleProfile() {
     }
     setSaving(true);
     try {
-      const [authRes, wfRes] = await Promise.all([
+      const [authRes] = await Promise.all([
         api.auth.updateProfile(user.id, { full_name: editName.trim() }),
         api.workforce.upsertProfile(user.id, {
           bio: editBio.trim() || undefined,
@@ -97,8 +93,6 @@ export default function PeopleProfile() {
       ]);
       if (authRes.error) {
         Alert.alert('Error', authRes.error.message);
-      } else if (wfRes.error) {
-        Alert.alert('Error', wfRes.error.message);
       } else {
         Alert.alert('Saved', 'Profile updated successfully.');
         setIsEditing(false);
