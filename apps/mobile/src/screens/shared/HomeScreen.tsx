@@ -26,12 +26,18 @@ import {
   SectionHeader,
   ContentCard,
   OpportunityCard,
-  EmptyState,
   LoadingScreen,
 } from '../../components/common';
 import { useAuthStore } from '../../store/auth.store';
 
 const api = createApiClient();
+
+// ─── Design tokens (single source of truth for this screen) ─────────────────
+const PAGE_H = Gap.base;       // 16 — horizontal padding for all sections
+const SECTION_V = Gap.xl;      // 24 — top/bottom padding for every section
+const CARD_RADIUS = 14;        // border radius applied to every card
+const CARD_PAD = Gap.base;     // 16 — internal padding for every card
+const DIVIDER = '#E4E4E7';     // shared divider color
 
 const FALLBACK_VERTICALS: Vertical[] = [
   {
@@ -155,9 +161,9 @@ export default function HomeScreen() {
       contentContainerStyle={styles.contentContainer}
     >
       <StatusBar barStyle="light-content" />
-      {/* ─── Section 1: Hero ─────────────────────────────────── */}
+
+      {/* ─── Hero ────────────────────────────────────────────── */}
       <View style={styles.hero}>
-        {/* Top row */}
         <View style={styles.heroTopRow}>
           <View style={styles.heroLogoBadge}>
             <Image source={LOGO} style={styles.heroLogo} resizeMode="contain" />
@@ -167,7 +173,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Headline block */}
         <View style={styles.heroHeadlineBlock}>
           <Text style={styles.heroHeadlineLine}>Conversations.</Text>
           <Text style={styles.heroHeadlineLine}>Communities.</Text>
@@ -176,12 +181,10 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Subtitle */}
         <Text style={styles.heroSubtitle}>
           India's leading Media & Community Network
         </Text>
 
-        {/* Tag row */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -196,20 +199,25 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* ─── Section 2: Verticals Grid ──────────────────────── */}
-      <View style={styles.verticalsSection}>
-        <Text style={styles.verticalsSectionTitle}>Our Verticals</Text>
+      {/* ─── Our Verticals ───────────────────────────────────── */}
+      <View style={styles.section}>
+        <SectionHeader
+          title="Our Verticals"
+          action
+          actionLabel="See all"
+          onAction={() => router.push('/(shared)/verticals' as any)}
+        />
         <View style={styles.verticalsGrid}>
           {verticals.map((vertical) => (
             <TouchableOpacity
               key={vertical.id}
-              style={[styles.verticalGridCard, { backgroundColor: vertical.color }]}
+              style={[styles.verticalCard, { backgroundColor: vertical.color }]}
               onPress={() => router.push(`/(shared)/vertical/${vertical.slug}` as any)}
               activeOpacity={0.82}
             >
-              <View style={styles.verticalGridCircle} />
-              <Text style={styles.verticalGridName}>{vertical.name}</Text>
-              <Text style={styles.verticalGridTagline}>
+              <View style={styles.verticalCardCircle} />
+              <Text style={styles.verticalCardName}>{vertical.name}</Text>
+              <Text style={styles.verticalCardTagline}>
                 {vertical.tagline ?? ''}
               </Text>
             </TouchableOpacity>
@@ -217,8 +225,10 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* ─── Section 3: From Unfiltered ─────────────────────── */}
-      <View style={styles.unfilteredSection}>
+      <View style={styles.divider} />
+
+      {/* ─── From Unfiltered ─────────────────────────────────── */}
+      <View style={styles.section}>
         <SectionHeader
           title="From Unfiltered"
           subtitle="Leadership conversations"
@@ -231,7 +241,7 @@ export default function HomeScreen() {
         {featuredPosts.length === 0 ? (
           <View style={styles.unfilteredTeaser}>
             <View style={styles.unfilteredTeaserRow}>
-              <Ionicons name="mic-outline" size={20} color="#5B21B6" />
+              <Ionicons name="mic-outline" size={18} color="#5B21B6" />
               <Text style={styles.unfilteredTeaserLabel}>Launching soon</Text>
             </View>
             <Text style={styles.unfilteredTeaserBody}>
@@ -257,8 +267,10 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* ─── Section 4: Open Opportunities ──────────────────── */}
-      <View style={styles.opportunitiesSection}>
+      <View style={styles.divider} />
+
+      {/* ─── Open Opportunities ──────────────────────────────── */}
+      <View style={styles.section}>
         <SectionHeader
           title="Open opportunities"
           action
@@ -267,15 +279,19 @@ export default function HomeScreen() {
         />
 
         {recentEvents.length === 0 ? (
-          <EmptyState
-            iconName="briefcase-outline"
-            title="No live projects right now"
-            subtitle={'New opportunities are posted weekly.\nCheck back soon.'}
-          />
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="briefcase-outline" size={24} color={colors.textSecondary} />
+            </View>
+            <Text style={styles.emptyTitle}>No live projects right now</Text>
+            <Text style={styles.emptySubtitle}>
+              New opportunities are posted weekly. Check back soon.
+            </Text>
+          </View>
         ) : (
           <>
             {recentEvents.slice(0, 3).map((event) => (
-              <View key={event.id} style={styles.opportunityCardWrapper}>
+              <View key={event.id} style={styles.cardGap}>
                 <OpportunityCard
                   event={event}
                   onPress={() => void 0}
@@ -286,58 +302,73 @@ export default function HomeScreen() {
               </View>
             ))}
             <TouchableOpacity
+              style={styles.seeAllRow}
               onPress={() => router.push('/(people)/opportunities' as any)}
               activeOpacity={0.7}
             >
-              <Text style={styles.seeAllLink}>See all opportunities →</Text>
+              <Text style={styles.seeAllText}>See all opportunities</Text>
+              <Ionicons name="arrow-forward" size={14} color={colors.primary} />
             </TouchableOpacity>
           </>
         )}
       </View>
 
-      {/* ─── Section 5: Campus Cartel Banner ────────────────── */}
-      <View style={styles.campusCartelBanner}>
-        <Text style={styles.campusCartelLabel}>CAMPUS CARTEL</Text>
-        <Text style={styles.campusCartelHeadline}>
-          Join India's fastest growing student network
-        </Text>
-        <Text style={styles.campusCartelStats}>
-          150+ colleges · 2000+ students
-        </Text>
-        <TouchableOpacity
-          style={styles.campusCartelBtn}
-          onPress={() => router.push('/(auth)/register')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.campusCartelBtnText}>Join the network →</Text>
-        </TouchableOpacity>
+      {/* ─── Campus Cartel Banner ────────────────────────────── */}
+      <View style={styles.bannerWrapper}>
+        <View style={styles.campusCartelBanner}>
+          <Text style={styles.campusCartelEyebrow}>CAMPUS CARTEL</Text>
+          <Text style={styles.campusCartelHeadline}>
+            Join India's fastest growing student network
+          </Text>
+          <Text style={styles.campusCartelStats}>
+            150+ colleges · 2,000+ students
+          </Text>
+          <TouchableOpacity
+            style={styles.campusCartelBtn}
+            onPress={() => router.push('/(auth)/register')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.campusCartelBtnText}>Join the network</Text>
+            <Ionicons name="arrow-forward" size={13} color="#7BC55A" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* ─── Section 6: iRISE + iBelieve Row ────────────────── */}
+      {/* ─── iRISE + iBelieve ────────────────────────────────── */}
       <View style={styles.dualRow}>
-        <TouchableOpacity
-          style={[styles.dualCard, { backgroundColor: verticalColors.irise, borderWidth: 1, borderColor: 'rgba(180,83,9,0.35)' }]}
-          onPress={() => router.push('/(shared)/vertical/irise')}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.dualCardName, { color: '#F59E0B' }]}>iRISE</Text>
-          <Text style={styles.dualCardTagline}>
-            {FALLBACK_VERTICALS[2].tagline}
-          </Text>
-          <Text style={[styles.dualCardExplore, { color: 'rgba(245,158,11,0.8)' }]}>Explore →</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.dualCard, { backgroundColor: verticalColors.ibelieve, borderWidth: 1, borderColor: 'rgba(185,28,28,0.35)' }]}
-          onPress={() => router.push('/(shared)/vertical/ibelieve')}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.dualCardName, { color: '#F87171' }]}>iBelieve</Text>
-          <Text style={styles.dualCardTagline}>
-            {FALLBACK_VERTICALS[3].tagline}
-          </Text>
-          <Text style={[styles.dualCardExplore, { color: 'rgba(248,113,113,0.8)' }]}>Explore →</Text>
-        </TouchableOpacity>
+        {([
+          {
+            slug: 'irise',
+            name: 'iRISE',
+            tagline: FALLBACK_VERTICALS[2].tagline ?? '',
+            bg: verticalColors.irise,
+            borderColor: 'rgba(180,83,9,0.35)',
+            nameColor: '#F59E0B',
+            exploreColor: 'rgba(245,158,11,0.8)',
+          },
+          {
+            slug: 'ibelieve',
+            name: 'iBelieve',
+            tagline: FALLBACK_VERTICALS[3].tagline ?? '',
+            bg: verticalColors.ibelieve,
+            borderColor: 'rgba(185,28,28,0.35)',
+            nameColor: '#F87171',
+            exploreColor: 'rgba(248,113,113,0.8)',
+          },
+        ] as const).map((item) => (
+          <TouchableOpacity
+            key={item.slug}
+            style={[styles.dualCard, { backgroundColor: item.bg, borderColor: item.borderColor }]}
+            onPress={() => router.push(`/(shared)/vertical/${item.slug}` as any)}
+            activeOpacity={0.85}
+          >
+            <View>
+              <Text style={[styles.dualCardName, { color: item.nameColor }]}>{item.name}</Text>
+              <Text style={styles.dualCardTagline}>{item.tagline}</Text>
+            </View>
+            <Text style={[styles.dualCardExplore, { color: item.exploreColor }]}>Explore →</Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </ScrollView>
   );
@@ -349,17 +380,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F5',
   },
   contentContainer: {
-    paddingBottom: 100,
+    paddingBottom: SECTION_V,  // 24px — enough clearance above the tab bar
+  },
+
+  // ── Shared layout primitives ───────────────────────────────
+  /** Every content section uses this — consistent H-pad + V-pad */
+  section: {
+    paddingHorizontal: PAGE_H,
+    paddingVertical: SECTION_V,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: DIVIDER,
+    marginHorizontal: PAGE_H,
+  },
+  cardGap: {
+    marginBottom: Gap.sm,
   },
 
   // ── Hero ──────────────────────────────────────────────────
   hero: {
-    paddingBottom: 24,
+    paddingBottom: SECTION_V,
     backgroundColor: DarkBg,
   },
   heroTopRow: {
     paddingTop: 52,
-    paddingHorizontal: 20,
+    paddingHorizontal: PAGE_H,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -381,16 +427,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   timePillText: {
-    fontSize: 10,
+    fontSize: FontSize.xs,
     color: 'rgba(255,255,255,0.6)',
   },
   heroHeadlineBlock: {
-    paddingHorizontal: 20,
-    marginTop: 20,
+    paddingHorizontal: PAGE_H,
+    marginTop: Gap.lg,
   },
   heroHeadlineLine: {
     fontSize: 34,
-    fontWeight: '900',
+    fontWeight: Font.black,
     letterSpacing: -0.5,
     lineHeight: 40,
     color: '#FFFFFF',
@@ -399,17 +445,18 @@ const styles = StyleSheet.create({
     color: '#7BC55A',
   },
   heroSubtitle: {
-    paddingHorizontal: 20,
-    marginTop: 10,
+    paddingHorizontal: PAGE_H,
+    marginTop: Gap.sm,
     fontSize: FontSize.body,
     color: 'rgba(255,255,255,0.55)',
     fontWeight: Font.regular,
+    lineHeight: 20,
   },
   heroTagsScroll: {
-    marginTop: 16,
+    marginTop: Gap.base,
   },
   heroTagsContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PAGE_H,
     flexDirection: 'row',
   },
   heroTag: {
@@ -418,40 +465,28 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    marginRight: 8,
+    marginRight: Gap.sm,
   },
   heroTagText: {
     fontSize: FontSize.xs,
     color: 'rgba(255,255,255,0.6)',
   },
 
-  // ── Verticals Grid ────────────────────────────────────────
-  verticalsSection: {
-    backgroundColor: '#F0F0F5',
-    paddingTop: Gap.xl,
-    paddingHorizontal: Gap.base,
-    paddingBottom: Gap.xl,
-  },
-  verticalsSectionTitle: {
-    fontSize: FontSize.h2,
-    fontWeight: Font.bold,
-    color: colors.text,
-    marginBottom: Gap.md,
-  },
+  // ── Verticals grid ────────────────────────────────────────
   verticalsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: Gap.sm,
   },
-  verticalGridCard: {
-    width: '48%',
-    minHeight: 90,
-    borderRadius: 14,
-    padding: 14,
+  verticalCard: {
+    width: '48.5%',
+    minHeight: 96,
+    borderRadius: CARD_RADIUS,
+    padding: CARD_PAD,
     overflow: 'hidden',
     justifyContent: 'flex-start',
   },
-  verticalGridCircle: {
+  verticalCardCircle: {
     position: 'absolute',
     bottom: -16,
     right: -16,
@@ -460,36 +495,32 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  verticalGridName: {
-    fontSize: 14,
+  verticalCardName: {
+    fontSize: FontSize.h3,
     fontWeight: Font.bold,
     color: '#FFFFFF',
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  verticalGridTagline: {
-    fontSize: 10,
+  verticalCardTagline: {
+    fontSize: FontSize.xs,
     color: 'rgba(255,255,255,0.72)',
     marginTop: 3,
-    lineHeight: 14,
+    lineHeight: 15,
   },
 
   // ── From Unfiltered ───────────────────────────────────────
-  unfilteredSection: {
-    backgroundColor: '#FFFFFF',
-    paddingTop: Gap.xl,
-    paddingHorizontal: Gap.base,
-  },
   unfilteredTeaser: {
     backgroundColor: '#F5F0FF',
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: CARD_RADIUS,
+    padding: CARD_PAD,
     borderLeftWidth: 3,
     borderLeftColor: '#5B21B6',
   },
   unfilteredTeaserRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Gap.sm,
+    marginBottom: Gap.sm,
   },
   unfilteredTeaserLabel: {
     fontSize: FontSize.small,
@@ -499,103 +530,133 @@ const styles = StyleSheet.create({
   unfilteredTeaserBody: {
     fontSize: FontSize.body,
     color: colors.textSecondary,
-    lineHeight: 20,
-    marginTop: 8,
+    lineHeight: 21,
   },
   featuredContent: {
-    paddingVertical: 4,
-    gap: 12,
+    gap: Gap.sm,
+    paddingVertical: 2,
   },
 
   // ── Open Opportunities ────────────────────────────────────
-  opportunitiesSection: {
-    backgroundColor: '#F0F0F5',
-    paddingTop: Gap.xl,
-    paddingHorizontal: Gap.base,
+  emptyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.lg,
+    alignItems: 'flex-start',
   },
-  opportunityCardWrapper: {
-    marginBottom: 10,
+  emptyIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.sm,
   },
-  seeAllLink: {
+  emptyTitle: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.semibold,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    fontSize: FontSize.body,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    maxWidth: 240,
+  },
+  seeAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Gap.xs,
+    paddingVertical: Gap.sm,
+    marginTop: Gap.xs,
+  },
+  seeAllText: {
     fontSize: FontSize.body,
     color: colors.primary,
     fontWeight: Font.semibold,
-    textAlign: 'center',
-    padding: Gap.base,
   },
 
   // ── Campus Cartel Banner ──────────────────────────────────
+  bannerWrapper: {
+    paddingHorizontal: PAGE_H,
+    paddingVertical: SECTION_V,
+  },
   campusCartelBanner: {
     backgroundColor: '#0C1F15',
-    borderRadius: 0,
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    borderRadius: CARD_RADIUS,
+    padding: Gap.lg,
   },
-  campusCartelLabel: {
-    fontSize: 10,
+  campusCartelEyebrow: {
+    fontSize: FontSize.xs,
     fontWeight: Font.bold,
     color: 'rgba(123,197,90,0.8)',
-    letterSpacing: 3,
+    letterSpacing: 2.5,
+    marginBottom: Gap.sm,
   },
   campusCartelHeadline: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
     color: '#FFFFFF',
     lineHeight: 26,
-    marginTop: 6,
+    marginBottom: Gap.xs,
   },
   campusCartelStats: {
     fontSize: FontSize.small,
     color: 'rgba(255,255,255,0.5)',
-    marginTop: 8,
+    marginBottom: Gap.base,
   },
   campusCartelBtn: {
-    height: 38,
-    backgroundColor: 'rgba(123,197,90,0.15)',
-    borderRadius: 19,
-    borderWidth: 1,
-    borderColor: 'rgba(123,197,90,0.4)',
-    paddingHorizontal: 20,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: Gap.xs,
+    height: 36,
+    backgroundColor: 'rgba(123,197,90,0.12)',
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: 'rgba(123,197,90,0.35)',
+    paddingHorizontal: Gap.base,
     alignSelf: 'flex-start',
-    marginTop: 16,
   },
   campusCartelBtnText: {
     fontSize: FontSize.small,
-    fontWeight: Font.bold,
+    fontWeight: Font.semibold,
     color: '#7BC55A',
   },
 
-  // ── iRISE + iBelieve Dual Row ─────────────────────────────
+  // ── iRISE + iBelieve ──────────────────────────────────────
   dualRow: {
-    padding: Gap.base,
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 0,
+    gap: Gap.sm,
+    paddingHorizontal: PAGE_H,
+    paddingBottom: SECTION_V,
   },
   dualCard: {
     flex: 1,
-    height: 110,
-    borderRadius: 14,
-    padding: 16,
+    height: 120,
+    borderRadius: CARD_RADIUS,
+    padding: CARD_PAD,
+    borderWidth: 1,
     overflow: 'hidden',
+    justifyContent: 'space-between',
   },
   dualCardName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
+    lineHeight: 24,
   },
   dualCardTagline: {
-    fontSize: FontSize.small,
+    fontSize: FontSize.xs,
     color: 'rgba(255,255,255,0.7)',
-    marginTop: 4,
+    marginTop: 3,
+    lineHeight: 15,
   },
   dualCardExplore: {
     fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: '#FFFFFF',
-    marginTop: 16,
+    fontWeight: Font.semibold,
   },
 });

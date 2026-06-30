@@ -62,10 +62,11 @@ export function Button({
   style,
 }: ButtonProps) {
   const isOutline = variant === 'outline';
+  const isInactive = disabled || loading;
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={isInactive}
       activeOpacity={0.75}
       style={[
         btnStyles.base,
@@ -73,7 +74,7 @@ export function Button({
           backgroundColor: buttonBg[variant],
           height: buttonHeight[size],
           borderRadius: 10,
-          opacity: disabled ? 0.5 : 1,
+          opacity: isInactive ? 0.5 : 1,
         },
         isOutline && { borderWidth: 1.5, borderColor: colors.primary },
         style,

@@ -79,9 +79,11 @@ export default function RegisterScreen() {
       organisation_name: orgName.trim() || undefined,
       ambassador_code: ambassadorCode.trim() || undefined,
     };
-    const success = await registerStudent(payload);
-    if (success) {
-      router.replace('/');
+    try {
+      // Navigation is handled by (auth)/_layout.tsx Redirect when user state updates
+      await registerStudent(payload);
+    } catch (e) {
+      console.warn('[Register] registerStudent threw:', e);
     }
   };
 
