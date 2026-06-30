@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
+  ActivityIndicator,
   FlatList,
-  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -11,20 +10,32 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
-import type { Ambassador, User } from '@upshot/types';
-import { colors, spacing, radius, shadow } from '../../src/constants/theme';
+import type { Ambassador } from '@upshot/types';
+import { colors, DarkBg, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import {
   AvatarCircle,
   Badge,
+  Divider,
   EmptyState,
-  LoadingScreen,
+  FilterPills,
   RoleTag,
 } from '../../src/components/common';
+import { AmbassadorCodesPanel } from '../../src/screens/admin/AmbassadorCodesPanel';
+import { useAuthStore } from '../../src/store/auth.store';
+import { useDebounce } from '../../src/hooks/useDebounce';
 
 const api = createApiClient();
 
-type ActiveTab = 'workforce' | 'ambassadors';
+type ActiveTab = 'all' | 'ambassadors' | 'codes';
+
+const TABS: { key: ActiveTab; label: string }[] = [
+  { key: 'all', label: 'People' },
+  { key: 'ambassadors', label: 'Ambassadors' },
+  { key: 'codes', label: 'Codes' },
+];
 
 const TIER_COLORS: Record<string, string> = {
   bronze: '#CD7F32',
@@ -33,222 +44,216 @@ const TIER_COLORS: Record<string, string> = {
   platinum: '#8B5CF6',
 };
 
+interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+}
+
 export default function AdminPeople() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('workforce');
-  const [workforce, setWorkforce] = useState<User[]>([]);
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('all');
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [ambassadors, setAmbassadors] = useState<Ambassador[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadWorkforce = useCallback(async () => {
-    const { data } = await api.supabase
-      .from('profiles')
-      .select('*')
-      .in('role', ['people', 'student', 'ambassador'])
-      .order('created_at', { ascending: false });
-    if (data) setWorkforce(data as User[]);
+  const debouncedSearch = useDebounce(search);
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const { data } = await (api as any).supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .in('role', ['people', 'student', 'ambassador', 'admin'])
+        .order('created_at', { ascending: false });
+      if (data) setProfiles(data as Profile[]);
+    } catch (e) {
+      console.warn(e);
+    }
   }, []);
 
   const loadAmbassadors = useCallback(async () => {
-    const result = await api.ambassadors.getAllAmbassadors();
-    if (result.data) setAmbassadors(result.data);
+    try {
+      const result = await api.ambassadors.getAllAmbassadors();
+      if (result.data) setAmbassadors(result.data);
+    } catch (e) {
+      console.warn(e);
+    }
   }, []);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([loadWorkforce(), loadAmbassadors()]);
-  }, [loadWorkforce, loadAmbassadors]);
+    await Promise.all([loadProfiles(), loadAmbassadors()]);
+    setLoading(false);
+    setRefreshing(false);
+  }, [loadProfiles, loadAmbassadors]);
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await loadAll();
-      setLoading(false);
-    })();
+    setLoading(true);
+    loadAll();
   }, [loadAll]);
 
-  const onRefresh = useCallback(async () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    await loadAll();
-    setRefreshing(false);
+    loadAll();
   }, [loadAll]);
 
-  const handleIssueCode = useCallback(() => {
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Issue Ambassador Code',
-        'Enter user email',
-        async (email) => {
-          if (!email) return;
-          const { data: profile } = await api.supabase
-            .from('profiles')
-            .select('*')
-            .eq('email', email)
-            .single();
-          if (!profile) {
-            Alert.alert('Not found', 'No user with that email');
-            return;
-          }
-          const result = await api.ambassadors.createAmbassador(profile.id, profile.full_name);
-          if (result.error) {
-            Alert.alert('Error', result.error.message);
-          } else {
-            Alert.alert('Success', 'Ambassador created!');
-            await loadAmbassadors();
-          }
-        },
-        'plain-text',
-      );
-    } else {
-      Alert.alert(
-        'Issue Ambassador Code',
-        'This feature requires iOS prompt. Please use the web admin panel to issue ambassador codes.',
-      );
-    }
-  }, [loadAmbassadors]);
-
-  const filteredWorkforce = workforce.filter((u) => {
-    const q = search.toLowerCase();
+  const filteredProfiles = profiles.filter((p) => {
+    const q = debouncedSearch.toLowerCase();
     if (!q) return true;
     return (
-      (u.full_name ?? '').toLowerCase().includes(q) ||
-      (u.email ?? '').toLowerCase().includes(q)
+      (p.full_name ?? '').toLowerCase().includes(q) ||
+      (p.email ?? '').toLowerCase().includes(q)
     );
   });
 
   const filteredAmbassadors = ambassadors.filter((a) => {
-    const q = search.toLowerCase();
+    const q = debouncedSearch.toLowerCase();
     if (!q) return true;
-    const name = (a as any).user?.full_name ?? '';
+    const name = (a as any).user?.full_name ?? (a as any).profile?.full_name ?? '';
     return (
       name.toLowerCase().includes(q) ||
       (a.referral_code ?? '').toLowerCase().includes(q)
     );
   });
 
-  const renderWorkforceItem = ({ item }: { item: User }) => (
+  const renderProfile = ({ item }: { item: Profile }) => (
     <TouchableOpacity
       style={styles.personRow}
       activeOpacity={0.75}
-      onPress={() =>
-        Alert.alert(item.full_name ?? 'User', `Email: ${item.email}\nRole: ${item.role}`)
-      }
+      onPress={() => router.push(`/(admin)/person-detail/${item.id}` as any)}
     >
-      <AvatarCircle name={item.full_name ?? '?'} size={40} />
+      <AvatarCircle name={item.full_name ?? '?'} size={42} />
       <View style={styles.personInfo}>
-        <View style={styles.personNameRow}>
-          <Text style={styles.personName}>{item.full_name ?? 'Unknown'}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.personName} numberOfLines={1}>{item.full_name ?? 'Unknown'}</Text>
           <RoleTag role={item.role} />
         </View>
-        <Text style={styles.personEmail} numberOfLines={1}>
-          {item.email}
-        </Text>
+        <Text style={styles.personEmail} numberOfLines={1}>{item.email}</Text>
       </View>
     </TouchableOpacity>
   );
 
-  const renderAmbassadorItem = ({ item }: { item: Ambassador }) => {
-    const ambUser = (item as any).user;
+  const renderAmbassador = ({ item }: { item: Ambassador }) => {
+    const ambUser = (item as any).user ?? (item as any).profile;
     const name = ambUser?.full_name ?? 'Unknown';
     const tierColor = TIER_COLORS[item.tier] ?? colors.textSecondary;
 
     return (
-      <View style={styles.personRow}>
-        <AvatarCircle name={name} size={40} />
+      <TouchableOpacity
+        style={styles.personRow}
+        activeOpacity={0.75}
+        onPress={() => {
+          const userId = item.user_id ?? (item as any).user?.id ?? item.id;
+          router.push(`/(admin)/person-detail/${userId}` as any);
+        }}
+      >
+        <AvatarCircle name={name} size={42} />
         <View style={styles.personInfo}>
-          <View style={styles.personNameRow}>
-            <Text style={styles.personName}>{name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.personName} numberOfLines={1}>{name}</Text>
             <Badge
               label={item.tier.charAt(0).toUpperCase() + item.tier.slice(1)}
               color={tierColor}
             />
           </View>
-          <Text style={[styles.personEmail, { fontFamily: 'monospace' }]}>{item.referral_code}</Text>
-          <Text style={styles.personSubMeta}>
-            {item.referral_count} referrals · {item.total_coins_earned} coins
+          <Text style={styles.personEmail} numberOfLines={1}>
+            {item.referral_code} · {item.referral_count} referrals
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
-  if (loading) return <LoadingScreen />;
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Tab Toggle */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tabPill, activeTab === 'workforce' && styles.tabPillActive]}
-          onPress={() => { setActiveTab('workforce'); setSearch(''); }}
-          activeOpacity={0.75}
-        >
-          <Text style={[styles.tabPillText, activeTab === 'workforce' && styles.tabPillTextActive]}>
-            Workforce
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabPill, activeTab === 'ambassadors' && styles.tabPillActive]}
-          onPress={() => { setActiveTab('ambassadors'); setSearch(''); }}
-          activeOpacity={0.75}
-        >
-          <Text style={[styles.tabPillText, activeTab === 'ambassadors' && styles.tabPillTextActive]}>
-            Ambassadors
-          </Text>
-        </TouchableOpacity>
-        {activeTab === 'ambassadors' && (
-          <TouchableOpacity style={styles.issueBtn} onPress={handleIssueCode} activeOpacity={0.75}>
-            <Text style={styles.issueBtnText}>Issue Code</Text>
-          </TouchableOpacity>
+      {/* Dark hero header */}
+      <View style={styles.hero}>
+        <View style={styles.heroRow}>
+          <View>
+            <Text style={styles.heroTitle}>People</Text>
+            <Text style={styles.heroSub}>{profiles.length} members</Text>
+          </View>
+        </View>
+
+        {/* Search — hidden on Codes tab */}
+        {activeTab !== 'codes' && (
+          <View style={styles.searchWrap}>
+            <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.5)" />
+            <TextInput
+              placeholder="Search by name or email..."
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              value={search}
+              onChangeText={setSearch}
+              style={styles.searchInput}
+              returnKeyType="search"
+            />
+          </View>
         )}
       </View>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder={activeTab === 'workforce' ? 'Search by name or email...' : 'Search ambassadors...'}
-          placeholderTextColor={colors.textSecondary}
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
-        />
-      </View>
+      {/* Tabs */}
+      <FilterPills
+        options={TABS.map(t => ({ label: t.label, value: t.key }))}
+        activeValue={activeTab}
+        onChange={(v) => { setActiveTab(v as ActiveTab); setSearch(''); }}
+      />
 
-      {/* List */}
-      {activeTab === 'workforce' ? (
+      {/* List / Panel */}
+      {activeTab === 'all' ? (
         <FlatList
-          data={filteredWorkforce}
+          data={filteredProfiles}
           keyExtractor={(item) => item.id}
-          renderItem={renderWorkforceItem}
+          renderItem={renderProfile}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          ListEmptyComponent={
-            <EmptyState title="No people found" subtitle="No users match your search" />
-          }
-        />
-      ) : (
-        <FlatList
-          data={filteredAmbassadors}
-          keyExtractor={(item) => item.id}
-          renderItem={renderAmbassadorItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-          }
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={() => <Divider />}
           ListEmptyComponent={
             <EmptyState
-              title="No ambassadors yet"
-              subtitle="Use 'Issue Code' to create an ambassador"
+              iconName="people-outline"
+              title="No people found"
+              subtitle={debouncedSearch ? 'Try a different search term' : 'No users yet'}
             />
           }
         />
+      ) : activeTab === 'ambassadors' ? (
+        <FlatList
+          data={filteredAmbassadors}
+          keyExtractor={(item) => item.id}
+          renderItem={renderAmbassador}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          ItemSeparatorComponent={() => <Divider />}
+          ListEmptyComponent={
+            <EmptyState
+              iconName="ribbon-outline"
+              title="No ambassadors yet"
+              subtitle="Create ambassadors from person detail"
+            />
+          }
+        />
+      ) : (
+        /* Codes tab — inline AmbassadorCodesPanel */
+        user ? (
+          <AmbassadorCodesPanel adminId={user.id} />
+        ) : null
       )}
     </SafeAreaView>
   );
@@ -259,95 +264,81 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  tabRow: {
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  // Hero
+  hero: {
+    backgroundColor: DarkBg,
+    paddingHorizontal: Gap.base,
+    paddingTop: 32,
+    paddingBottom: 20,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: Font.black,
+    color: '#FFFFFF',
+  },
+  heroSub: {
+    fontSize: FontSize.small,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+  searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    gap: spacing.sm,
-  },
-  tabPill: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.border,
-  },
-  tabPillActive: {
-    backgroundColor: colors.primary,
-  },
-  tabPillText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  tabPillTextActive: {
-    color: colors.surface,
-  },
-  issueBtn: {
-    marginLeft: 'auto',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.accent,
-  },
-  issueBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.surface,
-  },
-  searchContainer: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: radius.lg,
+    paddingHorizontal: 12,
+    gap: 8,
+    height: 42,
   },
   searchInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: colors.text,
-    ...shadow.md,
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: FontSize.body,
+    height: 42,
   },
   listContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: Gap.xl,
     flexGrow: 1,
+    backgroundColor: colors.surface,
   },
   personRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: Gap.md,
+    paddingHorizontal: Gap.base,
     backgroundColor: colors.surface,
-    paddingVertical: spacing.sm + 2,
-    gap: spacing.sm,
+    gap: Gap.md,
   },
   personInfo: {
     flex: 1,
   },
-  personNameRow: {
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: Gap.xs,
     marginBottom: 2,
+    flexWrap: 'wrap',
   },
   personName: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
     color: colors.text,
+    flexShrink: 1,
   },
   personEmail: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.textSecondary,
-  },
-  personSubMeta: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: colors.border,
   },
 });

@@ -71,6 +71,7 @@ export default function PeopleLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen name="apply/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

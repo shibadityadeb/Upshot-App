@@ -41,18 +41,37 @@ export class AuthService {
     try {
       let ambassadorId: string | null = null;
       if (ambassador_code) {
-        const { data: ambassador } = await this.supabase
-          .from('ambassadors')
-          .select('id, referral_count')
-          .eq('referral_code', ambassador_code)
+        const cleanCode = ambassador_code.trim().toUpperCase();
+        // First try the new ambassador_codes table
+        const { data: codeRecord } = await this.supabase
+          .from('ambassador_codes')
+          .select('id, assigned_to, issued_by')
+          .eq('code', cleanCode)
           .eq('is_active', true)
-          .single();
-        if (ambassador) {
-          ambassadorId = ambassador.id;
+          .eq('is_claimed', false)
+          .maybeSingle();
+        if (codeRecord) {
+          // Claim the code
           await this.supabase
+            .from('ambassador_codes')
+            .update({ is_claimed: true, assigned_to: userId, claimed_at: new Date().toISOString() })
+            .eq('id', codeRecord.id);
+          ambassadorId = codeRecord.issued_by ?? null;
+        } else {
+          // Fall back to old ambassadors table for legacy codes
+          const { data: ambassador } = await this.supabase
             .from('ambassadors')
-            .update({ referral_count: ambassador.referral_count + 1 })
-            .eq('id', ambassadorId);
+            .select('id, referral_count')
+            .eq('referral_code', cleanCode)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (ambassador) {
+            ambassadorId = ambassador.id;
+            await this.supabase
+              .from('ambassadors')
+              .update({ referral_count: ambassador.referral_count + 1 })
+              .eq('id', ambassadorId);
+          }
         }
       }
 

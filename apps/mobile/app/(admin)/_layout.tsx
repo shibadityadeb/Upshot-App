@@ -68,6 +68,11 @@ export default function AdminLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" size={size} color={color} />,
         }}
       />
+      {/* Hidden screens — navigable via router.push() but not shown in tab bar */}
+      <Tabs.Screen name="ambassador-codes" options={{ href: null }} />
+      <Tabs.Screen name="create-task" options={{ href: null }} />
+      <Tabs.Screen name="event-detail/[id]" options={{ href: null }} />
+      <Tabs.Screen name="person-detail/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

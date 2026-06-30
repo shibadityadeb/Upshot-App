@@ -325,7 +325,7 @@ export default function HomeScreen() {
           </Text>
           <TouchableOpacity
             style={styles.campusCartelBtn}
-            onPress={() => router.push('/(auth)/register')}
+            onPress={() => router.push('/campus-cartel-apply' as any)}
             activeOpacity={0.8}
           >
             <Text style={styles.campusCartelBtnText}>Join the network</Text>

@@ -278,3 +278,27 @@ export interface WorkforceProfile {
   created_at: string;
   updated_at: string;
 }
+
+export interface AmbassadorCode {
+  id: string;
+  code: string;
+  code_type: 'random' | 'custom';
+  vertical_id?: string;
+  vertical?: Vertical;
+  assigned_to?: string;
+  assigned_user?: User;
+  is_claimed: boolean;
+  is_active: boolean;
+  issued_by: string;
+  issuer?: User;
+  notes?: string;
+  created_at: string;
+  claimed_at?: string;
+}
+
+export interface CreateAmbassadorCodePayload {
+  code_type: 'random' | 'custom';
+  custom_code?: string;
+  vertical_id?: string;
+  notes?: string;
+}
