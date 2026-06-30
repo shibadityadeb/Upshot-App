@@ -19,7 +19,7 @@ export class EventsService {
   ): Promise<ApiResponse<PaginatedResponse<Event>>> {
     let query = this.supabase
       .from('events')
-      .select('*, companies(*)', { count: 'exact' })
+      .select('*, companies(*), vertical:verticals(id, name, slug, color)', { count: 'exact' })
       .eq('status', 'approved')
       .order('event_date', { ascending: true })
       .range((page - 1) * perPage, page * perPage - 1);
@@ -44,7 +44,7 @@ export class EventsService {
   async getEventById(id: string): Promise<ApiResponse<Event>> {
     const { data, error } = await this.supabase
       .from('events')
-      .select('*, companies(*)')
+      .select('*, companies(*), vertical:verticals(id, name, slug, color)')
       .eq('id', id)
       .single();
     if (error || !data) return { data: null, error: { code: 'NOT_FOUND', message: 'Event not found' } };
@@ -64,7 +64,7 @@ export class EventsService {
   async getAllEventsAdmin(status?: string): Promise<ApiResponse<Event[]>> {
     let query = this.supabase
       .from('events')
-      .select('*, companies(*)')
+      .select('*, companies(*), vertical:verticals(id, name, slug, color)')
       .order('created_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
@@ -192,5 +192,13 @@ export class EventsService {
       .single();
     if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
     return { data: data as unknown as EventApplication, error: null };
+  }
+
+  async updateEventVertical(eventId: string, verticalId: string | null): Promise<void> {
+    const { error } = await this.supabase.from('events').update({
+      vertical_id: verticalId,
+      vertical_assigned_at: new Date().toISOString(),
+    }).eq('id', eventId);
+    if (error) throw error;
   }
 }

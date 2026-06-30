@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
-import { colors, Font, FontSize, Gap, DarkBg } from '../../src/constants/theme';
-import { LoadingScreen, StatCard } from '../../src/components/common';
+import { colors, Font, FontSize, Gap, DarkBg, radius, shadow } from '../../src/constants/theme';
+import { LoadingScreen } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
@@ -39,12 +40,25 @@ function getFirstName(fullName: string | null | undefined): string {
   return fullName.trim().split(' ')[0];
 }
 
-const QUICK_ACTIONS = [
-  { label: 'New Task', icon: '✅', route: '/(admin)/tasks' },
-  { label: 'Give Coins', icon: '🪙', route: '/(admin)/tasks' },
-  { label: 'Add Company', icon: '🏢', route: '/(admin)/people' },
-  { label: 'Ambassadors', icon: '🌟', route: '/(admin)/people' },
-] as const;
+interface QuickAction {
+  label: string;
+  iconName: React.ComponentProps<typeof Ionicons>['name'];
+  route: string;
+  description: string;
+}
+
+const QUICK_ACTIONS: QuickAction[] = [
+  { label: 'New Task', iconName: 'checkbox-outline', route: '/(admin)/create-task', description: 'Assign to team' },
+  { label: 'Give Coins', iconName: 'diamond-outline', route: '/(admin)/tasks', description: 'Reward members' },
+  { label: 'Manage Codes', iconName: 'key-outline', route: '/(admin)/ambassador-codes', description: 'Ambassador codes' },
+  { label: 'Ambassadors', iconName: 'star-outline', route: '/(admin)/people', description: 'View all' },
+];
+
+interface StatItem {
+  label: string;
+  value: number | string;
+  route: string;
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -121,6 +135,15 @@ export default function AdminDashboard() {
 
   if (loading) return <LoadingScreen />;
 
+  const STATS: StatItem[] = [
+    { label: 'Pending Approvals', value: stats.pendingApprovals, route: '/(admin)/events' },
+    { label: 'Total Events', value: stats.totalEvents, route: '/(admin)/events' },
+    { label: 'Workforce', value: stats.workforce, route: '/(admin)/people' },
+    { label: 'Ambassadors', value: stats.ambassadors, route: '/(admin)/people' },
+    { label: 'Pending Tasks', value: stats.pendingTasks, route: '/(admin)/tasks' },
+    { label: 'Coins Distributed', value: stats.totalCoins.toLocaleString(), route: '/(admin)/tasks' },
+  ];
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
@@ -131,113 +154,76 @@ export default function AdminDashboard() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.greeting}>{getGreeting()}</Text>
-              <Text style={styles.userName}>{getFirstName(user?.full_name)}</Text>
-            </View>
-            <View style={styles.adminPill}>
-              <Text style={styles.adminPillText}>ADMIN</Text>
-            </View>
-          </View>
+        {/* Dark hero header */}
+        <View style={styles.hero}>
+          <Text style={styles.greeting}>{getGreeting()}</Text>
+          <Text style={styles.userName}>{getFirstName(user?.full_name)}</Text>
+          <Text style={styles.heroSub}>UBM Admin Dashboard</Text>
         </View>
 
-        {/* Stats Grid */}
+        {/* Stats grid */}
         <View style={styles.statsSection}>
-          <View style={styles.statsRow}>
-            <StatCard
-              label="Pending Approvals"
-              value={stats.pendingApprovals}
-              color={colors.warning}
-              onPress={() => router.push('/(admin)/events')}
-            />
-            <StatCard
-              label="Total Events"
-              value={stats.totalEvents}
-              color={colors.primary}
-              onPress={() => router.push('/(admin)/events')}
-            />
-          </View>
-          <View style={styles.statsRow}>
-            <StatCard
-              label="Workforce"
-              value={stats.workforce}
-              color={colors.info}
-              onPress={() => router.push('/(admin)/people')}
-            />
-            <StatCard
-              label="Ambassadors"
-              value={stats.ambassadors}
-              color={colors.success}
-              onPress={() => router.push('/(admin)/people')}
-            />
-          </View>
-          <View style={styles.statsRow}>
-            <StatCard
-              label="Pending Tasks"
-              value={stats.pendingTasks}
-              color={colors.error}
-              onPress={() => router.push('/(admin)/tasks')}
-            />
-            <StatCard
-              label="Coins Distributed"
-              value={stats.totalCoins.toLocaleString()}
-              color={colors.warning}
-              onPress={() => router.push('/(admin)/tasks')}
-            />
+          <Text style={styles.sectionLabel}>Overview</Text>
+          <View style={styles.statsGrid}>
+            {STATS.map((stat) => (
+              <TouchableOpacity
+                key={stat.label}
+                style={styles.statCard}
+                onPress={() => router.push(stat.route as Parameters<typeof router.push>[0])}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.statValue}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
-        {/* Pending Approvals Section */}
+        {/* Pending Approvals */}
         {stats.pendingApprovals > 0 && (
           <View style={styles.pendingSection}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>Needs your review</Text>
-            </View>
+            <Text style={styles.sectionLabel}>Needs Review</Text>
             {pendingEvents.map((event) => (
-              <View key={event.id} style={styles.pendingCard}>
+              <TouchableOpacity
+                key={event.id}
+                style={styles.pendingCard}
+                onPress={() => router.push('/(admin)/events')}
+                activeOpacity={0.75}
+              >
+                <View style={styles.pendingDot} />
                 <View style={styles.pendingInfo}>
-                  <Text style={styles.pendingTitle} numberOfLines={1}>
-                    {event.title}
-                  </Text>
+                  <Text style={styles.pendingTitle} numberOfLines={1}>{event.title}</Text>
                   <Text style={styles.pendingMeta} numberOfLines={1}>
                     {(event as any).company?.name ?? 'Unknown Company'}
                     {' · '}
-                    {new Date(event.event_date).toLocaleDateString()}
+                    {new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => router.push('/(admin)/events')}
-                  activeOpacity={0.75}
-                >
-                  <Text style={styles.reviewText}>Review →</Text>
-                </TouchableOpacity>
-              </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+              </TouchableOpacity>
             ))}
           </View>
         )}
 
         {/* Quick Actions */}
         <View style={styles.quickSection}>
-          <Text style={styles.quickTitle}>Quick Actions</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickActionsRow}
-          >
+          <Text style={styles.sectionLabel}>Quick Actions</Text>
+          <View style={styles.quickGrid}>
             {QUICK_ACTIONS.map((action) => (
               <TouchableOpacity
                 key={action.label}
-                style={styles.quickChip}
+                style={styles.quickCard}
                 onPress={() => router.push(action.route as Parameters<typeof router.push>[0])}
                 activeOpacity={0.75}
               >
-                <Text style={styles.quickChipText}>{action.icon} {action.label}</Text>
+                <View style={styles.quickIconWrap}>
+                  <Ionicons name={action.iconName} size={22} color={colors.primary} />
+                </View>
+                <Text style={styles.quickLabel}>{action.label}</Text>
+                <Text style={styles.quickDesc}>{action.description}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -247,139 +233,158 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: DarkBg,
+    backgroundColor: colors.background,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
 
-  // Header
-  header: {
+  // Hero
+  hero: {
     backgroundColor: DarkBg,
-    paddingTop: 56,
+    paddingTop: 40,
     paddingHorizontal: Gap.base,
-    paddingBottom: Gap.base,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  headerLeft: {
-    flex: 1,
+    paddingBottom: 32,
   },
   greeting: {
     fontSize: FontSize.small,
     color: colors.accent,
     fontWeight: Font.semibold,
+    letterSpacing: 0.3,
   },
   userName: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.bold,
+    fontSize: 32,
+    fontWeight: Font.black,
     color: '#FFFFFF',
-    marginTop: 2,
+    marginTop: 4,
   },
-  adminPill: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  adminPillText: {
-    fontSize: FontSize.xs,
-    color: '#FFFFFF',
-    fontWeight: Font.bold,
-    letterSpacing: 1,
+  heroSub: {
+    fontSize: FontSize.small,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 4,
+    letterSpacing: 0.5,
   },
 
-  // Stats grid
+  // Stats
   statsSection: {
     backgroundColor: colors.background,
     paddingHorizontal: Gap.base,
-    paddingTop: Gap.base,
+    paddingTop: Gap.lg,
     paddingBottom: Gap.sm,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
-  },
-
-  // Pending approvals
-  pendingSection: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: Gap.base,
-    paddingBottom: Gap.base,
-  },
-  sectionTitleRow: {
-    paddingTop: Gap.lg,
-    paddingBottom: Gap.md,
-  },
-  sectionTitle: {
-    fontSize: FontSize.h2,
+  sectionLabel: {
+    fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: colors.text,
+    color: colors.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: Gap.md,
   },
-  pendingCard: {
-    borderRadius: 12,
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  statCard: {
+    width: '47%',
     backgroundColor: colors.surface,
-    padding: 14,
+    borderRadius: radius.lg,
+    padding: Gap.base,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: Gap.sm,
+    ...shadow.sm,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: Font.black,
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  statLabel: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+
+  // Pending
+  pendingSection: {
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.lg,
+    paddingBottom: Gap.sm,
+  },
+  pendingCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: Gap.base,
+    marginBottom: Gap.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: Gap.md,
+    ...shadow.sm,
+  },
+  pendingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.warning,
+    flexShrink: 0,
   },
   pendingInfo: {
     flex: 1,
-    marginRight: Gap.sm,
   },
   pendingTitle: {
-    fontSize: 15,
-    fontWeight: Font.bold,
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
     color: colors.text,
   },
   pendingMeta: {
-    fontSize: FontSize.small,
+    fontSize: FontSize.xs,
     color: colors.textSecondary,
     marginTop: 2,
-  },
-  reviewText: {
-    fontSize: FontSize.small,
-    color: colors.primary,
-    fontWeight: Font.semibold,
   },
 
   // Quick actions
   quickSection: {
-    backgroundColor: colors.background,
-    padding: Gap.base,
-    paddingBottom: 100,
-  },
-  quickTitle: {
-    fontSize: FontSize.h2,
-    fontWeight: Font.bold,
-    color: colors.text,
-    marginBottom: Gap.md,
-  },
-  quickActionsRow: {
-    flexDirection: 'row',
-  },
-  quickChip: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
     paddingHorizontal: Gap.base,
-    paddingVertical: 10,
+    paddingTop: Gap.lg,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickCard: {
+    width: '47%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: Gap.base,
     borderWidth: 1,
     borderColor: colors.border,
-    marginRight: Gap.sm,
+    ...shadow.sm,
   },
-  quickChipText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.semibold,
+  quickIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.primary + '12',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.sm,
+  },
+  quickLabel: {
+    fontSize: FontSize.body,
+    fontWeight: Font.bold,
     color: colors.text,
+  },
+  quickDesc: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });

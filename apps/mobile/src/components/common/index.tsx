@@ -16,6 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import type { Vertical, ContentPost, Event } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../constants/theme';
 
+export { SegmentedControl } from './SegmentedControl';
+export { FilterPills } from './FilterPills';
+
 // ─── Button ──────────────────────────────────────────────────────────────────
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';

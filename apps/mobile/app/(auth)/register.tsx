@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,10 @@ import { Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { colors, Font, FontSize, Gap, spacing } from '../../src/constants/theme';
 import type { RegisterStudentPayload } from '@upshot/types';
+import { useDebounce } from '../../src/hooks/useDebounce';
+import { createApiClient } from '@upshot/api-client';
+
+const api = createApiClient();
 
 const LOGO = require('../../assets/logo.png') as number;
 const TOTAL_STEPS = 2;
@@ -36,6 +40,41 @@ export default function RegisterScreen() {
   const [ambassadorCode, setAmbassadorCode] = useState('');
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Ambassador code validation
+  const debouncedCode = useDebounce(ambassadorCode, 600);
+  const [codeStatus, setCodeStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [codeVerticalName, setCodeVerticalName] = useState<string | null>(null);
+  const [codeVerticalAccent, setCodeVerticalAccent] = useState<string | null>(null);
+
+  useEffect(() => {
+    const trimmed = debouncedCode.trim();
+    if (!trimmed) {
+      setCodeStatus('idle');
+      setCodeVerticalName(null);
+      setCodeVerticalAccent(null);
+      return;
+    }
+    let cancelled = false;
+    setCodeStatus('checking');
+    api.ambassadors.validateCode(trimmed).then((result) => {
+      if (cancelled) return;
+      if (result.valid) {
+        setCodeStatus('valid');
+        const vName = (result.codeData?.vertical as any)?.name ?? null;
+        const vColor = (result.codeData?.vertical as any)?.color ?? null;
+        setCodeVerticalName(vName);
+        setCodeVerticalAccent(vColor);
+      } else {
+        setCodeStatus('invalid');
+        setCodeVerticalName(null);
+        setCodeVerticalAccent(null);
+      }
+    }).catch(() => {
+      if (!cancelled) setCodeStatus('idle');
+    });
+    return () => { cancelled = true; };
+  }, [debouncedCode]);
 
   const clearField = (field: string) => {
     setFieldErrors((prev) => {
@@ -181,11 +220,27 @@ export default function RegisterScreen() {
               <Text style={styles.referralLabel}>Have a referral code?</Text>
               <Input
                 label="Ambassador Code (optional)"
-                placeholder="e.g. AMIT2F4C"
+                placeholder="e.g. UBM-ABCD-1234"
                 value={ambassadorCode}
                 onChangeText={setAmbassadorCode}
                 autoCapitalize="characters"
               />
+              {codeStatus === 'checking' && (
+                <Text style={styles.codeStatusChecking}>Checking...</Text>
+              )}
+              {codeStatus === 'valid' && (
+                <View style={styles.codeStatusRow}>
+                  <Text style={styles.codeStatusValid}>Valid code</Text>
+                  {codeVerticalName ? (
+                    <Text style={[styles.codeStatusVertical, codeVerticalAccent ? { color: codeVerticalAccent } : undefined]}>
+                      {' '}· Linked to {codeVerticalName}
+                    </Text>
+                  ) : null}
+                </View>
+              )}
+              {codeStatus === 'invalid' && (
+                <Text style={styles.codeStatusInvalid}>Code not found</Text>
+              )}
               <Button
                 title="Create Account"
                 onPress={handleRegister}
@@ -375,5 +430,37 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: FontSize.body,
     fontWeight: Font.semibold,
+  },
+  codeStatusChecking: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: -Gap.sm,
+    marginBottom: Gap.sm,
+    marginLeft: 2,
+  },
+  codeStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: -Gap.sm,
+    marginBottom: Gap.sm,
+    marginLeft: 2,
+  },
+  codeStatusValid: {
+    fontSize: FontSize.xs,
+    color: '#065F46',
+    fontWeight: Font.semibold,
+  },
+  codeStatusVertical: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: Font.medium,
+  },
+  codeStatusInvalid: {
+    fontSize: FontSize.xs,
+    color: '#991B1B',
+    fontWeight: Font.semibold,
+    marginTop: -Gap.sm,
+    marginBottom: Gap.sm,
+    marginLeft: 2,
   },
 });

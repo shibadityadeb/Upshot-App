@@ -10,9 +10,9 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
-import type { Vertical, ContentPost } from '@upshot/types';
-import { colors, verticalColors, DarkBg, radius } from '../../../src/constants/theme';
-import { Button, Card, Badge, EmptyState, LoadingScreen } from '../../../src/components/common';
+import type { Vertical, ContentPost, Event } from '@upshot/types';
+import { colors, verticalColors, DarkBg, radius, Font, FontSize, Gap } from '../../../src/constants/theme';
+import { Button, Card, Badge, EmptyState, LoadingScreen, CoinBadge } from '../../../src/components/common';
 
 const api = createApiClient();
 
@@ -90,6 +90,7 @@ export default function VerticalDetailScreen() {
 
   const [vertical, setVertical] = useState<Vertical | null>(null);
   const [posts, setPosts] = useState<ContentPost[]>([]);
+  const [verticalEvents, setVerticalEvents] = useState<Event[]>([]);
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [loading, setLoading] = useState(true);
 
@@ -101,6 +102,19 @@ export default function VerticalDetailScreen() {
         setVertical(v);
         const p = await api.verticals.getPostsByVertical(v.id, 20);
         setPosts(p);
+        // Load events for this vertical
+        try {
+          const { data: eventsData } = await (api as any).supabase
+            .from('events')
+            .select('*, companies(*)')
+            .eq('status', 'approved')
+            .eq('vertical_id', v.id)
+            .order('event_date', { ascending: true })
+            .limit(20);
+          if (eventsData) setVerticalEvents(eventsData as Event[]);
+        } catch (e) {
+          console.warn('Failed to load vertical events', e);
+        }
       } catch {
         const fallback = VERTICAL_FALLBACKS[slug] ?? null;
         setVertical(fallback);
@@ -121,7 +135,7 @@ export default function VerticalDetailScreen() {
       case 'episodes':
         return posts.filter((p) => p.content_type === 'episode');
       case 'events':
-        return posts.filter((p) => p.content_type === 'event_recap');
+        return []; // Events tab shows actual events, not posts
       case 'recaps':
         return posts.filter(
           (p) => p.content_type === 'event_recap' || p.content_type === 'article'
@@ -130,6 +144,8 @@ export default function VerticalDetailScreen() {
         return posts;
     }
   })();
+
+  const showEventsTab = activeTab === 'events';
 
   const isCampusCartel = vertical?.slug === 'campus-cartel';
 
@@ -224,18 +240,51 @@ export default function VerticalDetailScreen() {
                 variant="primary"
                 size="sm"
                 style={styles.campusCartelButton}
-                onPress={() => router.push('/(auth)/register')}
+                onPress={() => router.push('/campus-cartel-apply' as any)}
               />
             </Card>
           )}
 
+          {/* Events tab: show real events */}
+          {showEventsTab && (
+            verticalEvents.length === 0 ? (
+              <EmptyState
+                title="No events yet"
+                subtitle={`${vertical?.name ?? 'This vertical'} events coming soon`}
+              />
+            ) : (
+              verticalEvents.map((ev) => (
+                <TouchableOpacity
+                  key={ev.id}
+                  style={styles.eventCard}
+                  onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.eventColorBar, { backgroundColor: verticalColor }]} />
+                  <View style={styles.eventBody}>
+                    <Text style={styles.eventTitle} numberOfLines={2}>{ev.title}</Text>
+                    <Text style={styles.eventMeta}>
+                      {new Date(ev.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </Text>
+                    {!!ev.location && (
+                      <Text style={styles.eventLocation} numberOfLines={1}>{ev.location}</Text>
+                    )}
+                    <View style={styles.eventFooter}>
+                      <CoinBadge amount={ev.coin_reward} />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )
+          )}
+
           {/* Posts */}
-          {filteredPosts.length === 0 ? (
+          {!showEventsTab && filteredPosts.length === 0 ? (
             <EmptyState
               title={`No ${activeTab === 'all' ? 'content' : activeTab} yet`}
               subtitle={`${vertical?.name ?? 'This vertical'} content coming soon`}
             />
-          ) : (
+          ) : !showEventsTab && (
             filteredPosts.map((post) => (
               <View key={post.id} style={styles.postCard}>
                 {/* Left colored bar */}
@@ -451,5 +500,43 @@ const styles = StyleSheet.create({
   postCover: {
     width: 80,
     height: '100%' as unknown as number,
+  },
+  // Event cards in vertical
+  eventCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  eventColorBar: {
+    width: 3,
+  },
+  eventBody: {
+    flex: 1,
+    padding: 12,
+    gap: 4,
+  },
+  eventTitle: {
+    fontSize: 15,
+    fontWeight: Font.bold,
+    color: colors.text,
+    lineHeight: 21,
+  },
+  eventMeta: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+  },
+  eventLocation: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+  },
+  eventFooter: {
+    marginTop: Gap.xs,
   },
 });

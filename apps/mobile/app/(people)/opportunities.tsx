@@ -1,143 +1,106 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  ActivityIndicator,
   FlatList,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
   RefreshControl,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
-import { Button, EmptyState, LoadingScreen, OpportunityCard } from '../../src/components/common';
+import { colors, Font, FontSize, Gap } from '../../src/constants/theme';
+import { EmptyState, FilterPills, Input, OpportunityCard } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { useDebounce } from '../../src/hooks/useDebounce';
 
 const api = createApiClient();
 
-const CATEGORIES = ['All', 'Society', 'BFSI', 'Retail', 'Mall', 'Campus', 'Corporate', 'Other'];
+const CATEGORIES = ['All', 'Tech', 'Marketing', 'Design', 'Finance', 'Operations'];
 
 export default function PeopleOpportunities() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
   const [events, setEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [applyingIds, setApplyingIds] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) {
-      setFilteredEvents(events);
-    } else {
-      setFilteredEvents(events.filter((e) => e.title.toLowerCase().includes(q)));
-    }
-  }, [events, searchQuery]);
+  const debouncedSearch = useDebounce(search);
 
   const loadApplications = useCallback(async () => {
     if (!user) return;
-    const result = await api.events.getMyApplications(user.id);
-    if (result.data) {
-      setAppliedEventIds(new Set(result.data.map((a) => a.event_id)));
+    try {
+      const result = await api.events.getMyApplications(user.id);
+      if (result.data) {
+        setAppliedEventIds(new Set(result.data.map((a) => a.event_id)));
+      }
+    } catch (e) {
+      console.warn(e);
     }
   }, [user]);
 
-  const loadEvents = useCallback(
-    async (pageNum: number, category: string, append: boolean) => {
-      if (!append) setLoading(true);
+  const loadEvents = useCallback(async (category: string) => {
+    try {
       const cat = category === 'All' ? undefined : category.toLowerCase();
-      const result = await api.events.getApprovedEvents(pageNum, 10, cat);
+      const result = await api.events.getApprovedEvents(1, 20, cat);
       if (result.data) {
-        const newEvents = result.data.data;
-        setEvents((prev) => (append ? [...prev, ...newEvents] : newEvents));
-        setHasMore(pageNum < result.data.total_pages);
+        setEvents(result.data.data ?? result.data as any);
       }
-      if (!append) setLoading(false);
-    },
-    []
-  );
-
-  useEffect(() => {
-    loadEvents(1, selectedCategory, false);
-    loadApplications();
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (page > 1) {
-      loadEvents(page, selectedCategory, true);
-    }
-  }, [page]);
+    setLoading(true);
+    Promise.all([loadEvents(selectedCategory), loadApplications()]);
+  }, []);
 
-  const handleCategoryChange = (cat: string) => {
-    setSelectedCategory(cat);
-    setPage(1);
-    setSearchQuery('');
-    loadEvents(1, cat, false);
-  };
-
-  const handleRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setPage(1);
-    setSearchQuery('');
-    await Promise.all([loadEvents(1, selectedCategory, false), loadApplications()]);
-    setRefreshing(false);
-  };
+    await Promise.all([loadEvents(selectedCategory), loadApplications()]);
+  }, [selectedCategory, loadEvents, loadApplications]);
 
-  const handleApply = async (eventId: string) => {
-    if (!user) return;
-    setApplyingIds((prev) => new Set(prev).add(eventId));
-    const result = await api.events.applyForEvent(eventId, user.id);
-    if (result.error) {
-      Alert.alert('Error', result.error.message);
-    } else {
-      setAppliedEventIds((prev) => new Set(prev).add(eventId));
-      Alert.alert('Applied!', 'Your application has been submitted.');
-    }
-    setApplyingIds((prev) => {
-      const s = new Set(prev);
-      s.delete(eventId);
-      return s;
-    });
-  };
+  const handleCategoryChange = useCallback((cat: string) => {
+    setSelectedCategory(cat);
+    setLoading(true);
+    loadEvents(cat);
+  }, [loadEvents]);
 
-  const renderEventCard = ({ item: event }: { item: Event }) => (
+  const filteredEvents = events.filter((e) => {
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return true;
+    return e.title.toLowerCase().includes(q) || (e.location ?? '').toLowerCase().includes(q);
+  });
+
+  const renderEvent = ({ item }: { item: Event }) => (
     <View style={styles.cardWrapper}>
       <OpportunityCard
-        event={event as any}
-        onPress={() => void 0}
-        onApply={() => handleApply(event.id)}
-        hasApplied={appliedEventIds.has(event.id)}
-        isApplying={applyingIds.has(event.id)}
+        event={item as any}
+        onPress={() => router.push(`/(people)/apply/${item.id}` as any)}
+        onApply={() => router.push(`/(people)/apply/${item.id}` as any)}
+        hasApplied={appliedEventIds.has(item.id)}
+        isApplying={applyingIds.has(item.id)}
       />
     </View>
   );
 
-  const renderFooter = () => {
-    if (!hasMore || loading) return null;
+  if (loading) {
     return (
-      <View style={styles.loadMoreContainer}>
-        <Button
-          title="Load more"
-          onPress={() => setPage((p) => p + 1)}
-          variant="outline"
-          size="sm"
-        />
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
-  };
-
-  if (loading && events.length === 0) {
-    return <LoadingScreen />;
   }
 
   return (
@@ -148,70 +111,42 @@ export default function PeopleOpportunities() {
         <Text style={styles.headerSubtitle}>Find your next activation</Text>
       </View>
 
-      {/* Search bar */}
+      {/* Search */}
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
+        <Input
           placeholder="Search opportunities..."
-          placeholderTextColor={colors.textLight}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
+          value={search}
+          onChangeText={setSearch}
+          style={styles.searchInput}
         />
       </View>
 
-      {/* Category chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryScroll}
-        style={styles.categoryScrollWrapper}
-      >
-        {CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat;
-          return (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
-              onPress={() => handleCategoryChange(cat)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.categoryPillText, isSelected && styles.categoryPillTextActive]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {searchQuery.trim().length > 0 && (
-        <Text style={styles.resultsCount}>
-          {filteredEvents.length} {filteredEvents.length === 1 ? 'result' : 'results'} for "{searchQuery.trim()}"
-        </Text>
-      )}
+      {/* Category filter pills */}
+      <FilterPills
+        options={CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+        activeValue={selectedCategory}
+        onChange={handleCategoryChange}
+      />
 
       <FlatList
         data={filteredEvents}
         keyExtractor={(item) => item.id}
-        renderItem={renderEventCard}
+        renderItem={renderEvent}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
-        ListFooterComponent={renderFooter}
         ListEmptyComponent={
-          !loading ? (
-            <EmptyState
-              title={searchQuery.trim() ? 'No results found' : 'No opportunities found'}
-              subtitle={
-                searchQuery.trim()
-                  ? 'Try a different search term'
-                  : 'Check back later or try a different category'
-              }
-            />
-          ) : null
+          <EmptyState
+            iconName="briefcase-outline"
+            title={debouncedSearch ? 'No results found' : 'No opportunities found'}
+            subtitle={
+              debouncedSearch
+                ? 'Try a different search term'
+                : 'Check back later or try a different category'
+            }
+          />
         }
       />
     </SafeAreaView>
@@ -223,16 +158,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
   header: {
     backgroundColor: colors.dark,
-    paddingTop: 20,
+    paddingTop: Gap.lg,
     paddingHorizontal: Gap.base,
     paddingBottom: Gap.lg,
   },
   headerTitle: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   headerSubtitle: {
     fontSize: FontSize.small,
@@ -240,52 +181,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   searchContainer: {
-    marginHorizontal: Gap.base,
-    marginTop: Gap.md,
-    marginBottom: Gap.xs,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.md,
+    paddingBottom: Gap.xs,
   },
   searchInput: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    paddingHorizontal: Gap.base,
-    paddingVertical: 10,
-    fontSize: FontSize.body,
-    color: colors.text,
-  },
-  categoryScrollWrapper: {
-    maxHeight: 52,
-  },
-  categoryScroll: {
-    paddingHorizontal: Gap.base,
-    paddingVertical: Gap.sm,
-    gap: Gap.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  categoryPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radius.full,
-    backgroundColor: colors.border,
-  },
-  categoryPillActive: {
-    backgroundColor: colors.primary,
-  },
-  categoryPillText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.semibold,
-    color: colors.textSecondary,
-  },
-  categoryPillTextActive: {
-    color: '#FFFFFF',
-  },
-  resultsCount: {
-    fontSize: FontSize.xs,
-    color: colors.textSecondary,
-    paddingHorizontal: Gap.base,
-    marginBottom: Gap.xs,
+    marginBottom: 0,
   },
   listContent: {
     paddingHorizontal: Gap.base,
@@ -294,10 +195,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   cardWrapper: {
-    marginBottom: 10,
-  },
-  loadMoreContainer: {
-    alignItems: 'center',
-    paddingVertical: Gap.base,
+    marginBottom: Gap.sm,
   },
 });
