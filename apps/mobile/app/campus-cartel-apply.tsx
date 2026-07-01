@@ -39,6 +39,7 @@ export default function CampusCartelApply() {
   const [city, setCity] = useState('');
   const [stateName, setStateName] = useState('');
   const [existingCollege, setExistingCollege] = useState('');
+  const [existingStatus, setExistingStatus] = useState<'pending' | 'approved' | 'rejected' | ''>('');
   const [withdrawing, setWithdrawing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -53,7 +54,7 @@ export default function CampusCartelApply() {
       setScreen((prev) => prev === 'editing' ? prev : 'checking-existing');
       api.supabase
         .from('students')
-        .select('id, college, city, state, ambassador_code')
+        .select('id, college, city, state, ambassador_code, status')
         .eq('user_id', user.id)
         .maybeSingle()
         .then(({ data }) => {
@@ -61,6 +62,7 @@ export default function CampusCartelApply() {
             if (prev === 'editing') return prev;
             if (data) {
               setExistingCollege(data.college ?? '');
+              setExistingStatus(data.status ?? '');
               setCollege(data.college ?? '');
               setCity(data.city ?? '');
               setStateName(data.state ?? '');
