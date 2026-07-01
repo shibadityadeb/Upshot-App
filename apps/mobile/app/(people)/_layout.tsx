@@ -1,7 +1,11 @@
-import { Redirect, Tabs } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Redirect, Tabs, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import { colors } from '../../src/constants/theme';
+
+const api = createApiClient();
 
 const TAB_BAR_STYLE = {
   backgroundColor: '#FFFFFF',
@@ -21,6 +25,21 @@ const LABEL_STYLE = {
 
 export default function PeopleLayout() {
   const user = useAuthStore((s) => s.user);
+  const [isApprovedStudent, setIsApprovedStudent] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+      api.supabase
+        .from('students')
+        .select('status')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          setIsApprovedStudent(data?.status === 'approved');
+        });
+    }, [user?.id]),
+  );
 
   if (!user || (user.role !== 'people' && user.role !== 'student')) {
     return <Redirect href="/" />;
@@ -62,6 +81,7 @@ export default function PeopleLayout() {
         options={{
           title: 'Rewards',
           tabBarIcon: ({ color, size }) => <Ionicons name="wallet-outline" size={size} color={color} />,
+          href: isApprovedStudent ? '/(people)/wallet' : null,
         }}
       />
       <Tabs.Screen
@@ -72,6 +92,7 @@ export default function PeopleLayout() {
         }}
       />
       <Tabs.Screen name="apply/[id]" options={{ href: null }} />
+      <Tabs.Screen name="host-event" options={{ href: null }} />
     </Tabs>
   );
 }

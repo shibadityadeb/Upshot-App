@@ -203,9 +203,6 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <SectionHeader
           title="Our Verticals"
-          action
-          actionLabel="See all"
-          onAction={() => router.push('/(shared)/verticals' as any)}
         />
         <View style={styles.verticalsGrid}>
           {verticals.map((vertical) => (
@@ -313,6 +310,30 @@ export default function HomeScreen() {
         )}
       </View>
 
+      {/* ─── Host an Event Banner ──────────────────────────────── */}
+      <View style={[styles.bannerWrapper, { paddingBottom: 0 }]}>
+        <View style={styles.hostBanner}>
+          <View style={styles.hostBannerIcon}>
+            <Ionicons name="megaphone-outline" size={22} color="#818CF8" />
+          </View>
+          <Text style={styles.hostBannerEyebrow}>HOST AN EVENT</Text>
+          <Text style={styles.hostBannerHeadline}>
+            Got an idea? Bring your event to life
+          </Text>
+          <Text style={styles.hostBannerBody}>
+            Submit your event proposal and reach thousands of students across India.
+          </Text>
+          <TouchableOpacity
+            style={styles.hostBannerBtn}
+            onPress={() => router.push('/(people)/host-event' as any)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.hostBannerBtnText}>Get started</Text>
+            <Ionicons name="arrow-forward" size={13} color="#818CF8" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* ─── Campus Cartel Banner ────────────────────────────── */}
       <View style={styles.bannerWrapper}>
         <View style={styles.campusCartelBanner}>
@@ -380,7 +401,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F5',
   },
   contentContainer: {
-    paddingBottom: SECTION_V,  // 24px — enough clearance above the tab bar
+    paddingBottom: 24,
   },
 
   // ── Shared layout primitives ───────────────────────────────
@@ -581,6 +602,61 @@ const styles = StyleSheet.create({
     fontWeight: Font.semibold,
   },
 
+  // ── Host an Event Banner ──────────────────────────────────
+  hostBanner: {
+    backgroundColor: '#0F1629',
+    borderRadius: CARD_RADIUS,
+    padding: Gap.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(129,140,248,0.15)',
+  },
+  hostBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(129,140,248,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.md,
+  },
+  hostBannerEyebrow: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: 'rgba(129,140,248,0.8)',
+    letterSpacing: 2.5,
+    marginBottom: Gap.sm,
+  },
+  hostBannerHeadline: {
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
+    color: '#FFFFFF',
+    lineHeight: 26,
+    marginBottom: Gap.xs,
+  },
+  hostBannerBody: {
+    fontSize: FontSize.small,
+    color: 'rgba(255,255,255,0.5)',
+    lineHeight: 20,
+    marginBottom: Gap.base,
+  },
+  hostBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.xs,
+    height: 36,
+    backgroundColor: 'rgba(129,140,248,0.12)',
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: 'rgba(129,140,248,0.35)',
+    paddingHorizontal: Gap.base,
+    alignSelf: 'flex-start',
+  },
+  hostBannerBtnText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: '#818CF8',
+  },
+
   // ── Campus Cartel Banner ──────────────────────────────────
   bannerWrapper: {
     paddingHorizontal: PAGE_H,
@@ -633,7 +709,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Gap.sm,
     paddingHorizontal: PAGE_H,
-    paddingBottom: SECTION_V,
+    paddingTop: Gap.base,
   },
   dualCard: {
     flex: 1,

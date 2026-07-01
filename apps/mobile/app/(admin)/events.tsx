@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   Platform,
   RefreshControl,
@@ -17,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
-import type { Event, Vertical } from '@upshot/types';
+import type { Event, HostingApplication, Vertical } from '@upshot/types';
 import { colors, DarkBg, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../src/constants/theme';
 import {
   Button,
@@ -57,16 +58,25 @@ const FILTER_OPTIONS: { key: FilterOption; label: string }[] = [
   { key: 'rejected', label: 'Rejected' },
 ];
 
+type TabKey = 'events' | 'hosting';
+
 export default function AdminEvents() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
+  const [activeTab, setActiveTab] = useState<TabKey>('events');
   const [events, setEvents] = useState<Event[]>([]);
   const [filter, setFilter] = useState<FilterOption>('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Host Applications
+  const [hostApps, setHostApps] = useState<HostingApplication[]>([]);
+  const [hostFilter, setHostFilter] = useState<FilterOption>('all');
+  const [hostLoading, setHostLoading] = useState(false);
+  const [hostActionLoading, setHostActionLoading] = useState<string | null>(null);
 
   // Approve modal
   const [approveModalVisible, setApproveModalVisible] = useState(false);
@@ -117,15 +127,29 @@ export default function AdminEvents() {
     }
   }, []);
 
+  const loadHostApps = useCallback(async () => {
+    setHostLoading(true);
+    try {
+      const result = await api.hosting.getAllApplicationsAdmin();
+      if (result.data) setHostApps(result.data);
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setHostLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     loadEvents();
-  }, [loadEvents]);
+    loadHostApps();
+  }, [loadEvents, loadHostApps]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadEvents();
-  }, [loadEvents]);
+    loadHostApps();
+  }, [loadEvents, loadHostApps]);
 
   const filteredEvents = events.filter((e) => {
     const matchesFilter = filter === 'all' || e.status === filter;
@@ -243,6 +267,124 @@ export default function AdminEvents() {
     [user, loadEvents],
   );
 
+  const filteredHostApps = hostApps.filter((a) => hostFilter === 'all' || a.status === hostFilter);
+
+  const handleHostApprove = useCallback(async (appId: string) => {
+    if (!user) return;
+    setHostActionLoading(appId);
+    try {
+      const result = await api.hosting.approveApplication(appId, user.id);
+      if (result.error) {
+        Alert.alert('Error', result.error.message);
+      } else {
+        Alert.alert('Approved', 'Event has been created from this application.');
+        await Promise.all([loadHostApps(), loadEvents()]);
+      }
+    } finally {
+      setHostActionLoading(null);
+    }
+  }, [user, loadHostApps, loadEvents]);
+
+  const handleHostReject = useCallback((appId: string) => {
+    if (!user) return;
+    if (Platform.OS === 'ios') {
+      Alert.prompt('Rejection Reason', 'Enter reason (optional)', async (reason) => {
+        setHostActionLoading(appId);
+        try {
+          const result = await api.hosting.rejectApplication(appId, user.id, reason || undefined);
+          if (result.error) Alert.alert('Error', result.error.message);
+          else await loadHostApps();
+        } finally {
+          setHostActionLoading(null);
+        }
+      }, 'plain-text');
+    } else {
+      Alert.alert('Reject Application', 'This hosting application will be rejected.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject', style: 'destructive',
+          onPress: async () => {
+            setHostActionLoading(appId);
+            try {
+              await api.hosting.rejectApplication(appId, user.id, 'Rejected by admin');
+              await loadHostApps();
+            } finally {
+              setHostActionLoading(null);
+            }
+          },
+        },
+      ]);
+    }
+  }, [user, loadHostApps]);
+
+  const renderHostApp = ({ item }: { item: HostingApplication }) => {
+    const isPending = item.status === 'pending';
+    const isActioning = hostActionLoading === item.id;
+    const appDate = new Date(item.event_date).toLocaleDateString('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
+    const applicant = (item as any).user;
+
+    return (
+      <Card style={styles.eventCard}>
+        {!!item.cover_image_url && (
+          <Image
+            source={{ uri: item.cover_image_url }}
+            style={styles.hostCoverImg}
+            resizeMode="cover"
+          />
+        )}
+        <View style={styles.hostCardBody}>
+          <View style={styles.eventHeader}>
+            <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
+            <StatusBadge status={item.status} />
+          </View>
+          {applicant && (
+            <Text style={styles.hostApplicant}>
+              by {applicant.full_name ?? applicant.email}
+            </Text>
+          )}
+          <Text style={styles.eventMeta}>{appDate} · {item.location}</Text>
+          {!!item.description && (
+            <Text style={styles.hostDesc} numberOfLines={2}>{item.description}</Text>
+          )}
+          <View style={styles.footerRow}>
+            <CoinBadge amount={item.coin_reward} />
+            {!!item.max_attendees && (
+              <View style={styles.capacityBadge}>
+                <Text style={styles.capacityText}>{item.max_attendees} spots</Text>
+              </View>
+            )}
+          </View>
+          {isPending && (
+            <View style={styles.actionRow}>
+              <Button
+                title="Approve"
+                variant="primary"
+                size="sm"
+                style={styles.actionBtn}
+                onPress={() => handleHostApprove(item.id)}
+                disabled={isActioning}
+                loading={isActioning}
+              />
+              <Button
+                title="Reject"
+                variant="outline"
+                size="sm"
+                style={[styles.actionBtn, styles.rejectBtn]}
+                onPress={() => handleHostReject(item.id)}
+                disabled={isActioning}
+              />
+            </View>
+          )}
+          {item.status === 'rejected' && !!item.rejection_reason && (
+            <Text style={styles.rejectionReason}>Reason: {item.rejection_reason}</Text>
+          )}
+        </View>
+      </Card>
+    );
+  };
+
   const renderEvent = ({ item }: { item: Event }) => {
     const isPending = item.status === 'pending';
     const isApproved = item.status === 'approved';
@@ -262,6 +404,15 @@ export default function AdminEvents() {
         style={styles.eventCard}
         onPress={() => router.push(`/(admin)/event-detail/${item.id}` as any)}
       >
+        <View style={styles.eventRow}>
+          {!!item.banner_url && (
+            <Image
+              source={{ uri: item.banner_url }}
+              style={styles.eventThumb}
+              resizeMode="cover"
+            />
+          )}
+          <View style={styles.eventInfo}>
         <View style={styles.eventHeader}>
           <Text style={styles.eventTitle} numberOfLines={2}>
             {item.title}
@@ -329,6 +480,8 @@ export default function AdminEvents() {
             </Text>
           </TouchableOpacity>
         )}
+          </View>
+        </View>
       </Card>
     );
   };
@@ -373,39 +526,101 @@ export default function AdminEvents() {
         </View>
       </View>
 
-      {/* Filter Pills */}
-      <FilterPills
-        options={FILTER_OPTIONS.map(f => ({ label: f.label, value: f.key }))}
-        activeValue={filter}
-        onChange={(v) => setFilter(v as FilterOption)}
-      />
+      {/* Tab Switcher */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'events' && styles.tabActive]}
+          onPress={() => setActiveTab('events')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="calendar-outline" size={16} color={activeTab === 'events' ? colors.primary : colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === 'events' && styles.tabTextActive]}>Events</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'hosting' && styles.tabActive]}
+          onPress={() => setActiveTab('hosting')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="document-text-outline" size={16} color={activeTab === 'hosting' ? colors.primary : colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === 'hosting' && styles.tabTextActive]}>Host Applications</Text>
+          {hostApps.filter(a => a.status === 'pending').length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{hostApps.filter(a => a.status === 'pending').length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
-      {/* List */}
-      <FlatList
-        data={filteredEvents}
-        keyExtractor={(item) => item.id}
-        renderItem={renderEvent}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-        ListEmptyComponent={
-          events.length === 0 ? (
-            <EmptyState
-              iconName="document-text-outline"
-              title="No projects yet"
-              subtitle="Approved projects from companies will appear here"
-            />
+      {activeTab === 'events' ? (
+        <>
+          {/* Filter Pills */}
+          <FilterPills
+            options={FILTER_OPTIONS.map(f => ({ label: f.label, value: f.key }))}
+            activeValue={filter}
+            onChange={(v) => setFilter(v as FilterOption)}
+          />
+
+          {/* Events List */}
+          <FlatList
+            data={filteredEvents}
+            keyExtractor={(item) => item.id}
+            renderItem={renderEvent}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+            }
+            ListEmptyComponent={
+              events.length === 0 ? (
+                <EmptyState
+                  iconName="document-text-outline"
+                  title="No projects yet"
+                  subtitle="Approved projects from companies will appear here"
+                />
+              ) : (
+                <EmptyState
+                  iconName="search-outline"
+                  title="No matches"
+                  subtitle="No events with this status right now"
+                />
+              )
+            }
+          />
+        </>
+      ) : (
+        <>
+          {/* Host Apps Filter */}
+          <FilterPills
+            options={FILTER_OPTIONS.map(f => ({ label: f.label, value: f.key }))}
+            activeValue={hostFilter}
+            onChange={(v) => setHostFilter(v as FilterOption)}
+          />
+
+          {hostLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
           ) : (
-            <EmptyState
-              iconName="search-outline"
-              title="No matches"
-              subtitle="No events with this status right now"
+            <FlatList
+              data={filteredHostApps}
+              keyExtractor={(item) => item.id}
+              renderItem={renderHostApp}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+              }
+              ListEmptyComponent={
+                <EmptyState
+                  iconName="document-text-outline"
+                  title="No hosting applications"
+                  subtitle="When users submit event hosting requests, they'll appear here"
+                />
+              }
             />
-          )
-        }
-      />
+          )}
+        </>
+      )}
 
       {/* Approve & Categorize Modal */}
       <Modal
@@ -579,6 +794,49 @@ const styles = StyleSheet.create({
     height: 42,
   },
 
+  // Tabs
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: colors.primary,
+  },
+  tabText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: colors.primary,
+  },
+  tabBadge: {
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  tabBadgeText: {
+    fontSize: 11,
+    fontWeight: Font.bold,
+    color: '#fff',
+  },
+
   listContent: {
     paddingHorizontal: Gap.base,
     paddingTop: Gap.md,
@@ -587,9 +845,22 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     marginBottom: Gap.sm,
-    padding: Gap.base,
+    padding: 0,
     borderRadius: radius.lg,
+    overflow: 'hidden',
     ...shadow.sm,
+  },
+  eventRow: {
+    flexDirection: 'row',
+  },
+  eventThumb: {
+    width: 80,
+    height: '100%',
+    minHeight: 80,
+  },
+  eventInfo: {
+    flex: 1,
+    padding: Gap.base,
   },
   eventHeader: {
     flexDirection: 'row',
@@ -715,5 +986,30 @@ const styles = StyleSheet.create({
   },
   modalBtn: {
     marginTop: Gap.sm,
+  },
+  // Host Applications
+  hostCoverImg: {
+    width: '100%',
+    height: 180,
+  },
+  hostCardBody: {
+    padding: Gap.base,
+  },
+  hostApplicant: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  hostDesc: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginTop: Gap.xs,
+  },
+  rejectionReason: {
+    fontSize: FontSize.xs,
+    color: colors.error,
+    marginTop: Gap.sm,
+    fontStyle: 'italic',
   },
 });

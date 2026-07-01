@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -29,11 +30,12 @@ import { useDebounce } from '../../src/hooks/useDebounce';
 
 const api = createApiClient();
 
-type ActiveTab = 'all' | 'ambassadors' | 'codes';
+type ActiveTab = 'all' | 'ambassadors' | 'campus-cartel' | 'codes';
 
 const TABS: { key: ActiveTab; label: string }[] = [
   { key: 'all', label: 'People' },
   { key: 'ambassadors', label: 'Ambassadors' },
+  { key: 'campus-cartel', label: 'Campus Cartel' },
   { key: 'codes', label: 'Codes' },
 ];
 
@@ -49,6 +51,18 @@ interface Profile {
   full_name: string;
   email: string;
   role: string;
+  avatar_url: string | null;
+}
+
+interface StudentApp {
+  id: string;
+  user_id: string;
+  college: string;
+  city: string | null;
+  state: string | null;
+  status: string;
+  created_at: string;
+  profile?: { full_name: string; email: string } | null;
 }
 
 export default function AdminPeople() {
@@ -57,6 +71,7 @@ export default function AdminPeople() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('all');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [ambassadors, setAmbassadors] = useState<Ambassador[]>([]);
+  const [students, setStudents] = useState<StudentApp[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,7 +82,7 @@ export default function AdminPeople() {
     try {
       const { data } = await (api as any).supabase
         .from('profiles')
-        .select('id, full_name, email, role')
+        .select('id, full_name, email, role, avatar_url')
         .in('role', ['people', 'student', 'ambassador', 'admin'])
         .order('created_at', { ascending: false });
       if (data) setProfiles(data as Profile[]);
@@ -85,11 +100,23 @@ export default function AdminPeople() {
     }
   }, []);
 
+  const loadStudents = useCallback(async () => {
+    try {
+      const { data } = await (api as any).supabase
+        .from('students')
+        .select('id, user_id, college, city, state, status, created_at, profile:profiles!user_id(full_name, email)')
+        .order('created_at', { ascending: false });
+      if (data) setStudents(data as StudentApp[]);
+    } catch (e) {
+      console.warn(e);
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
-    await Promise.all([loadProfiles(), loadAmbassadors()]);
+    await Promise.all([loadProfiles(), loadAmbassadors(), loadStudents()]);
     setLoading(false);
     setRefreshing(false);
-  }, [loadProfiles, loadAmbassadors]);
+  }, [loadProfiles, loadAmbassadors, loadStudents]);
 
   useEffect(() => {
     setLoading(true);
@@ -120,13 +147,83 @@ export default function AdminPeople() {
     );
   });
 
+  const filteredStudents = students.filter((s) => {
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return true;
+    const name = s.profile?.full_name ?? '';
+    const email = s.profile?.email ?? '';
+    return name.toLowerCase().includes(q) || email.toLowerCase().includes(q) || (s.college ?? '').toLowerCase().includes(q);
+  });
+
+  const updateStudentStatus = useCallback(async (studentId: string, status: 'approved' | 'rejected') => {
+    try {
+      const { error } = await (api as any).supabase
+        .from('students')
+        .update({ status })
+        .eq('id', studentId);
+      if (error) throw new Error(error.message);
+      setStudents((prev) => prev.map((s) => s.id === studentId ? { ...s, status } : s));
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to update status.');
+    }
+  }, []);
+
+  const renderStudent = ({ item }: { item: StudentApp }) => {
+    const name = item.profile?.full_name ?? 'Unknown';
+    const email = item.profile?.email ?? '';
+    const date = new Date(item.created_at).toLocaleDateString();
+    const statusColor = item.status === 'approved' ? colors.success : item.status === 'rejected' ? colors.error : '#F59E0B';
+    const statusLabel = item.status.charAt(0).toUpperCase() + item.status.slice(1);
+    return (
+      <View style={styles.personRow}>
+        <TouchableOpacity
+          style={styles.studentTouchable}
+          activeOpacity={0.75}
+          onPress={() => router.push(`/(admin)/person-detail/${item.user_id}` as any)}
+        >
+          <AvatarCircle name={name} size={42} />
+          <View style={styles.personInfo}>
+            <View style={styles.nameRow}>
+              <Text style={styles.personName} numberOfLines={1}>{name}</Text>
+              <Badge label={statusLabel} color={statusColor} />
+            </View>
+            <Text style={styles.personEmail} numberOfLines={1}>
+              {item.college}{item.city ? ` · ${item.city}` : ''}
+            </Text>
+            <Text style={[styles.personEmail, { fontSize: 11, marginTop: 2 }]}>
+              {email} · Applied {date}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        {item.status === 'pending' && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.approveBtn}
+              onPress={() => updateStudentStatus(item.id, 'approved')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="checkmark" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.rejectBtn}
+              onPress={() => updateStudentStatus(item.id, 'rejected')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderProfile = ({ item }: { item: Profile }) => (
     <TouchableOpacity
       style={styles.personRow}
       activeOpacity={0.75}
       onPress={() => router.push(`/(admin)/person-detail/${item.id}` as any)}
     >
-      <AvatarCircle name={item.full_name ?? '?'} size={42} />
+      <AvatarCircle name={item.full_name ?? '?'} size={42} avatarUrl={item.avatar_url} />
       <View style={styles.personInfo}>
         <View style={styles.nameRow}>
           <Text style={styles.personName} numberOfLines={1}>{item.full_name ?? 'Unknown'}</Text>
@@ -227,6 +324,25 @@ export default function AdminPeople() {
               iconName="people-outline"
               title="No people found"
               subtitle={debouncedSearch ? 'Try a different search term' : 'No users yet'}
+            />
+          }
+        />
+      ) : activeTab === 'campus-cartel' ? (
+        <FlatList
+          data={filteredStudents}
+          keyExtractor={(item) => item.id}
+          renderItem={renderStudent}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          ItemSeparatorComponent={() => <Divider />}
+          ListEmptyComponent={
+            <EmptyState
+              iconName="school-outline"
+              title="No applications yet"
+              subtitle="Campus Cartel applications will appear here"
             />
           }
         />
@@ -340,5 +456,32 @@ const styles = StyleSheet.create({
   personEmail: {
     fontSize: FontSize.small,
     color: colors.textSecondary,
+  },
+  studentTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.md,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 6,
+    marginLeft: Gap.sm,
+  },
+  approveBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.success ?? '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rejectBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.error ?? '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

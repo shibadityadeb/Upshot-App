@@ -2332,8 +2332,11 @@ __metadata:
     "@upshot/api-client": "npm:*"
     "@upshot/database": "npm:*"
     "@upshot/types": "npm:*"
+    base64-arraybuffer: "npm:^1.0.2"
     expo: "npm:~53.0.0"
     expo-constants: "npm:~17.1.8"
+    expo-image-manipulator: "npm:~13.1.7"
+    expo-image-picker: "npm:~16.1.4"
     expo-linking: "npm:~7.1.7"
     expo-router: "npm:~5.1.11"
     expo-status-bar: "npm:~2.2.3"
@@ -2737,6 +2740,13 @@ __metadata:
   version: 1.0.2
   resolution: "balanced-match@npm:1.0.2"
   checksum: 10c0/9308baf0a7e4838a82bbfd11e01b1cb0f0cf2893bc1676c27c2a8c0e70cbae1c59120c3268517a8ae7fb6376b4639ef81ca22582611dbee4ed28df945134aaee
+  languageName: node
+  linkType: hard
+
+"base64-arraybuffer@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "base64-arraybuffer@npm:1.0.2"
+  checksum: 10c0/3acac95c70f9406e87a41073558ba85b6be9dbffb013a3d2a710e3f2d534d506c911847d5d9be4de458af6362c676de0a5c4c2d7bdf4def502d00b313368e72f
   languageName: node
   linkType: hard
 
@@ -3532,6 +3542,37 @@ __metadata:
     expo: "*"
     react: "*"
   checksum: 10c0/00711fbdb380f076594b43caddf06ad6f70a5261caaccce564dabf01a02054f89987ac0367c96ad8cb38b4edbf904e99839ab2a446d7b57e7e84b29145da4ccd
+  languageName: node
+  linkType: hard
+
+"expo-image-loader@npm:~5.1.0":
+  version: 5.1.0
+  resolution: "expo-image-loader@npm:5.1.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/2897a2c3623f752cc277677b170ca9b3db826439641ccc93dcc3a94ece76dcbf084ecc108eddfebb42c34bcb339ef00996726995112c99561f262696c3e23300
+  languageName: node
+  linkType: hard
+
+"expo-image-manipulator@npm:~13.1.7":
+  version: 13.1.7
+  resolution: "expo-image-manipulator@npm:13.1.7"
+  dependencies:
+    expo-image-loader: "npm:~5.1.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/814a9b9cbbb9e9c78b6b8e939e815c57283423b7faa05b1f18032f482e1f857206e942bf2b08892b08e2c2cedc4e2799de1d8ee549b1205edb851bfb1f5030be
+  languageName: node
+  linkType: hard
+
+"expo-image-picker@npm:~16.1.4":
+  version: 16.1.4
+  resolution: "expo-image-picker@npm:16.1.4"
+  dependencies:
+    expo-image-loader: "npm:~5.1.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/7e27458a48140cea2864564db40ff102525302ca60e9526838ae265523dba8b1d9ceea3a2ac94c1eaece78f4cd1ded0f1a2391517e61a3fd8a6f17b06e337293
   languageName: node
   linkType: hard
 
