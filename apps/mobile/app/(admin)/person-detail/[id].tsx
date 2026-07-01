@@ -215,7 +215,7 @@ export default function AdminPersonDetail() {
 
         {/* Identity */}
         <View style={styles.identitySection}>
-          <AvatarCircle name={profile.full_name ?? '?'} size={80} />
+          <AvatarCircle name={profile.full_name ?? '?'} size={80} avatarUrl={profile.avatar_url} />
           <Text style={styles.profileName}>{profile.full_name ?? 'Unknown'}</Text>
           <Text style={styles.profileEmail}>{profile.email}</Text>
           <View style={styles.roleRow}>

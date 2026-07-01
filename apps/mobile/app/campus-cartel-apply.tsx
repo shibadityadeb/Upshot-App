@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../src/constants/theme';
@@ -23,7 +23,7 @@ const api = createApiClient();
 const GREEN = verticalColors.campusCartel;
 
 type CodeState = 'idle' | 'checking' | 'valid' | 'invalid';
-type ScreenState = 'form' | 'checking-existing' | 'already-applied' | 'success';
+type ScreenState = 'form' | 'checking-existing' | 'already-applied' | 'editing' | 'success';
 
 export default function CampusCartelApply() {
   const router = useRouter();
@@ -39,27 +39,39 @@ export default function CampusCartelApply() {
   const [city, setCity] = useState('');
   const [stateName, setStateName] = useState('');
   const [existingCollege, setExistingCollege] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  // ─── Check if already applied ────────────────────────────────
-  useEffect(() => {
-    if (!user?.id) {
-      setScreen('form');
-      return;
-    }
-    api.supabase
-      .from('students')
-      .select('id, college, city, state')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setExistingCollege(data.college ?? '');
-          setScreen('already-applied');
-        } else {
-          setScreen('form');
-        }
-      });
-  }, [user?.id]);
+  // ─── Check if already applied (re-checks on every focus) ─────
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) {
+        setScreen('form');
+        return;
+      }
+      // Don't reset to checking if user is actively editing
+      setScreen((prev) => prev === 'editing' ? prev : 'checking-existing');
+      api.supabase
+        .from('students')
+        .select('id, college, city, state, ambassador_code')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          setScreen((prev) => {
+            if (prev === 'editing') return prev;
+            if (data) {
+              setExistingCollege(data.college ?? '');
+              setCollege(data.college ?? '');
+              setCity(data.city ?? '');
+              setStateName(data.state ?? '');
+              setAmbassadorCode(data.ambassador_code ?? '');
+              return 'already-applied';
+            }
+            return 'form';
+          });
+        });
+    }, [user?.id]),
+  );
 
   // ─── Ambassador code validation ──────────────────────────────
   const [codeState, setCodeState] = useState<CodeState>('idle');
@@ -128,6 +140,7 @@ export default function CampusCartelApply() {
           referred_by: validatedAmbassadorId ?? null,
           city: isNormalStudent ? city.trim() : null,
           state: isNormalStudent ? stateName.trim() : null,
+          status: 'pending',
         },
         { onConflict: 'user_id' },
       );
@@ -161,6 +174,43 @@ export default function CampusCartelApply() {
     return null;
   };
 
+  const handleWithdraw = useCallback(() => {
+    if (!user?.id) return;
+    Alert.alert(
+      'Withdraw Application',
+      'Are you sure you want to withdraw your Campus Cartel application? You can re-apply later.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            setWithdrawing(true);
+            try {
+              const { error, count } = await api.supabase
+                .from('students')
+                .delete({ count: 'exact' })
+                .eq('user_id', user.id);
+              if (error) throw new Error(error.message);
+              if (count === 0) {
+                Alert.alert(
+                  'Unable to Withdraw',
+                  'Could not delete the application. Please contact support or try again later.',
+                );
+                return;
+              }
+              router.back();
+            } catch (e) {
+              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to withdraw. Please try again.');
+            } finally {
+              setWithdrawing(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [user?.id, router]);
+
   // ─── Loading state ────────────────────────────────────────────
   if (screen === 'checking-existing') {
     return (
@@ -180,10 +230,12 @@ export default function CampusCartelApply() {
           <View style={styles.successIconRing}>
             <Ionicons name="checkmark" size={48} color="#fff" />
           </View>
-          <Text style={styles.successEyebrow}>APPLICATION SUBMITTED</Text>
-          <Text style={styles.successHeadline}>You're in the Cartel!</Text>
+          <Text style={styles.successEyebrow}>{isEditing ? 'APPLICATION UPDATED' : 'APPLICATION SUBMITTED'}</Text>
+          <Text style={styles.successHeadline}>{isEditing ? 'Updated!' : "You're in the Cartel!"}</Text>
           <Text style={styles.successBody}>
-            Welcome to India's fastest growing student ambassador network. We'll be in touch soon with next steps.
+            {isEditing
+              ? 'Your application has been updated and sent back for review. We\'ll let you know once it\'s approved.'
+              : "Welcome to India's fastest growing student ambassador network. We'll be in touch soon with next steps."}
           </Text>
 
           <View style={styles.successCards}>
@@ -200,7 +252,7 @@ export default function CampusCartelApply() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.successBtn} onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.successBtn} onPress={() => { setIsEditing(false); router.back(); }} activeOpacity={0.8}>
             <Text style={styles.successBtnText}>Back to Home</Text>
             <Ionicons name="arrow-forward" size={16} color="#fff" />
           </TouchableOpacity>
@@ -214,16 +266,16 @@ export default function CampusCartelApply() {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.successContainer}>
-          <View style={[styles.successIconRing, { backgroundColor: colors.primary }]}>
-            <Ionicons name="shield-checkmark" size={44} color="#fff" />
+          <View style={[styles.successIconRing, { backgroundColor: '#F59E0B' }]}>
+            <Ionicons name="hourglass-outline" size={44} color="#fff" />
           </View>
-          <Text style={styles.successEyebrow}>ALREADY A MEMBER</Text>
-          <Text style={styles.successHeadline}>You're already in!</Text>
+          <Text style={styles.successEyebrow}>APPLICATION SUBMITTED</Text>
+          <Text style={styles.successHeadline}>Under Review</Text>
           <Text style={styles.successBody}>
             {existingCollege
-              ? `Your application from ${existingCollege} is on file.`
-              : 'Your Campus Cartel application is already on file.'}
-            {'\n'}Each email can only have one active application.
+              ? `Your application from ${existingCollege} has been submitted.`
+              : 'Your Campus Cartel application has been submitted.'}
+            {'\n'}Our admin team is reviewing it — we'll let you know once it's approved.
           </Text>
 
           <View style={[styles.alreadyBadge]}>
@@ -231,9 +283,29 @@ export default function CampusCartelApply() {
             <Text style={styles.alreadyBadgeText}>{user?.email ?? email}</Text>
           </View>
 
-          <TouchableOpacity style={[styles.successBtn, { backgroundColor: colors.primary }]} onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[styles.successBtn, { backgroundColor: GREEN }]}
+            onPress={() => { setIsEditing(true); setScreen('editing'); }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="create-outline" size={16} color="#fff" />
+            <Text style={styles.successBtnText}>Edit Application</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.successBtn, { backgroundColor: colors.primary, marginTop: Gap.sm }]} onPress={() => router.back()} activeOpacity={0.8}>
             <Text style={styles.successBtnText}>Go Back</Text>
             <Ionicons name="arrow-back" size={16} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.withdrawBtn} onPress={handleWithdraw} activeOpacity={0.7} disabled={withdrawing}>
+            {withdrawing ? (
+              <ActivityIndicator size="small" color={colors.error} />
+            ) : (
+              <>
+                <Ionicons name="close-circle-outline" size={16} color={colors.error} />
+                <Text style={styles.withdrawBtnText}>Withdraw Application</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -246,13 +318,13 @@ export default function CampusCartelApply() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { if (isEditing) { setIsEditing(false); setScreen('already-applied'); } else { router.back(); } }} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.eyebrow}>CAMPUS CARTEL</Text>
-            <Text style={styles.headline}>Join the Network</Text>
-            <Text style={styles.subheadline}>India's fastest growing student community</Text>
+            <Text style={styles.headline}>{isEditing ? 'Update Application' : 'Join the Network'}</Text>
+            <Text style={styles.subheadline}>{isEditing ? 'Edit your details below' : "India's fastest growing student community"}</Text>
           </View>
           <View style={styles.badge}>
             <Ionicons name="people" size={22} color={GREEN} />
@@ -339,7 +411,7 @@ export default function CampusCartelApply() {
           <TouchableOpacity style={[styles.submitBtn, submitting && styles.submitBtnDisabled]} onPress={handleSubmit} activeOpacity={0.8} disabled={submitting}>
             {submitting ? <ActivityIndicator size="small" color="#fff" /> : (
               <>
-                <Text style={styles.submitBtnText}>Apply to Campus Cartel</Text>
+                <Text style={styles.submitBtnText}>{isEditing ? 'Update Application' : 'Apply to Campus Cartel'}</Text>
                 <Ionicons name="arrow-forward" size={16} color="#fff" />
               </>
             )}
@@ -452,6 +524,19 @@ const styles = StyleSheet.create({
     fontSize: FontSize.small,
     color: colors.textSecondary,
     fontWeight: Font.medium,
+  },
+  withdrawBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Gap.xs,
+    marginTop: Gap.base,
+    paddingVertical: Gap.sm,
+  },
+  withdrawBtnText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.error,
   },
 
   // ── Header ──────────────────────────────────────────────────

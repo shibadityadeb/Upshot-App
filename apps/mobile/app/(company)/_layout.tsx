@@ -26,6 +26,7 @@ export default function CompanyLayout() {
 
   return (
     <Tabs
+      sceneContainerStyle={{ flex: 1 }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,

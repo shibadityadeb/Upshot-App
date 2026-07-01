@@ -79,7 +79,7 @@ export default function AmbassadorProfile() {
         >
           {/* Dark identity header — matches ambassador dashboard style */}
           <View style={styles.identitySection}>
-            <AvatarCircle name={user.full_name ?? 'Ambassador'} size={72} />
+            <AvatarCircle name={user.full_name ?? 'Ambassador'} size={72} avatarUrl={user.avatar_url} />
             <Text style={styles.identityName}>{user.full_name ?? 'Ambassador'}</Text>
             <Text style={styles.identityEmail}>{user.email}</Text>
             <View style={styles.ambassadorChip}>

@@ -25,6 +25,7 @@ export default function AmbassadorLayout() {
 
   return (
     <Tabs
+      sceneContainerStyle={{ flex: 1 }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#1B2CC1',

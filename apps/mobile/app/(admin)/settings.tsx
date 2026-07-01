@@ -89,7 +89,7 @@ export default function AdminSettings() {
         >
           {/* Identity header */}
           <View style={styles.identitySection}>
-            <AvatarCircle name={user.full_name ?? 'Admin'} size={80} />
+            <AvatarCircle name={user.full_name ?? 'Admin'} size={80} avatarUrl={user.avatar_url} />
             <Text style={styles.identityName}>{user.full_name ?? 'Admin User'}</Text>
             <Text style={styles.identityEmail}>{user.email}</Text>
             <View style={styles.adminPill}>

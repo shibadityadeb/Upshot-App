@@ -575,13 +575,38 @@ export function OpportunityCard({
   isApplying = false,
 }: OpportunityCardProps) {
   const accentColor = (event.vertical?.color) ?? colors.primary;
+  const hasBanner = !!event.banner_url;
+  const [imgLoaded, setImgLoaded] = React.useState(false);
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={[ocStyles.card, { borderLeftColor: accentColor }]}
+      style={[ocStyles.card, !hasBanner && { borderLeftColor: accentColor, borderLeftWidth: 4 }]}
     >
+      {/* Cover image or placeholder */}
+      {hasBanner ? (
+        <View style={ocStyles.coverWrap}>
+          {!imgLoaded && <View style={ocStyles.coverLoading} />}
+          <Image
+            source={{ uri: event.banner_url! }}
+            style={[ocStyles.coverImg, { opacity: imgLoaded ? 1 : 0 }]}
+            onLoad={() => setImgLoaded(true)}
+            resizeMode="cover"
+          />
+          <View style={ocStyles.overlayChip}>
+            <Text style={ocStyles.overlayChipText}>{event.category}</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={[ocStyles.placeholderCover, { backgroundColor: accentColor + '18', borderLeftColor: accentColor }]}>
+          <Text style={[ocStyles.placeholderTitle, { color: accentColor }]} numberOfLines={2}>{event.title}</Text>
+          <Text style={[ocStyles.placeholderUbm, { color: accentColor + '66' }]}>UBM</Text>
+        </View>
+      )}
+
+      <View style={ocStyles.cardBody}>
+      {!hasBanner && (
       <View style={ocStyles.row1}>
         <View style={[ocStyles.categoryChip, { backgroundColor: accentColor + '1F' }]}>
           <Text style={[ocStyles.categoryText, { color: accentColor }]}>
@@ -593,6 +618,16 @@ export function OpportunityCard({
           <Text style={ocStyles.coinText}>{event.coin_reward}</Text>
         </View>
       </View>
+      )}
+
+      {hasBanner && (
+        <View style={ocStyles.row1}>
+          <View style={ocStyles.coinPill}>
+            <Ionicons name="diamond-outline" size={11} color="#92400E" />
+            <Text style={ocStyles.coinText}>{event.coin_reward}</Text>
+          </View>
+        </View>
+      )}
 
       <Text style={ocStyles.title} numberOfLines={2}>{event.title}</Text>
 
@@ -639,6 +674,7 @@ export function OpportunityCard({
           </TouchableOpacity>
         )}
       </View>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -648,14 +684,62 @@ const ocStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 14,
     overflow: 'hidden',
-    borderLeftWidth: 4,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    ...shadow.md,
+  },
+  cardBody: {
     paddingTop: 14,
     paddingRight: 14,
     paddingBottom: 14,
     paddingLeft: 18,
-    borderWidth: 0.5,
-    borderColor: colors.border,
-    ...shadow.md,
+  },
+  coverWrap: {
+    height: 160,
+    backgroundColor: '#E4E4E7',
+    position: 'relative',
+  },
+  coverLoading: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#E4E4E7',
+  },
+  coverImg: {
+    width: '100%',
+    height: 160,
+  },
+  overlayChip: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  overlayChipText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.semibold,
+    color: '#fff',
+    letterSpacing: 0.3,
+  },
+  placeholderCover: {
+    height: 160,
+    borderLeftWidth: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    position: 'relative',
+  },
+  placeholderTitle: {
+    fontSize: 15,
+    fontWeight: Font.bold,
+    textAlign: 'center',
+  },
+  placeholderUbm: {
+    position: 'absolute',
+    bottom: 8,
+    right: 10,
+    fontSize: 10,
   },
   row1: {
     flexDirection: 'row',
@@ -930,9 +1014,23 @@ interface AvatarCircleProps {
   size?: number;
   bgColor?: string;
   textColor?: string;
+  avatarUrl?: string | null;
 }
 
-export function AvatarCircle({ name, size = 44, bgColor, textColor }: AvatarCircleProps) {
+export function AvatarCircle({ name, size = 44, bgColor, textColor, avatarUrl }: AvatarCircleProps) {
+  if (avatarUrl) {
+    return (
+      <Image
+        source={{ uri: avatarUrl }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: '#E5E7EB',
+        }}
+      />
+    );
+  }
   const idx = hashName(name) % AVATAR_BG.length;
   const bg = bgColor ?? AVATAR_BG[idx];
   const tc = textColor ?? AVATAR_TEXT[idx];

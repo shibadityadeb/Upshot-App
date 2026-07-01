@@ -9,8 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import type { EventApplication } from '@upshot/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,11 +30,13 @@ type StudentRecord = {
   referred_by: string | null;
   created_at: string;
   profession: string | null;
+  status: string;
 };
 
 export default function PeopleApplications() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
 
   // ─── Campus Cartel application ───────────────────────────────
   const [student, setStudent] = useState<StudentRecord | null>(null);
@@ -50,7 +52,7 @@ export default function PeopleApplications() {
     if (!user?.id) { setStudentLoading(false); return; }
     const { data } = await api.supabase
       .from('students')
-      .select('id, college, city, state, ambassador_code, referred_by, created_at, profession')
+      .select('id, college, city, state, ambassador_code, referred_by, created_at, profession, status')
       .eq('user_id', user.id)
       .maybeSingle();
     setStudent(data ?? null);
@@ -70,8 +72,12 @@ export default function PeopleApplications() {
     }
   }, [user]);
 
-  useEffect(() => { loadStudent(); }, [loadStudent]);
-  useEffect(() => { loadApplications(); }, [loadApplications]);
+  useFocusEffect(
+    useCallback(() => {
+      loadStudent();
+      loadApplications();
+    }, [loadStudent, loadApplications]),
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -105,9 +111,9 @@ export default function PeopleApplications() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       {/* Dark header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>My Applications</Text>
         <Text style={styles.headerSubtitle}>Track your submissions</Text>
       </View>
@@ -133,11 +139,17 @@ export default function PeopleApplications() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.ccCardTitle}>Campus Cartel</Text>
-                <Text style={styles.ccCardSub}>Application submitted</Text>
+                <Text style={styles.ccCardSub}>{student.status === 'approved' ? 'Member' : student.status === 'rejected' ? 'Application rejected' : 'Application submitted'}</Text>
               </View>
-              <View style={styles.ccStatusBadge}>
-                <Ionicons name="checkmark-circle" size={14} color={GREEN} />
-                <Text style={styles.ccStatusText}>Active</Text>
+              <View style={[styles.ccStatusBadge, student.status === 'pending' && styles.ccStatusPending, student.status === 'rejected' && styles.ccStatusRejected]}>
+                <Ionicons
+                  name={student.status === 'approved' ? 'checkmark-circle' : student.status === 'rejected' ? 'close-circle' : 'hourglass-outline'}
+                  size={14}
+                  color={student.status === 'approved' ? GREEN : student.status === 'rejected' ? colors.error : '#F59E0B'}
+                />
+                <Text style={[styles.ccStatusText, student.status === 'pending' && { color: '#F59E0B' }, student.status === 'rejected' && { color: colors.error }]}>
+                  {student.status === 'approved' ? 'Approved' : student.status === 'rejected' ? 'Rejected' : 'Pending'}
+                </Text>
               </View>
             </View>
 
@@ -290,7 +302,7 @@ export default function PeopleApplications() {
           })
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -301,7 +313,6 @@ const styles = StyleSheet.create({
 
   header: {
     backgroundColor: colors.dark,
-    paddingTop: Gap.lg,
     paddingHorizontal: Gap.base,
     paddingBottom: Gap.xl,
   },
@@ -342,6 +353,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Gap.sm, paddingVertical: 4,
   },
   ccStatusText: { fontSize: FontSize.xs, fontWeight: Font.bold, color: GREEN },
+  ccStatusPending: { backgroundColor: '#F59E0B' + '15' },
+  ccStatusRejected: { backgroundColor: colors.error + '15' },
   ccDivider: { height: 1, backgroundColor: colors.border, marginVertical: Gap.md },
   ccDetailsGrid: { gap: Gap.md },
   ccDetailItem: { flexDirection: 'row', alignItems: 'flex-start', gap: Gap.sm },

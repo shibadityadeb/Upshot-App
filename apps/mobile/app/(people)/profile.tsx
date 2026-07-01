@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,38 +11,90 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import type { WorkforceProfile } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import {
-  AvatarCircle,
   Button,
   CoinBadge,
-  Divider,
   Input,
-  RoleTag,
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
 
+const AVATARS = [
+  'https://api.dicebear.com/9.x/adventurer/png?seed=Liam&size=128&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/9.x/adventurer/png?seed=George&size=128&backgroundColor=c0aede',
+  'https://api.dicebear.com/9.x/adventurer/png?seed=Maria&size=128&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/9.x/adventurer/png?seed=Katherine&size=128&backgroundColor=ffdfbf',
+];
+
+const ROLE_BADGE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  student: { bg: '#D1FAE5', text: '#065F46', label: 'Student' },
+  ambassador: { bg: '#FEF3C7', text: '#92400E', label: 'Ambassador' },
+  host: { bg: '#EDE9FE', text: '#5B21B6', label: 'Host' },
+};
+
+const INFO_ROWS = (user: any) => [
+  { label: 'Full Name', value: user?.full_name ?? '—' },
+  { label: 'Email', value: user?.email ?? '—' },
+  {
+    label: 'Member since',
+    value: user?.created_at
+      ? new Date(user.created_at).toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '—',
+  },
+];
 
 export default function PeopleProfile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
+  const refreshUser = useAuthStore((s) => s.refreshUser);
 
   const [balance, setBalance] = useState(0);
   const [workforceProfile, setWorkforceProfile] = useState<WorkforceProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avatarIndex, setAvatarIndex] = useState(() => {
+    if (user?.avatar_url) {
+      const idx = AVATARS.indexOf(user.avatar_url);
+      return idx >= 0 ? idx : 0;
+    }
+    return 0;
+  });
+
+  // Badge state
+  const [badges, setBadges] = useState<string[]>([]);
+  const [hasAmbassadorCode, setHasAmbassadorCode] = useState(false);
 
   // Edit mode
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user?.full_name ?? '');
   const [editBio, setEditBio] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const selectAvatar = useCallback(async (index: number) => {
+    if (!user?.id) return;
+    setAvatarIndex(index);
+    const url = AVATARS[index];
+    try {
+      await (api as any).supabase
+        .from('profiles')
+        .update({ avatar_url: url })
+        .eq('id', user.id);
+      await refreshUser();
+    } catch (e) {
+      console.warn('Failed to save avatar', e);
+    }
+  }, [user?.id, refreshUser]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -55,6 +108,39 @@ export default function PeopleProfile() {
         setWorkforceProfile(wfRes);
         setEditBio(wfRes.bio ?? '');
       }
+
+      // Badge logic
+      const earnedBadges: string[] = [];
+      let studentHasCode = false;
+
+      if (user.role === 'student') {
+        const { data: studentData } = await (api as any).supabase
+          .from('students')
+          .select('ambassador_code')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (studentData?.ambassador_code) {
+          earnedBadges.push('student');
+          studentHasCode = true;
+        }
+      }
+
+      if (user.role === 'ambassador') {
+        earnedBadges.push('ambassador');
+      }
+
+      const { data: hostData } = await (api as any).supabase
+        .from('events')
+        .select('id')
+        .eq('created_by', user.id)
+        .eq('status', 'approved')
+        .limit(1);
+      if (hostData && hostData.length > 0) {
+        earnedBadges.push('host');
+      }
+
+      setBadges(earnedBadges);
+      setHasAmbassadorCode(studentHasCode);
     } catch (e) {
       console.warn(e);
     } finally {
@@ -69,7 +155,6 @@ export default function PeopleProfile() {
 
   const handleToggleEdit = useCallback(() => {
     if (isEditing) {
-      // Cancel — reset
       setEditName(user?.full_name ?? '');
       setEditBio(workforceProfile?.bio ?? '');
     }
@@ -119,6 +204,9 @@ export default function PeopleProfile() {
 
   if (!user) return null;
 
+  const showCoinBadge = user.role === 'student' && hasAmbassadorCode;
+  const rows = INFO_ROWS(user);
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -128,7 +216,7 @@ export default function PeopleProfile() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -138,30 +226,60 @@ export default function PeopleProfile() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Identity header */}
-          <View style={styles.identitySection}>
-            <AvatarCircle name={user.full_name ?? '?'} size={80} />
-            <Text style={styles.identityName}>{user.full_name ?? 'User'}</Text>
-            <Text style={styles.identityEmail}>{user.email}</Text>
-            <View style={styles.identityMeta}>
-              <RoleTag role={user.role} />
-              <CoinBadge amount={balance} />
+          {/* ── DARK HEADER ── */}
+          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+            <View style={styles.mainAvatar}>
+              <Image source={{ uri: AVATARS[avatarIndex] }} style={styles.mainAvatarImg} />
+            </View>
+            <Text style={styles.headerName}>{user.full_name ?? 'User'}</Text>
+            <Text style={styles.headerEmail}>{user.email}</Text>
+            {(badges.length > 0 || showCoinBadge) && (
+              <View style={styles.badgeRow}>
+                {badges.map((b) => {
+                  const s = ROLE_BADGE_STYLES[b];
+                  if (!s) return null;
+                  return (
+                    <View key={b} style={[styles.roleBadge, { backgroundColor: s.bg }]}>
+                      <Text style={[styles.roleBadgeText, { color: s.text }]}>{s.label}</Text>
+                    </View>
+                  );
+                })}
+                {showCoinBadge && <CoinBadge amount={balance} />}
+              </View>
+            )}
+          </View>
+
+          {/* ── AVATAR SELECTOR CARD ── */}
+          <View style={styles.avatarCard}>
+            <Text style={styles.avatarCardTitle}>CHOOSE YOUR AVATAR</Text>
+            <View style={styles.avatarOptions}>
+              {AVATARS.map((uri, i) => (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => selectAvatar(i)}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.avatarOption,
+                    avatarIndex === i && styles.avatarOptionSelected,
+                  ]}
+                >
+                  <Image source={{ uri }} style={styles.avatarOptionImg} />
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
-          {/* Edit Profile section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Profile</Text>
+          {/* ── PROFILE INFO CARD ── */}
+          <View style={styles.infoCard}>
+            <View style={styles.infoCardHeader}>
+              <Text style={styles.infoCardTitle}>Profile info</Text>
               <TouchableOpacity onPress={handleToggleEdit} activeOpacity={0.7}>
-                <Text style={styles.editToggleText}>
-                  {isEditing ? 'Cancel' : 'Edit'}
-                </Text>
+                <Text style={styles.editToggle}>{isEditing ? 'Cancel' : 'Edit'}</Text>
               </TouchableOpacity>
             </View>
 
             {isEditing ? (
-              <View style={styles.editCard}>
+              <View style={styles.editSection}>
                 <Input
                   label="Full Name"
                   placeholder="Your full name"
@@ -185,64 +303,37 @@ export default function PeopleProfile() {
                 />
               </View>
             ) : (
-              <View style={styles.detailCard}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Full Name</Text>
-                  <Text style={styles.detailValue}>{user.full_name ?? '—'}</Text>
+              rows.map((row, i) => (
+                <View
+                  key={row.label}
+                  style={[
+                    styles.infoRow,
+                    i < rows.length - 1 && styles.infoRowBorder,
+                  ]}
+                >
+                  <Text style={styles.infoLabel}>{row.label}</Text>
+                  <Text style={styles.infoValue} numberOfLines={1}>{row.value}</Text>
                 </View>
-                <Divider />
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Email</Text>
-                  <Text style={styles.detailValue} numberOfLines={1}>{user.email}</Text>
-                </View>
-                {!!workforceProfile?.bio && (
-                  <>
-                    <Divider />
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Bio</Text>
-                      <Text style={[styles.detailValue, { maxWidth: '60%' }]} numberOfLines={3}>
-                        {workforceProfile.bio}
-                      </Text>
-                    </View>
-                  </>
-                )}
-                <Divider />
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Status</Text>
-                  <Text style={[styles.detailValue, { color: user.is_active ? colors.success : colors.error }]}>
-                    {user.is_active ? 'Active' : 'Inactive'}
-                  </Text>
-                </View>
-                <Divider />
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Member since</Text>
-                  <Text style={styles.detailValue}>
-                    {new Date(user.created_at).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </Text>
-                </View>
-              </View>
+              ))
             )}
           </View>
 
-          {/* Sign out */}
-          <View style={styles.signOutSection}>
-            <Button title="Sign Out" variant="danger" onPress={handleSignOut} />
-          </View>
+          {/* ── SIGN OUT ── */}
+          <TouchableOpacity
+            style={styles.signOutBtn}
+            onPress={handleSignOut}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.signOutText}>Sign out</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   centered: {
     flex: 1,
@@ -250,91 +341,170 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    paddingBottom: 100,
-  },
-  identitySection: {
+  scrollContent: { paddingBottom: 100 },
+
+  // ── Dark header ──
+  header: {
     backgroundColor: colors.dark,
     alignItems: 'center',
-    paddingTop: Gap.xl,
-    paddingBottom: Gap.xxl,
-    paddingHorizontal: Gap.base,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
   },
-  identityName: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.bold,
-    color: colors.surface,
-    marginTop: Gap.md,
-    textAlign: 'center',
-  },
-  identityEmail: {
-    fontSize: FontSize.body,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 3,
-    textAlign: 'center',
-  },
-  identityMeta: {
-    flexDirection: 'row',
-    gap: Gap.sm,
-    marginTop: Gap.md,
+  mainAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 3,
+    borderColor: '#7BC55A',
+    overflow: 'hidden',
+    marginBottom: 14,
+    backgroundColor: '#1E2340',
     alignItems: 'center',
-    flexWrap: 'wrap',
     justifyContent: 'center',
   },
-  section: {
-    paddingHorizontal: Gap.base,
-    paddingTop: Gap.xl,
+  mainAvatarImg: { width: 82, height: 82, borderRadius: 41 },
+  headerName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
-  sectionHeaderRow: {
+  headerEmail: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: 16,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  roleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  roleBadgeText: {
+    fontSize: 11,
+    fontWeight: Font.bold,
+  },
+
+  // ── Avatar selector card ──
+  avatarCard: {
+    backgroundColor: colors.surface,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: -1,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  avatarCardTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  avatarOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  avatarOption: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2.5,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarOptionSelected: {
+    borderColor: '#7BC55A',
+    backgroundColor: '#F0FAF0',
+  },
+  avatarOptionImg: { width: 52, height: 52, borderRadius: 26 },
+
+  // ── Profile info card ──
+  infoCard: {
+    backgroundColor: colors.surface,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  infoCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Gap.sm,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.background,
   },
-  sectionTitle: {
-    fontSize: FontSize.h2,
-    fontWeight: Font.bold,
+  infoCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.text,
   },
-  editToggleText: {
-    fontSize: FontSize.body,
-    fontWeight: Font.semibold,
+  editToggle: {
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.primary,
   },
-  editCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: Gap.base,
-    borderWidth: 1,
-    borderColor: colors.border,
+  editSection: {
+    padding: 16,
   },
-  detailCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  detailRow: {
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: Gap.base,
-    paddingVertical: Gap.md,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  detailLabel: {
-    fontSize: FontSize.body,
+  infoRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.background,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '400',
+  },
+  infoValue: {
+    fontSize: 14,
     color: colors.text,
-  },
-  detailValue: {
-    fontSize: FontSize.body,
-    color: colors.textSecondary,
-    fontWeight: Font.medium,
-    maxWidth: '55%',
+    fontWeight: '500',
+    maxWidth: '60%',
     textAlign: 'right',
   },
-  signOutSection: {
-    paddingHorizontal: Gap.base,
-    paddingTop: Gap.xl,
+
+  // ── Sign out ──
+  signOutBtn: {
+    marginHorizontal: 16,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  signOutText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#991B1B',
   },
 });

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useAuthStore } from '../src/store/auth.store';
 import { colors } from '../src/constants/theme';
@@ -38,14 +39,16 @@ export default function RootLayout() {
   if (!isInitialized) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-      <Stack.Screen name="(company)" options={{ headerShown: false }} />
-      <Stack.Screen name="(people)" options={{ headerShown: false }} />
-      <Stack.Screen name="(ambassador)" options={{ headerShown: false }} />
-      <Stack.Screen name="(shared)" options={{ headerShown: false }} />
-      <Stack.Screen name="campus-cartel-apply" options={{ headerShown: false }} />
-    </Stack>
+    <SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+        <Stack.Screen name="(company)" options={{ headerShown: false }} />
+        <Stack.Screen name="(people)" options={{ headerShown: false }} />
+        <Stack.Screen name="(ambassador)" options={{ headerShown: false }} />
+        <Stack.Screen name="(shared)" options={{ headerShown: false }} />
+        <Stack.Screen name="campus-cartel-apply" options={{ headerShown: false }} />
+      </Stack>
+    </SafeAreaProvider>
   );
 }

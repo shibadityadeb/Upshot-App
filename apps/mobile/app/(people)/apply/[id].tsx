@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -140,6 +141,15 @@ export default function PeopleApply() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Event cover image */}
+          {!!event.banner_url && (
+            <Image
+              source={{ uri: event.banner_url }}
+              style={styles.coverImage}
+              resizeMode="cover"
+            />
+          )}
+
           {/* Event info */}
           <View style={styles.eventCard}>
             <View style={styles.badgeRow}>
@@ -255,6 +265,10 @@ const styles = StyleSheet.create({
     fontSize: FontSize.body,
     color: colors.text,
     fontWeight: Font.medium,
+  },
+  coverImage: {
+    width: '100%',
+    height: 220,
   },
   scrollContent: {
     paddingBottom: Gap.xl,
