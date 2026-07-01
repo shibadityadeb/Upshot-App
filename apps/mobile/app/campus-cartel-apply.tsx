@@ -297,16 +297,18 @@ export default function CampusCartelApply() {
             <Ionicons name="arrow-back" size={16} color="#fff" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.withdrawBtn} onPress={handleWithdraw} activeOpacity={0.7} disabled={withdrawing}>
-            {withdrawing ? (
-              <ActivityIndicator size="small" color={colors.error} />
-            ) : (
-              <>
-                <Ionicons name="close-circle-outline" size={16} color={colors.error} />
-                <Text style={styles.withdrawBtnText}>Withdraw Application</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {existingStatus === 'pending' && (
+            <TouchableOpacity style={styles.withdrawBtn} onPress={handleWithdraw} activeOpacity={0.7} disabled={withdrawing}>
+              {withdrawing ? (
+                <ActivityIndicator size="small" color={colors.error} />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={16} color={colors.error} />
+                  <Text style={styles.withdrawBtnText}>Withdraw Application</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     );
