@@ -302,3 +302,44 @@ export interface CreateAmbassadorCodePayload {
   vertical_id?: string;
   notes?: string;
 }
+
+// ─── Hosting Applications ───────────────────────────────
+
+export type HostingApplicationStatus = 'pending' | 'approved' | 'rejected';
+
+export interface HostingApplication {
+  id: string;
+  user_id: string;
+  user?: User;
+  title: string;
+  description: string | null;
+  event_date: string;
+  event_time: string | null;
+  location: string;
+  location_url: string | null;
+  category: string;
+  max_attendees: number | null;
+  requirements: string | null;
+  coin_reward: number;
+  cover_image_url: string | null;
+  status: HostingApplicationStatus;
+  rejection_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateHostingApplicationPayload {
+  title: string;
+  description?: string;
+  event_date: string;
+  event_time?: string;
+  location: string;
+  location_url?: string;
+  category?: string;
+  max_attendees?: number;
+  requirements?: string;
+  coin_reward?: number;
+  cover_image_url?: string;
+}

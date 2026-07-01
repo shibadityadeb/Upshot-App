@@ -14,7 +14,6 @@ these two methods:
 6. Check "Auto Confirm User" so no email verification is needed
 7. Click "Create user"
 8. Go to the SQL Editor and run:
-
    UPDATE profiles
    SET role = 'admin', full_name = 'UBM Admin'
    WHERE email = 'admin@gmail.com';
