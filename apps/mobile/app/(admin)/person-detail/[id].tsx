@@ -34,6 +34,7 @@ interface Profile {
   id: string;
   full_name: string;
   email: string;
+  avatar_url?: string | null;
   role: string;
   phone?: string;
   is_active?: boolean;
