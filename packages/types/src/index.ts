@@ -144,6 +144,9 @@ export interface Student {
   organisation_name: string | null;
   ambassador_code: string | null;
   referred_by: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  city: string | null;
+  state: string | null;
   created_at: string;
 }
 
@@ -311,16 +314,30 @@ export interface HostingApplication {
   id: string;
   user_id: string;
   user?: User;
+  // Personal details
+  applicant_name: string;
+  applicant_phone: string;
+  applicant_email: string;
+  event_type: 'organisation' | 'personal';
+  // Organisation details (null if personal)
+  org_legal_name: string | null;
+  org_city: string | null;
+  org_state: string | null;
+  org_sector: string | null;
+  org_designation: string | null;
+  // Event details
   title: string;
   description: string | null;
   event_date: string;
   event_time: string | null;
   location: string;
+  event_city: string;
+  event_state: string;
   location_url: string | null;
   category: string;
   max_attendees: number | null;
+  fees: number | null;
   requirements: string | null;
-  coin_reward: number;
   cover_image_url: string | null;
   status: HostingApplicationStatus;
   rejection_reason: string | null;
@@ -331,15 +348,29 @@ export interface HostingApplication {
 }
 
 export interface CreateHostingApplicationPayload {
+  // Personal details
+  applicant_name: string;
+  applicant_phone: string;
+  applicant_email: string;
+  event_type: 'organisation' | 'personal';
+  // Organisation details
+  org_legal_name?: string;
+  org_city?: string;
+  org_state?: string;
+  org_sector?: string;
+  org_designation?: string;
+  // Event details
   title: string;
   description?: string;
   event_date: string;
   event_time?: string;
   location: string;
+  event_city: string;
+  event_state: string;
   location_url?: string;
   category?: string;
   max_attendees?: number;
+  fees?: number;
   requirements?: string;
-  coin_reward?: number;
   cover_image_url?: string;
 }

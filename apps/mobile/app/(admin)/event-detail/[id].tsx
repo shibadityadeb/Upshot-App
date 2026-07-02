@@ -250,13 +250,7 @@ export default function AdminEventDetail() {
             subtitle={`${applications.length} total`}
           />
 
-          {applications.length === 0 ? (
-            <EmptyState
-              iconName="people-outline"
-              title="No applicants yet"
-              subtitle="Applications will appear here"
-            />
-          ) : (
+          {applications.length === 0 ? null : (
             applications.map((app) => {
               const applicantName =
                 (app as any).user?.full_name ??

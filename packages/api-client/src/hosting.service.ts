@@ -16,16 +16,30 @@ export class HostingService {
       .from('hosting_applications')
       .insert({
         user_id: userId,
+        // Personal details
+        applicant_name: payload.applicant_name,
+        applicant_phone: payload.applicant_phone,
+        applicant_email: payload.applicant_email,
+        event_type: payload.event_type,
+        // Organisation details
+        org_legal_name: payload.org_legal_name ?? null,
+        org_city: payload.org_city ?? null,
+        org_state: payload.org_state ?? null,
+        org_sector: payload.org_sector ?? null,
+        org_designation: payload.org_designation ?? null,
+        // Event details
         title: payload.title,
         description: payload.description ?? null,
         event_date: payload.event_date,
         event_time: payload.event_time ?? null,
         location: payload.location,
+        event_city: payload.event_city,
+        event_state: payload.event_state,
         location_url: payload.location_url ?? null,
         category: payload.category ?? 'social',
         max_attendees: payload.max_attendees ?? null,
+        fees: payload.fees ?? null,
         requirements: payload.requirements ?? null,
-        coin_reward: payload.coin_reward ?? 0,
         cover_image_url: payload.cover_image_url ?? null,
         status: 'pending',
       })
@@ -83,7 +97,6 @@ export class HostingService {
       current_attendees: 0,
       status: 'approved',
       requirements: app.requirements,
-      coin_reward: app.coin_reward ?? 0,
       created_by: app.user_id,
       approved_by: adminId,
       approved_at: new Date().toISOString(),

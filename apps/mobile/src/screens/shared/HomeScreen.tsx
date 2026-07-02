@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 const LOGO = require('../../../assets/logo.png') as number;
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { Vertical, ContentPost, Event } from '@upshot/types';
+import type { Vertical, Event } from '@upshot/types';
 import {
   colors,
   verticalColors,
@@ -21,11 +21,11 @@ import {
   Font,
   FontSize,
   Gap,
+  radius,
+  shadow,
 } from '../../constants/theme';
 import {
   SectionHeader,
-  ContentCard,
-  OpportunityCard,
   LoadingScreen,
 } from '../../components/common';
 import { useAuthStore } from '../../store/auth.store';
@@ -96,10 +96,8 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
 
   const [verticals, setVerticals] = useState<Vertical[]>([]);
-  const [featuredPosts, setFeaturedPosts] = useState<ContentPost[]>([]);
-  const [recentEvents, setRecentEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
-  const [applyingIds, setApplyingIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -109,10 +107,9 @@ export default function HomeScreen() {
   async function load() {
     setLoading(true);
     try {
-      const [verts, posts, events] = await Promise.allSettled([
+      const [verts, events] = await Promise.allSettled([
         api.verticals.getAllVerticals(),
-        api.verticals.getFeaturedPosts(6),
-        api.verticals.getRecentEvents(4),
+        api.events.getApprovedEvents(1, 10),
       ]);
 
       if (verts.status === 'fulfilled' && verts.value.length > 0) {
@@ -121,8 +118,10 @@ export default function HomeScreen() {
         setVerticals(FALLBACK_VERTICALS);
       }
 
-      if (posts.status === 'fulfilled') setFeaturedPosts(posts.value);
-      if (events.status === 'fulfilled') setRecentEvents(events.value);
+      if (events.status === 'fulfilled' && events.value.data) {
+        const eventList = events.value.data.data ?? events.value.data;
+        setAllEvents(Array.isArray(eventList) ? eventList : []);
+      }
 
       if (user) {
         const appsResult = await api.events.getMyApplications(user.id);
@@ -136,17 +135,8 @@ export default function HomeScreen() {
     setLoading(false);
   }
 
-  async function handleApply(eventId: string) {
-    if (!user) return;
-    setApplyingIds((prev) => new Set(prev).add(eventId));
-    const result = await api.events.applyForEvent(eventId, user.id);
-    if (!result.error) setAppliedIds((prev) => new Set(prev).add(eventId));
-    setApplyingIds((prev) => {
-      const s = new Set(prev);
-      s.delete(eventId);
-      return s;
-    });
-  }
+  const upcomingEvents = allEvents.filter((e) => !appliedIds.has(e.id));
+  const joinedEvents = allEvents.filter((e) => appliedIds.has(e.id));
 
   if (loading) {
     return <LoadingScreen />;
@@ -222,93 +212,94 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={styles.divider} />
+      {/* ─── Joined Workshops ───────────────────────────────── */}
+      {joinedEvents.length > 0 && (
+        <>
+          <View style={styles.divider} />
+          <View style={styles.section}>
+            <SectionHeader title="Joined Workshops" />
+            {joinedEvents.slice(0, 3).map((event) => {
+              const eventDate = new Date(event.event_date);
+              const day = eventDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+              const time = eventDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+              const venue = (event as any).venue;
+              const city = (event as any).city;
+              const loc = venue ? `${venue}${city ? ', ' + city : ''}` : (event.location ?? '');
 
-      {/* ─── From Unfiltered ─────────────────────────────────── */}
-      <View style={styles.section}>
-        <SectionHeader
-          title="From Unfiltered"
-          subtitle="Leadership conversations"
-          titleStyle={{ color: '#5B21B6' }}
-          action
-          actionLabel="See all"
-          onAction={() => router.push('/(shared)/vertical/unfiltered')}
-        />
-
-        {featuredPosts.length === 0 ? (
-          <View style={styles.unfilteredTeaser}>
-            <View style={styles.unfilteredTeaserRow}>
-              <Ionicons name="mic-outline" size={18} color="#5B21B6" />
-              <Text style={styles.unfilteredTeaserLabel}>Launching soon</Text>
-            </View>
-            <Text style={styles.unfilteredTeaserBody}>
-              Real conversations with founders, CXOs and policymakers. First
-              episodes dropping soon.
-            </Text>
+              return (
+                <TouchableOpacity
+                  key={event.id}
+                  style={styles.joinedCard}
+                  onPress={() => router.push(`/(people)/apply/${event.id}` as any)}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.joinedIconWrap}>
+                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  </View>
+                  <View style={styles.joinedInfo}>
+                    <Text style={styles.joinedTitle} numberOfLines={1}>{event.title}</Text>
+                    <Text style={styles.joinedMeta}>{day} · {time}{loc ? ` · ${loc}` : ''}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.featuredContent}
-          >
-            {featuredPosts.map((post) => (
-              <ContentCard
-                key={post.id}
-                post={post}
-                verticalColor="#5B21B6"
-                onPress={() => void 0}
-              />
-            ))}
-          </ScrollView>
-        )}
-      </View>
+        </>
+      )}
 
       <View style={styles.divider} />
 
-      {/* ─── Open Opportunities ──────────────────────────────── */}
-      <View style={styles.section}>
-        <SectionHeader
-          title="Open opportunities"
-          action
-          actionLabel="See all"
-          onAction={() => router.push('/(people)/opportunities' as any)}
-        />
+      {/* ─── Upcoming Events (1 latest, not joined) ──────────── */}
+      {upcomingEvents.length > 0 && (
+        <View style={styles.section}>
+          <SectionHeader
+            title="Upcoming Events"
+            action
+            actionLabel="See all"
+            onAction={() => router.push('/(people)/opportunities' as any)}
+          />
+          {(() => {
+            const event = upcomingEvents[0];
+            const eventDate = new Date(event.event_date);
+            const day = eventDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+            const time = eventDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            const venue = (event as any).venue;
+            const city = (event as any).city;
+            const loc = venue ? `${venue}${city ? ', ' + city : ''}` : (event.location ?? '');
 
-        {recentEvents.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="briefcase-outline" size={24} color={colors.textSecondary} />
-            </View>
-            <Text style={styles.emptyTitle}>No live projects right now</Text>
-            <Text style={styles.emptySubtitle}>
-              New opportunities are posted weekly. Check back soon.
-            </Text>
-          </View>
-        ) : (
-          <>
-            {recentEvents.slice(0, 3).map((event) => (
-              <View key={event.id} style={styles.cardGap}>
-                <OpportunityCard
-                  event={event}
-                  onPress={() => void 0}
-                  onApply={() => handleApply(event.id)}
-                  hasApplied={appliedIds.has(event.id)}
-                  isApplying={applyingIds.has(event.id)}
-                />
-              </View>
-            ))}
-            <TouchableOpacity
-              style={styles.seeAllRow}
-              onPress={() => router.push('/(people)/opportunities' as any)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.seeAllText}>See all opportunities</Text>
-              <Ionicons name="arrow-forward" size={14} color={colors.primary} />
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
+            return (
+              <TouchableOpacity
+                style={styles.upcomingCard}
+                onPress={() => router.push(`/(people)/apply/${event.id}` as any)}
+                activeOpacity={0.75}
+              >
+                {!!event.banner_url && (
+                  <Image source={{ uri: event.banner_url }} style={styles.upcomingBanner} resizeMode="cover" />
+                )}
+                <View style={styles.upcomingBody}>
+                  {!!(event as any).category && (
+                    <View style={styles.upcomingCategoryPill}>
+                      <Text style={styles.upcomingCategoryText}>{(event as any).category}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.upcomingTitle} numberOfLines={1}>{event.title}</Text>
+                  <View style={styles.upcomingMeta}>
+                    <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+                    <Text style={styles.upcomingMetaText}>{day} · {time}</Text>
+                  </View>
+                  {!!loc && (
+                    <View style={styles.upcomingMeta}>
+                      <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+                      <Text style={styles.upcomingMetaText} numberOfLines={1}>{loc}</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })()}
+        </View>
+      )}
 
       {/* ─── Host an Event Banner ──────────────────────────────── */}
       <View style={[styles.bannerWrapper, { paddingBottom: 0 }]}>
@@ -321,7 +312,7 @@ export default function HomeScreen() {
             Got an idea? Bring your event to life
           </Text>
           <Text style={styles.hostBannerBody}>
-            Submit your event proposal and reach thousands of students across India.
+            Submit your event proposal and reach thousands of people across India.
           </Text>
           <TouchableOpacity
             style={styles.hostBannerBtn}
@@ -415,10 +406,6 @@ const styles = StyleSheet.create({
     backgroundColor: DIVIDER,
     marginHorizontal: PAGE_H,
   },
-  cardGap: {
-    marginBottom: Gap.sm,
-  },
-
   // ── Hero ──────────────────────────────────────────────────
   hero: {
     paddingBottom: SECTION_V,
@@ -529,77 +516,80 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
 
-  // ── From Unfiltered ───────────────────────────────────────
-  unfilteredTeaser: {
-    backgroundColor: '#F5F0FF',
-    borderRadius: CARD_RADIUS,
-    padding: CARD_PAD,
-    borderLeftWidth: 3,
-    borderLeftColor: '#5B21B6',
-  },
-  unfilteredTeaserRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Gap.sm,
-    marginBottom: Gap.sm,
-  },
-  unfilteredTeaserLabel: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: '#5B21B6',
-  },
-  unfilteredTeaserBody: {
-    fontSize: FontSize.body,
-    color: colors.textSecondary,
-    lineHeight: 21,
-  },
-  featuredContent: {
-    gap: Gap.sm,
-    paddingVertical: 2,
-  },
-
-  // ── Open Opportunities ────────────────────────────────────
-  emptyCard: {
+  // ── Upcoming Events ───────────────────────────────────────
+  upcomingCard: {
     backgroundColor: colors.surface,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: Gap.lg,
-    alignItems: 'flex-start',
-  },
-  emptyIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     marginBottom: Gap.sm,
+    ...shadow.sm,
   },
-  emptyTitle: {
-    fontSize: FontSize.h3,
+  upcomingBanner: {
+    width: '100%',
+    height: 140,
+  },
+  upcomingBody: {
+    padding: CARD_PAD,
+    gap: 4,
+  },
+  upcomingCategoryPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary + '14',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 2,
+  },
+  upcomingCategoryText: {
+    fontSize: 11,
     fontWeight: Font.semibold,
+    color: colors.primary,
+  },
+  upcomingTitle: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.bold,
     color: colors.text,
-    marginBottom: 4,
   },
-  emptySubtitle: {
-    fontSize: FontSize.body,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    maxWidth: 240,
-  },
-  seeAllRow: {
+  upcomingMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Gap.xs,
-    paddingVertical: Gap.sm,
-    marginTop: Gap.xs,
+    gap: 4,
   },
-  seeAllText: {
+  upcomingMetaText: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+
+  // ── Joined Workshops ──────────────────────────────────────
+  joinedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: CARD_PAD,
+    marginBottom: Gap.sm,
+    gap: Gap.md,
+  },
+  joinedIconWrap: {
+    flexShrink: 0,
+  },
+  joinedInfo: {
+    flex: 1,
+  },
+  joinedTitle: {
     fontSize: FontSize.body,
-    color: colors.primary,
     fontWeight: Font.semibold,
+    color: colors.text,
+  },
+  joinedMeta: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 
   // ── Host an Event Banner ──────────────────────────────────

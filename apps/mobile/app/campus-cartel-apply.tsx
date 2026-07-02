@@ -58,6 +58,11 @@ export default function CampusCartelApply() {
         .eq('user_id', user.id)
         .maybeSingle()
         .then(({ data }) => {
+          if (data?.status === 'approved') {
+            // Approved students go directly to the dashboard
+            router.replace('/(shared)/vertical/campus-cartel' as any);
+            return;
+          }
           setScreen((prev) => {
             if (prev === 'editing') return prev;
             if (data) {
@@ -265,34 +270,61 @@ export default function CampusCartelApply() {
 
   // ─── Already applied screen ───────────────────────────────────
   if (screen === 'already-applied') {
+    const isApproved = existingStatus === 'approved';
+    const isRejected = existingStatus === 'rejected';
+
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.successContainer}>
-          <View style={[styles.successIconRing, { backgroundColor: '#F59E0B' }]}>
-            <Ionicons name="hourglass-outline" size={44} color="#fff" />
+          <View style={[styles.successIconRing, {
+            backgroundColor: isApproved ? GREEN : isRejected ? colors.error : '#F59E0B',
+          }]}>
+            <Ionicons
+              name={isApproved ? 'checkmark-circle-outline' : isRejected ? 'close-circle-outline' : 'hourglass-outline'}
+              size={44}
+              color="#fff"
+            />
           </View>
-          <Text style={styles.successEyebrow}>APPLICATION SUBMITTED</Text>
-          <Text style={styles.successHeadline}>Under Review</Text>
+          <Text style={styles.successEyebrow}>
+            {isApproved ? 'APPLICATION APPROVED' : isRejected ? 'APPLICATION REJECTED' : 'APPLICATION SUBMITTED'}
+          </Text>
+          <Text style={styles.successHeadline}>
+            {isApproved ? 'Approved!' : isRejected ? 'Rejected' : 'Under Review'}
+          </Text>
           <Text style={styles.successBody}>
-            {existingCollege
-              ? `Your application from ${existingCollege} has been submitted.`
-              : 'Your Campus Cartel application has been submitted.'}
-            {'\n'}Our admin team is reviewing it — we'll let you know once it's approved.
+            {isApproved
+              ? `Congratulations! Your Campus Cartel application${existingCollege ? ` from ${existingCollege}` : ''} has been approved. Visit the Campus Cartel page to access your student dashboard.`
+              : isRejected
+                ? `Unfortunately, your application${existingCollege ? ` from ${existingCollege}` : ''} was not approved. You can re-apply with updated details.`
+                : `${existingCollege ? `Your application from ${existingCollege} has been submitted.` : 'Your Campus Cartel application has been submitted.'}\nOur admin team is reviewing it — we'll let you know once it's approved.`}
           </Text>
 
           <View style={[styles.alreadyBadge]}>
-            <Ionicons name="mail-outline" size={16} color={colors.primary} />
+            <Ionicons name="mail-outline" size={16} color={isApproved ? GREEN : colors.primary} />
             <Text style={styles.alreadyBadgeText}>{user?.email ?? email}</Text>
           </View>
 
-          <TouchableOpacity
-            style={[styles.successBtn, { backgroundColor: GREEN }]}
-            onPress={() => { setIsEditing(true); setScreen('editing'); }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="create-outline" size={16} color="#fff" />
-            <Text style={styles.successBtnText}>Edit Application</Text>
-          </TouchableOpacity>
+          {isApproved && (
+            <TouchableOpacity
+              style={[styles.successBtn, { backgroundColor: GREEN }]}
+              onPress={() => router.push('/(shared)/vertical/campus-cartel' as any)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="grid-outline" size={16} color="#fff" />
+              <Text style={styles.successBtnText}>Open Dashboard</Text>
+            </TouchableOpacity>
+          )}
+
+          {!isApproved && (
+            <TouchableOpacity
+              style={[styles.successBtn, { backgroundColor: GREEN }]}
+              onPress={() => { setIsEditing(true); setScreen('editing'); }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="create-outline" size={16} color="#fff" />
+              <Text style={styles.successBtnText}>{isRejected ? 'Re-apply' : 'Edit Application'}</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={[styles.successBtn, { backgroundColor: colors.primary, marginTop: Gap.sm }]} onPress={() => router.back()} activeOpacity={0.8}>
             <Text style={styles.successBtnText}>Go Back</Text>
