@@ -306,6 +306,30 @@ export interface CreateAmbassadorCodePayload {
   notes?: string;
 }
 
+// ─── Unfiltered Videos ─────────────────────────────────
+
+export interface UnfilteredVideo {
+  id: string;
+  youtube_url: string;
+  title: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  is_featured: boolean;
+  channel_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateUnfilteredVideoPayload {
+  youtube_url: string;
+  title: string;
+  description?: string;
+  thumbnail_url?: string;
+  is_featured?: boolean;
+  channel_url?: string;
+}
+
 // ─── Hosting Applications ───────────────────────────────
 
 export type HostingApplicationStatus = 'pending' | 'approved' | 'rejected';

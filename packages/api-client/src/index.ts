@@ -7,6 +7,7 @@ export { AmbassadorService } from './ambassador.service';
 export { VerticalsService } from './verticals.service';
 export { WorkforceService } from './workforce.service';
 export { HostingService } from './hosting.service';
+export { UnfilteredService } from './unfiltered.service';
 
 import { getSupabaseClient } from './client';
 import { AuthService } from './auth.service';
@@ -17,6 +18,7 @@ import { AmbassadorService } from './ambassador.service';
 import { VerticalsService } from './verticals.service';
 import { WorkforceService } from './workforce.service';
 import { HostingService } from './hosting.service';
+import { UnfilteredService } from './unfiltered.service';
 
 export function createApiClient(supabaseUrl?: string, supabaseAnonKey?: string) {
   const supabase = getSupabaseClient(supabaseUrl, supabaseAnonKey);
@@ -30,5 +32,6 @@ export function createApiClient(supabaseUrl?: string, supabaseAnonKey?: string) 
     verticals: new VerticalsService(supabase),
     workforce: new WorkforceService(supabase),
     hosting: new HostingService(supabase),
+    unfiltered: new UnfilteredService(supabase),
   };
 }

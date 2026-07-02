@@ -9,12 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { createApiClient } from '@upshot/api-client';
-import type { Vertical, Event, Task } from '@upshot/types';
+import type { Vertical, Event, Task, UnfilteredVideo } from '@upshot/types';
 import { colors, verticalColors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
 import { Button, Card, EmptyState, LoadingScreen, CoinBadge, StatusBadge } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
@@ -74,6 +75,10 @@ export default function VerticalDetailScreen() {
   const [verticalEvents, setVerticalEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ─── Unfiltered videos state ─────────────────────────────
+  const [unfilteredVideos, setUnfilteredVideos] = useState<UnfilteredVideo[]>([]);
+  const [unfilteredChannelUrl, setUnfilteredChannelUrl] = useState<string | null>(null);
+
   // ─── Campus Cartel student state ─────────────────────────
   const [studentStatus, setStudentStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -109,6 +114,21 @@ export default function VerticalDetailScreen() {
         const fallback = VERTICAL_FALLBACKS[slug] ?? null;
         setVertical(fallback);
       }
+
+      // Load unfiltered videos independently
+      if (slug === 'unfiltered') {
+        try {
+          const { data: videosData } = await api.unfiltered.getVideos(10);
+          if (videosData) {
+            setUnfilteredVideos(videosData);
+            const withChannel = videosData.find((v) => v.channel_url);
+            if (withChannel) setUnfilteredChannelUrl(withChannel.channel_url);
+          }
+        } catch (e) {
+          console.warn('Failed to load unfiltered videos', e);
+        }
+      }
+
       setLoading(false);
     }
     if (slug) load();
@@ -205,17 +225,30 @@ export default function VerticalDetailScreen() {
     }
   }, [submissionNote, submissionImageUri, user?.id]);
 
-  const handleApplyAmbassador = useCallback(async () => {
-    if (!user?.id || !user?.full_name) return;
+  // ─── Ambassador code claim ───────────────────────────────
+  const [ambassadorCodeInput, setAmbassadorCodeInput] = useState('');
+  const [claimingCode, setClaimingCode] = useState(false);
+
+  const handleClaimAmbassadorCode = useCallback(async () => {
+    const code = ambassadorCodeInput.trim().toUpperCase();
+    if (!code) {
+      Alert.alert('Enter Code', 'Please enter the ambassador code provided by admin.');
+      return;
+    }
+    if (!user?.id) return;
+
+    setClaimingCode(true);
     try {
-      const { error } = await api.ambassadors.createAmbassador(user.id, user.full_name);
-      if (error) throw new Error(error.message);
+      await api.ambassadors.claimCode(code, user.id);
       setIsAmbassador(true);
+      setAmbassadorCodeInput('');
       Alert.alert('Congratulations!', 'You are now a Campus Cartel Ambassador!');
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to apply as ambassador.');
+      Alert.alert('Invalid Code', e instanceof Error ? e.message : 'This code is invalid or already used.');
+    } finally {
+      setClaimingCode(false);
     }
-  }, [user?.id, user?.full_name]);
+  }, [ambassadorCodeInput, user?.id]);
 
   if (loading) {
     return <LoadingScreen />;
@@ -267,17 +300,56 @@ export default function VerticalDetailScreen() {
                 {isAmbassador ? (
                   <View style={styles.ambassadorBadge}>
                     <Ionicons name="shield-checkmark" size={18} color={verticalColors.campusCartel} />
-                    <Text style={styles.ambassadorBadgeText}>You are an Ambassador</Text>
+                    <Text style={styles.ambassadorBadgeText}>Already an Ambassador</Text>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    style={styles.ambassadorApplyBtn}
-                    onPress={handleApplyAmbassador}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="star-outline" size={16} color="#fff" />
-                    <Text style={styles.ambassadorApplyText}>Apply to be an Ambassador</Text>
-                  </TouchableOpacity>
+                  <View style={styles.ambassadorCodeSection}>
+                    <TouchableOpacity
+                      style={styles.beAmbassadorBtn}
+                      onPress={() => setExpandedTaskId(expandedTaskId === '__ambassador__' ? null : '__ambassador__')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="shield-outline" size={18} color={verticalColors.campusCartel} />
+                      <Text style={styles.beAmbassadorText}>Be an Ambassador</Text>
+                      <Ionicons
+                        name={expandedTaskId === '__ambassador__' ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color={verticalColors.campusCartel}
+                      />
+                    </TouchableOpacity>
+
+                    {expandedTaskId === '__ambassador__' && (
+                      <View style={styles.ambassadorDropdown}>
+                        <Text style={styles.ambassadorCodeLabel}>Enter your ambassador code</Text>
+                        <View style={styles.ambassadorCodeRow}>
+                          <View style={styles.ambassadorCodeInputWrapper}>
+                            <Ionicons name="key-outline" size={16} color={colors.textSecondary} />
+                            <TextInput
+                              style={styles.ambassadorCodeInput}
+                              placeholder="Enter code e.g. UBM-XXXX"
+                              placeholderTextColor={colors.textLight}
+                              value={ambassadorCodeInput}
+                              onChangeText={(t) => setAmbassadorCodeInput(t.toUpperCase())}
+                              autoCapitalize="characters"
+                              autoCorrect={false}
+                            />
+                          </View>
+                          <TouchableOpacity
+                            style={[styles.ambassadorClaimBtn, claimingCode && { opacity: 0.6 }]}
+                            onPress={handleClaimAmbassadorCode}
+                            activeOpacity={0.8}
+                            disabled={claimingCode}
+                          >
+                            {claimingCode ? (
+                              <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                              <Text style={styles.ambassadorClaimText}>Claim</Text>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
                 )}
               </View>
 
@@ -458,36 +530,93 @@ export default function VerticalDetailScreen() {
             </>
           )}
 
-          {/* Events */}
-          <Text style={styles.eventsHeading}>Events</Text>
-          {verticalEvents.length === 0 ? (
-            <EmptyState
-              title="No events yet"
-              subtitle={`${vertical?.name ?? 'This vertical'} events coming soon`}
-            />
-          ) : (
-            verticalEvents.map((ev) => (
-              <TouchableOpacity
-                key={ev.id}
-                style={styles.eventCard}
-                onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.eventColorBar, { backgroundColor: verticalColor }]} />
-                <View style={styles.eventBody}>
-                  <Text style={styles.eventTitle} numberOfLines={2}>{ev.title}</Text>
-                  <Text style={styles.eventMeta}>
-                    {new Date(ev.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </Text>
-                  {!!ev.location && (
-                    <Text style={styles.eventLocation} numberOfLines={1}>{ev.location}</Text>
-                  )}
-                  <View style={styles.eventFooter}>
-                    <CoinBadge amount={ev.coin_reward} />
-                  </View>
+          {/* ─── UNFILTERED VIDEOS ─────────────────────────── */}
+          {slug === 'unfiltered' && (
+            <>
+              <View style={styles.unfilteredHeader}>
+                <Text style={styles.eventsHeading}>Conversations</Text>
+                {unfilteredChannelUrl && (
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL(unfilteredChannelUrl)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.seeAllText, { color: verticalColors.unfiltered }]}>See all →</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {unfilteredVideos.length === 0 ? (
+                <View style={styles.unfilteredEmpty}>
+                  <Ionicons name="videocam-outline" size={36} color={colors.textLight} />
+                  <Text style={styles.unfilteredEmptyText}>Conversations coming soon</Text>
                 </View>
-              </TouchableOpacity>
-            ))
+              ) : (
+                unfilteredVideos.map((video) => {
+                  const thumb = video.thumbnail_url || '';
+                  return (
+                    <TouchableOpacity
+                      key={video.id}
+                      style={styles.unfilteredCard}
+                      onPress={() => Linking.openURL(video.youtube_url)}
+                      activeOpacity={0.8}
+                    >
+                      {!!thumb && (
+                        <Image
+                          source={{ uri: thumb }}
+                          style={styles.unfilteredThumb}
+                          resizeMode="cover"
+                        />
+                      )}
+                      <View style={styles.unfilteredPlayOverlay}>
+                        <Ionicons name="play-circle" size={40} color="rgba(255,255,255,0.9)" />
+                      </View>
+                      <View style={styles.unfilteredCardBody}>
+                        <Text style={styles.unfilteredCardTitle} numberOfLines={2}>{video.title}</Text>
+                        {!!video.description && (
+                          <Text style={styles.unfilteredCardDesc} numberOfLines={2}>{video.description}</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </>
+          )}
+
+          {/* Events — hidden for Unfiltered and Campus Cartel */}
+          {slug !== 'unfiltered' && slug !== 'campus-cartel' && (
+            <>
+              <Text style={styles.eventsHeading}>Events</Text>
+              {verticalEvents.length === 0 ? (
+                <EmptyState
+                  title="No events yet"
+                  subtitle={`${vertical?.name ?? 'This vertical'} events coming soon`}
+                />
+              ) : (
+                verticalEvents.map((ev) => (
+                  <TouchableOpacity
+                    key={ev.id}
+                    style={styles.eventCard}
+                    onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.eventColorBar, { backgroundColor: verticalColor }]} />
+                    <View style={styles.eventBody}>
+                      <Text style={styles.eventTitle} numberOfLines={2}>{ev.title}</Text>
+                      <Text style={styles.eventMeta}>
+                        {new Date(ev.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Text>
+                      {!!ev.location && (
+                        <Text style={styles.eventLocation} numberOfLines={1}>{ev.location}</Text>
+                      )}
+                      <View style={styles.eventFooter}>
+                        <CoinBadge amount={ev.coin_reward} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -628,18 +757,67 @@ const styles = StyleSheet.create({
     fontWeight: Font.semibold,
     color: verticalColors.campusCartel,
   },
-  ambassadorApplyBtn: {
+  ambassadorCodeSection: {
+    gap: 0,
+  },
+  beAmbassadorBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
-    backgroundColor: verticalColors.campusCartel,
+    backgroundColor: verticalColors.campusCartel + '12',
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: verticalColors.campusCartel + '30',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    ...shadow.md,
   },
-  ambassadorApplyText: {
+  beAmbassadorText: {
+    flex: 1,
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
+    color: verticalColors.campusCartel,
+  },
+  ambassadorDropdown: {
+    marginTop: 8,
+    gap: 8,
+  },
+  ambassadorCodeLabel: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.text,
+  },
+  ambassadorCodeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ambassadorCodeInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  ambassadorCodeInput: {
+    flex: 1,
+    fontSize: FontSize.body,
+    color: colors.text,
+    paddingVertical: 0,
+  },
+  ambassadorClaimBtn: {
+    backgroundColor: verticalColors.campusCartel,
+    borderRadius: radius.lg,
+    paddingHorizontal: 20,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.sm,
+  },
+  ambassadorClaimText: {
     fontSize: FontSize.body,
     fontWeight: Font.bold,
     color: '#fff',
@@ -852,5 +1030,60 @@ const styles = StyleSheet.create({
   },
   eventFooter: {
     marginTop: Gap.xs,
+  },
+
+  // Unfiltered videos
+  unfilteredHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  seeAllText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+  },
+  unfilteredEmpty: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 8,
+  },
+  unfilteredEmptyText: {
+    fontSize: FontSize.body,
+    color: colors.textSecondary,
+  },
+  unfilteredCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    ...shadow.sm,
+  },
+  unfilteredThumb: {
+    width: '100%',
+    height: 190,
+  },
+  unfilteredPlayOverlay: {
+    position: 'absolute',
+    top: 75,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  unfilteredCardBody: {
+    padding: 12,
+    gap: 4,
+  },
+  unfilteredCardTitle: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.bold,
+    color: colors.text,
+    lineHeight: 21,
+  },
+  unfilteredCardDesc: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });
