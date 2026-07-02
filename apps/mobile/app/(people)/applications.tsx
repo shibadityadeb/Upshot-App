@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { EventApplication } from '@upshot/types';
+import type { EventApplication, HostingApplication } from '@upshot/types';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../src/constants/theme';
 import { Button, Card, EmptyState, StatusBadge } from '../../src/components/common';
@@ -42,6 +42,10 @@ export default function PeopleApplications() {
   const [student, setStudent] = useState<StudentRecord | null>(null);
   const [studentLoading, setStudentLoading] = useState(true);
 
+  // ─── Hosting applications ────────────────────────────────────
+  const [hostingApps, setHostingApps] = useState<HostingApplication[]>([]);
+  const [hostingLoading, setHostingLoading] = useState(true);
+
   // ─── Event applications ──────────────────────────────────────
   const [applications, setApplications] = useState<EventApplication[]>([]);
   const [appLoading, setAppLoading] = useState(true);
@@ -57,6 +61,18 @@ export default function PeopleApplications() {
       .maybeSingle();
     setStudent(data ?? null);
     setStudentLoading(false);
+  }, [user?.id]);
+
+  const loadHostingApps = useCallback(async () => {
+    if (!user?.id) { setHostingLoading(false); return; }
+    try {
+      const result = await api.hosting.getMyApplications(user.id);
+      if (result.data) setHostingApps(result.data);
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setHostingLoading(false);
+    }
   }, [user?.id]);
 
   const loadApplications = useCallback(async () => {
@@ -76,14 +92,16 @@ export default function PeopleApplications() {
     useCallback(() => {
       loadStudent();
       loadApplications();
-    }, [loadStudent, loadApplications]),
+      loadHostingApps();
+    }, [loadStudent, loadApplications, loadHostingApps]),
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadStudent();
     loadApplications();
-  }, [loadStudent, loadApplications]);
+    loadHostingApps();
+  }, [loadStudent, loadApplications, loadHostingApps]);
 
   const handleWithdraw = useCallback(async (appId: string) => {
     setWithdrawingIds((prev) => new Set(prev).add(appId));
@@ -212,14 +230,25 @@ export default function PeopleApplications() {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.ccEditBtn}
-              onPress={() => router.push('/campus-cartel-apply' as any)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="create-outline" size={14} color={GREEN} />
-              <Text style={styles.ccEditBtnText}>Update Application</Text>
-            </TouchableOpacity>
+            {student.status === 'approved' ? (
+              <TouchableOpacity
+                style={[styles.ccEditBtn, { backgroundColor: GREEN, borderColor: GREEN }]}
+                onPress={() => router.push('/(shared)/vertical/campus-cartel' as any)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="grid-outline" size={14} color="#fff" />
+                <Text style={[styles.ccEditBtnText, { color: '#fff' }]}>Open Dashboard</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.ccEditBtn}
+                onPress={() => router.push('/campus-cartel-apply' as any)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="create-outline" size={14} color={GREEN} />
+                <Text style={styles.ccEditBtnText}>Update Application</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <TouchableOpacity
@@ -238,68 +267,122 @@ export default function PeopleApplications() {
           </TouchableOpacity>
         )}
 
-        {/* ── Event Applications Section ── */}
-        <Text style={[styles.sectionTitle, { marginTop: Gap.xl }]}>Event Applications</Text>
+        {/* ── Hosting Proposals Section ── */}
+        <Text style={[styles.sectionTitle, { marginTop: Gap.xl }]}>Hosting Proposals</Text>
 
-        {appLoading ? (
+        {hostingLoading ? (
           <View style={styles.miniLoader}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
-        ) : applications.length === 0 ? (
-          <EmptyState
-            iconName="document-text-outline"
-            title="No event applications yet"
-            subtitle="Discover opportunities and start applying"
-          />
+        ) : hostingApps.length === 0 ? (
+          <TouchableOpacity
+            style={styles.ccEmptyCard}
+            onPress={() => router.push('/(people)/host-event' as any)}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.ccIconBadge, { backgroundColor: colors.primary }]}>
+              <Ionicons name="megaphone-outline" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.ccEmptyTitle}>Host an Event</Text>
+              <Text style={styles.ccEmptySub}>Submit a proposal to host your own event</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
         ) : (
-          applications.map((app) => {
-            const isWithdrawing = withdrawingIds.has(app.id);
-            return (
-              <Card key={app.id} style={styles.appCard}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.eventTitle} numberOfLines={2}>{app.event?.title ?? 'Event'}</Text>
-                  <StatusBadge status={app.status} />
-                </View>
+          hostingApps.map((ha) => (
+            <Card key={ha.id} style={styles.appCard}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.eventTitle} numberOfLines={2}>{ha.title}</Text>
+                <StatusBadge status={ha.status} />
+              </View>
 
-                {!!app.event?.location && (
-                  <View style={styles.metaRow}>
-                    <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-                    <Text style={styles.eventMeta} numberOfLines={1}>{app.event.location}</Text>
-                  </View>
-                )}
+              <View style={styles.metaRow}>
+                <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+                <Text style={styles.eventMeta} numberOfLines={1}>
+                  {ha.event_city && ha.event_state ? `${ha.event_city}, ${ha.event_state}` : ha.location}
+                </Text>
+              </View>
 
-                {!!app.event?.event_date && (
-                  <View style={styles.metaRow}>
-                    <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-                    <Text style={styles.eventMeta}>
-                      {new Date(app.event.event_date).toLocaleDateString('en-IN', {
-                        day: 'numeric', month: 'short', year: 'numeric',
-                      })}
-                    </Text>
-                  </View>
-                )}
-
+              {!!ha.event_date && (
                 <View style={styles.metaRow}>
-                  <Ionicons name="time-outline" size={13} color={colors.textLight} />
-                  <Text style={styles.appliedDate}>
-                    Applied {new Date(app.applied_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+                  <Text style={styles.eventMeta}>
+                    {new Date(ha.event_date).toLocaleDateString('en-IN', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })}
                   </Text>
                 </View>
+              )}
 
-                {!!app.note && <Text style={styles.noteText} numberOfLines={2}>{app.note}</Text>}
+              <View style={styles.metaRow}>
+                <Ionicons name="time-outline" size={13} color={colors.textLight} />
+                <Text style={styles.appliedDate}>
+                  Submitted {new Date(ha.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </Text>
+              </View>
 
-                {app.status === 'pending' && (
-                  <View style={styles.actionRow}>
-                    <Button title="Withdraw" onPress={() => confirmWithdraw(app.id)} variant="outline" size="sm" loading={isWithdrawing} disabled={isWithdrawing} />
+              {ha.status === 'approved' && <Text style={styles.approvedText}>Your event has been approved!</Text>}
+              {ha.status === 'rejected' && !!ha.rejection_reason && (
+                <Text style={styles.rejectedNote}>{ha.rejection_reason}</Text>
+              )}
+            </Card>
+          ))
+        )}
+
+        {/* ── Event Applications Section ── */}
+        {!appLoading && applications.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { marginTop: Gap.xl }]}>Event Applications</Text>
+            {applications.map((app) => {
+              const isWithdrawing = withdrawingIds.has(app.id);
+              return (
+                <Card key={app.id} style={styles.appCard}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.eventTitle} numberOfLines={2}>{app.event?.title ?? 'Event'}</Text>
+                    <StatusBadge status={app.status} />
                   </View>
-                )}
-                {app.status === 'approved' && <Text style={styles.approvedText}>You are confirmed!</Text>}
-                {app.status === 'rejected' && !!(app as any).rejection_reason && (
-                  <Text style={styles.rejectedNote}>{(app as any).rejection_reason}</Text>
-                )}
-              </Card>
-            );
-          })
+
+                  {!!app.event?.location && (
+                    <View style={styles.metaRow}>
+                      <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+                      <Text style={styles.eventMeta} numberOfLines={1}>{app.event.location}</Text>
+                    </View>
+                  )}
+
+                  {!!app.event?.event_date && (
+                    <View style={styles.metaRow}>
+                      <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+                      <Text style={styles.eventMeta}>
+                        {new Date(app.event.event_date).toLocaleDateString('en-IN', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                        })}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.metaRow}>
+                    <Ionicons name="time-outline" size={13} color={colors.textLight} />
+                    <Text style={styles.appliedDate}>
+                      Applied {new Date(app.applied_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+
+                  {!!app.note && <Text style={styles.noteText} numberOfLines={2}>{app.note}</Text>}
+
+                  {app.status === 'pending' && (
+                    <View style={styles.actionRow}>
+                      <Button title="Withdraw" onPress={() => confirmWithdraw(app.id)} variant="outline" size="sm" loading={isWithdrawing} disabled={isWithdrawing} />
+                    </View>
+                  )}
+                  {app.status === 'approved' && <Text style={styles.approvedText}>You are confirmed!</Text>}
+                  {app.status === 'rejected' && !!(app as any).rejection_reason && (
+                    <Text style={styles.rejectedNote}>{(app as any).rejection_reason}</Text>
+                  )}
+                </Card>
+              );
+            })}
+          </>
         )}
       </ScrollView>
     </View>
@@ -309,7 +392,7 @@ export default function PeopleApplications() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  scrollContent: { paddingHorizontal: Gap.base, paddingTop: Gap.md, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: Gap.base, paddingTop: Gap.md, paddingBottom: Gap.xl },
 
   header: {
     backgroundColor: colors.dark,

@@ -23,12 +23,15 @@ export class AmbassadorService {
     return { data: (data ?? []) as unknown as Ambassador[], error: null };
   }
 
+  private generateReferralCode(fullName: string): string {
+    const clean = fullName.trim().toUpperCase().replace(/[^A-Z]/g, '');
+    const prefix = clean.slice(0, 4) || 'AMBR';
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}${rand}`;
+  }
+
   async createAmbassador(userId: string, fullName: string): Promise<ApiResponse<Ambassador>> {
-    const { data: codeData, error: rpcError } = await this.supabase.rpc('generate_referral_code', {
-      full_name: fullName,
-    });
-    if (rpcError) return { data: null, error: { code: 'RPC_FAILED', message: rpcError.message } };
-    const referralCode = codeData as string;
+    const referralCode = this.generateReferralCode(fullName);
 
     const { data, error } = await this.supabase
       .from('ambassadors')

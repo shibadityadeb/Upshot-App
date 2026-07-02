@@ -45,13 +45,14 @@ interface QuickAction {
   iconName: React.ComponentProps<typeof Ionicons>['name'];
   route: string;
   description: string;
+  params?: Record<string, string>;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
   { label: 'New Task', iconName: 'checkbox-outline', route: '/(admin)/create-task', description: 'Assign to team' },
   { label: 'Give Coins', iconName: 'diamond-outline', route: '/(admin)/tasks', description: 'Reward members' },
-  { label: 'Manage Codes', iconName: 'key-outline', route: '/(admin)/ambassador-codes', description: 'Ambassador codes' },
-  { label: 'Ambassadors', iconName: 'star-outline', route: '/(admin)/people', description: 'View all' },
+  { label: 'Manage Codes', iconName: 'key-outline', route: '/(admin)/people', description: 'Ambassador codes', params: { tab: 'codes' } },
+  { label: 'Ambassadors', iconName: 'star-outline', route: '/(admin)/people', description: 'View all', params: { tab: 'ambassadors' } },
 ];
 
 interface StatItem {
@@ -78,40 +79,35 @@ export default function AdminDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [
-        { count: pendingApprovals },
-        { count: totalEvents },
-        { count: workforce },
-        { count: ambassadors },
-        { count: pendingTasks },
-        { data: coinsData },
-        eventsResult,
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         api.supabase.from('events').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        api.supabase.from('hosting_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         api.supabase.from('events').select('*', { count: 'exact', head: true }),
-        api.supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .in('role', ['people', 'student']),
         api.supabase.from('ambassadors').select('*', { count: 'exact', head: true }),
-        api.supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', 'submitted'),
         api.supabase.from('coin_transactions').select('amount').in('type', ['earned', 'bonus']),
         api.events.getAllEventsAdmin('pending'),
       ]);
 
-      const totalCoins =
-        (coinsData as { amount: number }[] | null)?.reduce((s, t) => s + t.amount, 0) ?? 0;
+      const val = (i: number) => results[i].status === 'fulfilled' ? (results[i] as any).value : null;
+
+      const pendingEventApprovals = val(0)?.count ?? 0;
+      const pendingHostingApprovals = val(1)?.count ?? 0;
+      const totalEvents = val(2)?.count ?? 0;
+      const ambassadors = val(3)?.count ?? 0;
+      const coinsData = val(4)?.data as { amount: number }[] | null;
+      const totalCoins = coinsData?.reduce((s, t) => s + t.amount, 0) ?? 0;
+      const eventsResult = val(5);
 
       setStats({
-        pendingApprovals: pendingApprovals ?? 0,
-        totalEvents: totalEvents ?? 0,
-        workforce: workforce ?? 0,
-        ambassadors: ambassadors ?? 0,
-        pendingTasks: pendingTasks ?? 0,
+        pendingApprovals: pendingEventApprovals + pendingHostingApprovals,
+        totalEvents,
+        workforce: 0,
+        ambassadors,
+        pendingTasks: 0,
         totalCoins,
       });
 
-      if (eventsResult.data) {
+      if (eventsResult?.data) {
         setPendingEvents(eventsResult.data.slice(0, 5));
       }
     } catch {
@@ -138,9 +134,7 @@ export default function AdminDashboard() {
   const STATS: StatItem[] = [
     { label: 'Pending Approvals', value: stats.pendingApprovals, route: '/(admin)/events' },
     { label: 'Total Events', value: stats.totalEvents, route: '/(admin)/events' },
-    { label: 'Workforce', value: stats.workforce, route: '/(admin)/people' },
     { label: 'Ambassadors', value: stats.ambassadors, route: '/(admin)/people' },
-    { label: 'Pending Tasks', value: stats.pendingTasks, route: '/(admin)/tasks' },
     { label: 'Coins Distributed', value: stats.totalCoins.toLocaleString(), route: '/(admin)/tasks' },
   ];
 
@@ -213,7 +207,13 @@ export default function AdminDashboard() {
               <TouchableOpacity
                 key={action.label}
                 style={styles.quickCard}
-                onPress={() => router.push(action.route as Parameters<typeof router.push>[0])}
+                onPress={() => {
+                  if (action.params) {
+                    router.push({ pathname: action.route as any, params: action.params });
+                  } else {
+                    router.push(action.route as Parameters<typeof router.push>[0]);
+                  }
+                }}
                 activeOpacity={0.75}
               >
                 <View style={styles.quickIconWrap}>

@@ -25,7 +25,6 @@ import {
   Card,
   CoinBadge,
   EmptyState,
-  FilterPills,
   StatusBadge,
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
@@ -326,7 +325,10 @@ export default function AdminEvents() {
     const applicant = (item as any).user;
 
     return (
-      <Card style={styles.eventCard}>
+      <Card
+        style={styles.eventCard}
+        onPress={() => router.push(`/(admin)/host-app-detail/${item.id}` as any)}
+      >
         {!!item.cover_image_url && (
           <Image
             source={{ uri: item.cover_image_url }}
@@ -348,14 +350,13 @@ export default function AdminEvents() {
           {!!item.description && (
             <Text style={styles.hostDesc} numberOfLines={2}>{item.description}</Text>
           )}
-          <View style={styles.footerRow}>
-            <CoinBadge amount={item.coin_reward} />
-            {!!item.max_attendees && (
+          {!!item.max_attendees && (
+            <View style={[styles.footerRow]}>
               <View style={styles.capacityBadge}>
                 <Text style={styles.capacityText}>{item.max_attendees} spots</Text>
               </View>
-            )}
-          </View>
+            </View>
+          )}
           {isPending && (
             <View style={styles.actionRow}>
               <Button
@@ -404,83 +405,72 @@ export default function AdminEvents() {
         style={styles.eventCard}
         onPress={() => router.push(`/(admin)/event-detail/${item.id}` as any)}
       >
-        <View style={styles.eventRow}>
-          {!!item.banner_url && (
-            <Image
-              source={{ uri: item.banner_url }}
-              style={styles.eventThumb}
-              resizeMode="cover"
-            />
-          )}
-          <View style={styles.eventInfo}>
-        <View style={styles.eventHeader}>
-          <Text style={styles.eventTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <StatusBadge status={item.status} />
-        </View>
-
-        <Text style={styles.eventMeta}>{eventDate}</Text>
-
-        {!!locationLine && (
-          <Text style={styles.eventLocation} numberOfLines={1}>
-            {locationLine}
-          </Text>
+        {!!item.banner_url && (
+          <Image
+            source={{ uri: item.banner_url }}
+            style={styles.eventBanner}
+            resizeMode="cover"
+          />
         )}
-
-        {eventVertical && eventVertical.id && (
-          <View style={[styles.verticalChip, { backgroundColor: eventVertical.color }]}>
-            <Text style={[styles.verticalChipText, { color: eventVertical.accent }]}>
-              {eventVertical.name}
-            </Text>
+        <View style={styles.eventInfo}>
+          <View style={styles.eventHeader}>
+            <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
+            <StatusBadge status={item.status} />
           </View>
-        )}
 
-        <View style={styles.footerRow}>
-          <CoinBadge amount={item.coin_reward} />
-          {!!(item as any).max_attendees && (
-            <View style={styles.capacityBadge}>
-              <Text style={styles.capacityText}>
-                {(item as any).current_attendees ?? 0}/{(item as any).max_attendees} spots
+          {!!locationLine && (
+            <View style={styles.eventMetaRow}>
+              <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+              <Text style={styles.eventMeta} numberOfLines={1}>{locationLine}</Text>
+            </View>
+          )}
+
+          <View style={styles.eventMetaRow}>
+            <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.eventMeta}>{eventDate}</Text>
+          </View>
+
+          {eventVertical && eventVertical.id && (
+            <View style={[styles.verticalChip, { backgroundColor: eventVertical.color }]}>
+              <Text style={[styles.verticalChipText, { color: eventVertical.accent }]}>
+                {eventVertical.name}
               </Text>
             </View>
           )}
-        </View>
 
-        {isPending && (
-          <View style={styles.actionRow}>
-            <Button
-              title="Approve"
-              variant="primary"
-              size="sm"
-              style={styles.actionBtn}
-              onPress={() => handleApprovePress(item.id)}
-              disabled={isActioning}
-              loading={isActioning}
-            />
-            <Button
-              title="Reject"
-              variant="outline"
-              size="sm"
-              style={[styles.actionBtn, styles.rejectBtn]}
-              onPress={() => handleReject(item.id)}
-              disabled={isActioning}
-            />
-          </View>
-        )}
+          {isPending && (
+            <View style={styles.actionRow}>
+              <Button
+                title="Approve"
+                variant="primary"
+                size="sm"
+                style={styles.actionBtn}
+                onPress={() => handleApprovePress(item.id)}
+                disabled={isActioning}
+                loading={isActioning}
+              />
+              <Button
+                title="Reject"
+                variant="outline"
+                size="sm"
+                style={[styles.actionBtn, styles.rejectBtn]}
+                onPress={() => handleReject(item.id)}
+                disabled={isActioning}
+              />
+            </View>
+          )}
 
-        {isApproved && (
-          <TouchableOpacity
-            style={styles.changeVerticalLink}
-            onPress={() => handleChangeVerticalPress(item.id, item.vertical_id)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.changeVerticalLinkText}>
-              {item.vertical_id ? 'Change vertical' : 'Assign vertical'}
-            </Text>
-          </TouchableOpacity>
-        )}
-          </View>
+          {isApproved && (
+            <TouchableOpacity
+              style={styles.changeVerticalLink}
+              onPress={() => handleChangeVerticalPress(item.id, item.vertical_id)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.changeVerticalLinkText}>
+                {item.vertical_id ? 'Change vertical' : 'Assign vertical'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Card>
     );
@@ -552,15 +542,7 @@ export default function AdminEvents() {
       </View>
 
       {activeTab === 'events' ? (
-        <>
-          {/* Filter Pills */}
-          <FilterPills
-            options={FILTER_OPTIONS.map(f => ({ label: f.label, value: f.key }))}
-            activeValue={filter}
-            onChange={(v) => setFilter(v as FilterOption)}
-          />
-
-          {/* Events List */}
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
           <FlatList
             data={filteredEvents}
             keyExtractor={(item) => item.id}
@@ -571,31 +553,16 @@ export default function AdminEvents() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
             }
             ListEmptyComponent={
-              events.length === 0 ? (
-                <EmptyState
-                  iconName="document-text-outline"
-                  title="No projects yet"
-                  subtitle="Approved projects from companies will appear here"
-                />
-              ) : (
-                <EmptyState
-                  iconName="search-outline"
-                  title="No matches"
-                  subtitle="No events with this status right now"
-                />
-              )
+              <EmptyState
+                iconName="document-text-outline"
+                title="No events yet"
+                subtitle="Approved events will appear here"
+              />
             }
           />
-        </>
+        </View>
       ) : (
-        <>
-          {/* Host Apps Filter */}
-          <FilterPills
-            options={FILTER_OPTIONS.map(f => ({ label: f.label, value: f.key }))}
-            activeValue={hostFilter}
-            onChange={(v) => setHostFilter(v as FilterOption)}
-          />
-
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
           {hostLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.primary} />
@@ -619,7 +586,7 @@ export default function AdminEvents() {
               }
             />
           )}
-        </>
+        </View>
       )}
 
       {/* Approve & Categorize Modal */}
@@ -738,7 +705,7 @@ export default function AdminEvents() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: DarkBg,
   },
   centered: {
     flex: 1,
@@ -751,14 +718,14 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: DarkBg,
     paddingHorizontal: Gap.base,
-    paddingTop: 32,
-    paddingBottom: 20,
+    paddingTop: Gap.md,
+    paddingBottom: Gap.base,
   },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: Gap.sm,
   },
   heroTitle: {
     fontSize: 28,
@@ -850,17 +817,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadow.sm,
   },
-  eventRow: {
-    flexDirection: 'row',
-  },
-  eventThumb: {
-    width: 80,
-    height: '100%',
-    minHeight: 80,
+  eventBanner: {
+    width: '100%',
+    height: 160,
   },
   eventInfo: {
-    flex: 1,
     padding: Gap.base,
+  },
+  eventMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
   },
   eventHeader: {
     flexDirection: 'row',

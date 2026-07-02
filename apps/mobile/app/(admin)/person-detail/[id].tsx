@@ -314,7 +314,7 @@ export default function AdminPersonDetail() {
       </ScrollView>
 
       {/* Bonus Coins Modal */}
-      <Modal visible={showBonusModal} animationType="slide" onRequestClose={() => setShowBonusModal(false)}>
+      <Modal visible={showBonusModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowBonusModal(false)}>
         <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
           <KeyboardAvoidingView
             style={styles.flex}

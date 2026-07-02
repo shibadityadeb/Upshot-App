@@ -42,6 +42,7 @@ export function FilterPills({ options, activeValue, onChange }: Props) {
 
 const styles = StyleSheet.create({
   scroll: {
+    flexGrow: 0,
     flexShrink: 0,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,

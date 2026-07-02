@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador } from '@upshot/types';
@@ -67,14 +67,21 @@ interface StudentApp {
 
 export default function AdminPeople() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const user = useAuthStore((s) => s.user);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('all');
+  const [activeTab, setActiveTab] = useState<ActiveTab>((tab as ActiveTab) || 'all');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [ambassadors, setAmbassadors] = useState<Ambassador[]>([]);
   const [students, setStudents] = useState<StudentApp[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (tab && TABS.some(t => t.key === tab)) {
+      setActiveTab(tab as ActiveTab);
+    }
+  }, [tab]);
 
   const debouncedSearch = useDebounce(search);
 
@@ -308,6 +315,7 @@ export default function AdminPeople() {
       />
 
       {/* List / Panel */}
+      <View style={styles.contentArea}>
       {activeTab === 'all' ? (
         <FlatList
           data={filteredProfiles}
@@ -371,12 +379,17 @@ export default function AdminPeople() {
           <AmbassadorCodesPanel adminId={user.id} />
         ) : null
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
+    flex: 1,
+    backgroundColor: DarkBg,
+  },
+  contentArea: {
     flex: 1,
     backgroundColor: colors.background,
   },
