@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const LOGO = require('../../../assets/logo.png') as number;
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { Vertical, Event } from '@upshot/types';
+import type { Vertical, Event, UnfilteredVideo } from '@upshot/types';
 import {
   colors,
   verticalColors,
@@ -98,6 +99,7 @@ export default function HomeScreen() {
   const [verticals, setVerticals] = useState<Vertical[]>([]);
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+  const [featuredVideo, setFeaturedVideo] = useState<UnfilteredVideo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -116,6 +118,16 @@ export default function HomeScreen() {
         setVerticals(verts.value);
       } else {
         setVerticals(FALLBACK_VERTICALS);
+      }
+
+      // Load featured unfiltered video independently
+      try {
+        const featuredResult = await api.unfiltered.getFeaturedVideo();
+        if (featuredResult.data) {
+          setFeaturedVideo(featuredResult.data);
+        }
+      } catch (e) {
+        console.warn('Failed to load featured video', e);
       }
 
       if (events.status === 'fulfilled' && events.value.data) {
@@ -211,6 +223,48 @@ export default function HomeScreen() {
           ))}
         </View>
       </View>
+
+      {/* ─── Unfiltered Featured Video ────────────────────────── */}
+      {featuredVideo && (
+        <>
+          <View style={styles.divider} />
+          <View style={styles.section}>
+            <SectionHeader
+              title="Unfiltered"
+              action
+              actionLabel="Show others"
+              onAction={() => router.push('/(shared)/vertical/unfiltered' as any)}
+            />
+            <TouchableOpacity
+              style={styles.featuredVideoCard}
+              onPress={() => Linking.openURL(featuredVideo.youtube_url)}
+              activeOpacity={0.8}
+            >
+              {!!featuredVideo.thumbnail_url && (
+                <View>
+                  <Image
+                    source={{ uri: featuredVideo.thumbnail_url }}
+                    style={styles.featuredVideoThumb}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.featuredVideoPlayOverlay}>
+                    <Ionicons name="play-circle" size={44} color="rgba(255,255,255,0.9)" />
+                  </View>
+                </View>
+              )}
+              <View style={styles.featuredVideoBody}>
+                <View style={styles.featuredVideoPill}>
+                  <Text style={styles.featuredVideoPillText}>UNFILTERED</Text>
+                </View>
+                <Text style={styles.featuredVideoTitle} numberOfLines={2}>{featuredVideo.title}</Text>
+                {!!featuredVideo.description && (
+                  <Text style={styles.featuredVideoDesc} numberOfLines={2}>{featuredVideo.description}</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
       {/* ─── Joined Workshops ───────────────────────────────── */}
       {joinedEvents.length > 0 && (
@@ -724,5 +778,57 @@ const styles = StyleSheet.create({
   dualCardExplore: {
     fontSize: FontSize.small,
     fontWeight: Font.semibold,
+  },
+
+  // ── Featured Unfiltered Video ─────────────────────────────
+  featuredVideoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadow.sm,
+  },
+  featuredVideoThumb: {
+    width: '100%',
+    height: 190,
+  },
+  featuredVideoPlayOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featuredVideoBody: {
+    padding: CARD_PAD,
+    gap: 4,
+  },
+  featuredVideoPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: verticalColors.unfiltered + '18',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 2,
+  },
+  featuredVideoPillText: {
+    fontSize: 10,
+    fontWeight: Font.bold,
+    color: verticalColors.unfiltered,
+    letterSpacing: 1,
+  },
+  featuredVideoTitle: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.bold,
+    color: colors.text,
+    lineHeight: 21,
+  },
+  featuredVideoDesc: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });

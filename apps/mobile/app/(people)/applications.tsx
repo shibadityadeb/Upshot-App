@@ -334,7 +334,7 @@ export default function PeopleApplications() {
         {!appLoading && applications.length > 0 && (
           <>
             <Text style={[styles.sectionTitle, { marginTop: Gap.xl }]}>Event Applications</Text>
-            {applications.map((app) => {
+            {applications.filter((app) => app.status !== 'withdrawn').map((app) => {
               const isWithdrawing = withdrawingIds.has(app.id);
               return (
                 <Card key={app.id} style={styles.appCard}>
