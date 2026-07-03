@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { UnfilteredVideo } from '@upshot/types';
-import { colors, verticalColors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, verticalColors, Font, FontSize, Gap, DarkBg, radius, shadow } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
@@ -288,27 +288,27 @@ export default function AdminUnfilteredScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: DarkBg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Gap.base,
-    paddingVertical: Gap.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
+    paddingTop: 24,
+    paddingBottom: 20,
+    backgroundColor: DarkBg,
   },
   headerTitle: {
     fontSize: FontSize.h1,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontWeight: Font.black,
+    color: '#FFFFFF',
   },
   headerSubtitle: {
     fontSize: FontSize.xs,
-    color: colors.textSecondary,
+    color: 'rgba(255,255,255,0.45)',
     marginTop: 2,
+    letterSpacing: 0.5,
   },
   addBtn: {
     flexDirection: 'row',
@@ -328,6 +328,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: Gap.base,
     paddingBottom: 100,
+    backgroundColor: colors.background,
   },
 
   // Form

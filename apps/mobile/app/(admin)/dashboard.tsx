@@ -233,7 +233,7 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: DarkBg,
   },
   scroll: {
     flex: 1,
