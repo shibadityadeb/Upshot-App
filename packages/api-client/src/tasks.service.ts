@@ -11,6 +11,7 @@ export class TasksService {
   constructor(private supabase: SupabaseClient) {}
 
   async getMyTasks(userId: string): Promise<ApiResponse<Task[]>> {
+    if (!userId) return { data: [], error: null };
     const { data, error } = await this.supabase
       .from('tasks')
       .select('*')
@@ -20,23 +21,66 @@ export class TasksService {
     return { data: (data ?? []) as unknown as Task[], error: null };
   }
 
-  async getTasksForGroup(groups: TaskTargetGroup[]): Promise<ApiResponse<Task[]>> {
+  async getTasksForGroup(groups: TaskTargetGroup[], userId?: string): Promise<ApiResponse<Task[]>> {
+    // Only return group tasks still in 'assigned' status (the originals, not personal copies)
     const { data, error } = await this.supabase
       .from('tasks')
       .select('*')
       .in('target_group', groups)
+      .eq('status', 'assigned')
       .order('created_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
-    return { data: (data ?? []) as unknown as Task[], error: null };
+
+    let groupTasks = (data ?? []) as unknown as Task[];
+
+    // If userId provided, exclude group tasks the user has already submitted (has a personal copy)
+    if (userId && groupTasks.length > 0) {
+      const { data: myTasks } = await this.supabase
+        .from('tasks')
+        .select('title, assigned_by')
+        .eq('assigned_to', userId)
+        .in('status', ['submitted', 'approved', 'rejected']);
+
+      if (myTasks && myTasks.length > 0) {
+        const submittedKeys = new Set(
+          myTasks.map((t: any) => `${t.title}::${t.assigned_by}`),
+        );
+        groupTasks = groupTasks.filter(
+          (t) => !submittedKeys.has(`${t.title}::${t.assigned_by}`),
+        );
+      }
+    }
+
+    return { data: groupTasks, error: null };
   }
 
   async getAllTasksAdmin(): Promise<ApiResponse<Task[]>> {
+    // Fetch all tasks
     const { data, error } = await this.supabase
       .from('tasks')
       .select('*')
       .order('created_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
-    return { data: (data ?? []) as unknown as Task[], error: null };
+
+    const tasks = (data ?? []) as unknown as Task[];
+
+    // Fetch assignee profiles separately (avoids ambiguous FK join issues)
+    const assigneeIds = [...new Set(tasks.map((t) => t.assigned_to).filter(Boolean))] as string[];
+    if (assigneeIds.length > 0) {
+      const { data: profiles } = await this.supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', assigneeIds);
+
+      if (profiles) {
+        const profileMap = new Map(profiles.map((p: any) => [p.id, p]));
+        for (const task of tasks as any[]) {
+          task.assignee = profileMap.get(task.assigned_to) ?? null;
+        }
+      }
+    }
+
+    return { data: tasks, error: null };
   }
 
   async getTaskById(id: string): Promise<ApiResponse<Task>> {
@@ -84,7 +128,66 @@ export class TasksService {
     return { data: data as unknown as Task, error: null };
   }
 
-  async submitTask(taskId: string, payload: SubmitTaskPayload): Promise<ApiResponse<Task>> {
+  async submitTask(
+    taskId: string,
+    payload: SubmitTaskPayload,
+    userId?: string,
+  ): Promise<ApiResponse<Task>> {
+    // If userId provided, verify ownership and handle group tasks
+    if (userId) {
+      // Fetch the task first
+      const { data: task, error: fetchError } = await this.supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+
+      if (fetchError || !task) {
+        return { data: null, error: { code: 'NOT_FOUND', message: 'Task not found' } };
+      }
+
+      // Check if already submitted/approved
+      if (task.status === 'submitted' || task.status === 'approved') {
+        return { data: null, error: { code: 'ALREADY_SUBMITTED', message: 'This task has already been submitted' } };
+      }
+
+      const isGroupTask = task.assigned_to !== userId && task.target_group !== null;
+
+      if (isGroupTask) {
+        // Clone: create a personal copy with the submission data
+        // Original group task stays untouched for other users
+        const { data: clone, error: cloneError } = await this.supabase
+          .from('tasks')
+          .insert({
+            title: task.title,
+            description: task.description,
+            event_id: task.event_id,
+            assigned_to: userId,
+            assigned_by: task.assigned_by,
+            target_group: null, // personal copy, not a group task
+            status: 'submitted',
+            due_date: task.due_date,
+            coin_value: task.coin_value,
+            submission_url: payload.submission_url ?? null,
+            submission_note: payload.submission_note ?? null,
+            submitted_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (cloneError || !clone) {
+          return { data: null, error: { code: 'CREATE_FAILED', message: cloneError?.message ?? 'Failed to submit' } };
+        }
+        return { data: clone as unknown as Task, error: null };
+      }
+
+      // Personal task: verify ownership then update in place
+      if (task.assigned_to !== userId) {
+        return { data: null, error: { code: 'FORBIDDEN', message: 'This task is not assigned to you' } };
+      }
+    }
+
+    // Update the task (personal task or legacy call without userId)
     const { data, error } = await this.supabase
       .from('tasks')
       .update({
@@ -145,8 +248,27 @@ export class TasksService {
   }
 
   async deleteTask(taskId: string): Promise<ApiResponse<null>> {
+    // Fetch the task first to check if it's a group task
+    const { data: task } = await this.supabase
+      .from('tasks')
+      .select('title, assigned_by, target_group')
+      .eq('id', taskId)
+      .single();
+
+    // Delete the task itself
     const { error } = await this.supabase.from('tasks').delete().eq('id', taskId);
     if (error) return { data: null, error: { code: 'DELETE_FAILED', message: error.message } };
+
+    // If it was a group task, also delete all personal copies (cloned submissions)
+    if (task?.target_group) {
+      await this.supabase
+        .from('tasks')
+        .delete()
+        .eq('title', task.title)
+        .eq('assigned_by', task.assigned_by)
+        .is('target_group', null);
+    }
+
     return { data: null, error: null };
   }
 }

@@ -13,7 +13,13 @@
       "typedRoutes": true
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Upshot to access your photos to attach proof of task completion."
+        }
+      ]
     ]
   }
 }
