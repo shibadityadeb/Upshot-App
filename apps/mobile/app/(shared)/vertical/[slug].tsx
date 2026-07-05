@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,10 +20,12 @@ import { createApiClient } from '@upshot/api-client';
 import type { Vertical, Event, Task, UnfilteredVideo } from '@upshot/types';
 import { colors, verticalColors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
 import { Button, Card, EmptyState, LoadingScreen, CoinBadge, StatusBadge } from '../../../src/components/common';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../../src/store/auth.store';
 import { uploadEventImage } from '../../../src/utils/uploadEventImage';
 
 const api = createApiClient();
+const SEEN_APPROVALS_KEY = 'seen_approved_task_ids';
 
 const VERTICAL_FALLBACKS: Record<string, Vertical> = {
   'unfiltered': {
@@ -92,6 +96,10 @@ export default function VerticalDetailScreen() {
   const [submissionImageUri, setSubmissionImageUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // ─── Celebration modal state ────────────────────────────
+  const [celebrationTask, setCelebrationTask] = useState<Task | null>(null);
+  const [celebrationScale] = useState(new Animated.Value(0));
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -151,17 +159,42 @@ export default function VerticalDetailScreen() {
           setStudentStatus(data?.status ?? 'none');
 
           if (data?.status === 'approved') {
-            // Load tasks — fetch all tasks (any status)
+            // Load tasks — only this user's tasks + available group tasks
             setTasksLoading(true);
-            api.supabase
-              .from('tasks')
-              .select('*')
-              .order('created_at', { ascending: false })
-              .then(({ data: tasksData, error: tasksError }) => {
-                console.log('[TASKS] query result:', { count: tasksData?.length, error: tasksError?.message, data: tasksData });
-                setTasks((tasksData ?? []) as any);
-                setTasksLoading(false);
-              });
+            Promise.all([
+              api.tasks.getMyTasks(user.id),
+              api.tasks.getTasksForGroup(['campus_cartel', 'students'], user.id),
+            ]).then(async ([myResult, groupResult]) => {
+              const myTasks = myResult.data ?? [];
+              const groupTasks = groupResult.data ?? [];
+              const ids = new Set(myTasks.map((t) => t.id));
+              const taskList = [...myTasks, ...groupTasks.filter((t) => !ids.has(t.id))];
+              setTasks(taskList as any);
+              setTasksLoading(false);
+
+              // Check for newly approved tasks
+              try {
+                const seenRaw = await AsyncStorage.getItem(SEEN_APPROVALS_KEY);
+                const seenIds: string[] = seenRaw ? JSON.parse(seenRaw) : [];
+                const seenSet = new Set(seenIds);
+                const newlyApproved = taskList.filter(
+                  (t) => t.status === 'approved' && !seenSet.has(t.id),
+                );
+                if (newlyApproved.length > 0) {
+                  setCelebrationTask(newlyApproved[0]);
+                  Animated.spring(celebrationScale, {
+                    toValue: 1,
+                    tension: 50,
+                    friction: 6,
+                    useNativeDriver: true,
+                  }).start();
+                  const allApprovedIds = taskList
+                    .filter((t) => t.status === 'approved')
+                    .map((t) => t.id);
+                  await AsyncStorage.setItem(SEEN_APPROVALS_KEY, JSON.stringify(allApprovedIds));
+                }
+              } catch {}
+            });
 
             // Check ambassador status
             api.ambassadors.getMyAmbassadorProfile(user.id).then(({ data: amb }) => {
@@ -181,7 +214,14 @@ export default function VerticalDetailScreen() {
   const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      Alert.alert(
+        'Permission needed',
+        'Please allow photo library access in Settings to attach photos.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ],
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -212,7 +252,7 @@ export default function VerticalDetailScreen() {
       const { error } = await api.tasks.submitTask(taskId, {
         submission_note: submissionNote.trim(),
         submission_url: imageUrl ?? undefined,
-      });
+      }, user.id);
       if (error) throw new Error(error.message);
 
       Alert.alert('Submitted!', 'Your task submission has been sent for admin review.');
@@ -220,12 +260,15 @@ export default function VerticalDetailScreen() {
       setSubmissionNote('');
       setSubmissionImageUri(null);
 
-      // Refresh tasks
-      const { data: tasksData } = await api.supabase
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
-      setTasks((tasksData ?? []) as any);
+      // Refresh tasks — only this user's tasks + available group tasks
+      const [myRefresh, groupRefresh] = await Promise.all([
+        api.tasks.getMyTasks(user.id),
+        api.tasks.getTasksForGroup(['campus_cartel', 'students'], user.id),
+      ]);
+      const myT = myRefresh.data ?? [];
+      const grpT = groupRefresh.data ?? [];
+      const idSet = new Set(myT.map((t) => t.id));
+      setTasks([...myT, ...grpT.filter((t) => !idSet.has(t.id))] as any);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to submit task.');
     } finally {
@@ -257,6 +300,14 @@ export default function VerticalDetailScreen() {
       setClaimingCode(false);
     }
   }, [ambassadorCodeInput, user?.id]);
+
+  const dismissCelebration = useCallback(() => {
+    Animated.timing(celebrationScale, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setCelebrationTask(null));
+  }, [celebrationScale]);
 
   if (loading) {
     return <LoadingScreen />;
@@ -628,6 +679,42 @@ export default function VerticalDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* ─── Celebration Modal ─────────────────────────────── */}
+      <Modal
+        visible={!!celebrationTask}
+        transparent
+        animationType="fade"
+        onRequestClose={dismissCelebration}
+      >
+        <View style={styles.celebrationOverlay}>
+          <Animated.View
+            style={[
+              styles.celebrationCard,
+              { transform: [{ scale: celebrationScale }] },
+            ]}
+          >
+            <Text style={styles.celebrationEmoji}>🎉</Text>
+            <Text style={styles.celebrationTitle}>Congratulations!</Text>
+            <Text style={styles.celebrationSubtitle}>
+              Your task "{celebrationTask?.title}" has been approved!
+            </Text>
+            <View style={styles.celebrationCoinsRow}>
+              <Ionicons name="diamond" size={22} color="#92400E" />
+              <Text style={styles.celebrationCoinsText}>
+                +{celebrationTask?.coin_value} coins earned
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.celebrationBtn}
+              onPress={dismissCelebration}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.celebrationBtnText}>Awesome!</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1093,5 +1180,67 @@ const styles = StyleSheet.create({
     fontSize: FontSize.small,
     color: colors.textSecondary,
     lineHeight: 18,
+  },
+
+  // Celebration modal
+  celebrationOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  celebrationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 340,
+    ...shadow.lg,
+  },
+  celebrationEmoji: {
+    fontSize: 56,
+    marginBottom: 12,
+  },
+  celebrationTitle: {
+    fontSize: 24,
+    fontWeight: Font.black,
+    color: colors.text,
+    marginBottom: 8,
+  },
+  celebrationSubtitle: {
+    fontSize: FontSize.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  celebrationCoinsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: radius.full,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  celebrationCoinsText: {
+    fontSize: FontSize.h2,
+    fontWeight: Font.bold,
+    color: '#92400E',
+  },
+  celebrationBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+    ...shadow.sm,
+  },
+  celebrationBtnText: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.bold,
+    color: '#FFFFFF',
   },
 });

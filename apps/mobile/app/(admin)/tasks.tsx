@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,12 +11,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Task } from '@upshot/types';
 import { colors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import {
+  AvatarCircle,
   Button,
   Card,
   CoinBadge,
@@ -63,10 +64,12 @@ export default function AdminTasks() {
     }
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    loadTasks();
-  }, [loadTasks]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      loadTasks();
+    }, [loadTasks]),
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -124,6 +127,33 @@ export default function AdminTasks() {
     [user, loadTasks],
   );
 
+  const handleDelete = useCallback(
+    (task: Task) => {
+      Alert.alert(
+        'Delete Task',
+        `Delete "${task.title}"? This removes it for everyone and cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              setActionLoading(task.id + 'delete');
+              try {
+                const result = await api.tasks.deleteTask(task.id);
+                if (result.error) Alert.alert('Error', result.error.message);
+                else await loadTasks();
+              } finally {
+                setActionLoading(null);
+              }
+            },
+          },
+        ],
+      );
+    },
+    [loadTasks],
+  );
+
   const filteredTasks = filter === 'all' ? tasks : tasks.filter((t) => t.status === filter);
 
   const pendingCount = tasks.filter((t) => t.status === 'submitted').length;
@@ -132,13 +162,43 @@ export default function AdminTasks() {
     const isSubmitted = item.status === 'submitted';
     const approvingThis = actionLoading === item.id + 'approve';
     const rejectingThis = actionLoading === item.id + 'reject';
-    const isActioning = approvingThis || rejectingThis;
+    const deletingThis = actionLoading === item.id + 'delete';
+    const isActioning = approvingThis || rejectingThis || deletingThis;
+    const assignee = (item as any).assignee;
+    const assigneeName = assignee?.full_name ?? 'Unknown User';
 
     return (
       <Card style={styles.taskCard}>
         <View style={styles.taskHeader}>
           <Text style={styles.taskTitle} numberOfLines={2}>{item.title}</Text>
-          <StatusBadge status={item.status} />
+          <View style={styles.taskHeaderRight}>
+            <StatusBadge status={item.status} />
+            <TouchableOpacity
+              onPress={() => handleDelete(item)}
+              activeOpacity={0.6}
+              disabled={isActioning}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {deletingThis ? (
+                <ActivityIndicator size="small" color={colors.error} />
+              ) : (
+                <Ionicons name="trash-outline" size={16} color={colors.error} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Assignee row */}
+        <View style={styles.assigneeRow}>
+          <AvatarCircle name={assigneeName} size={24} avatarUrl={assignee?.avatar_url} />
+          <Text style={styles.assigneeName}>{assigneeName}</Text>
+          {!!(item as any).target_group && (
+            <View style={styles.groupBadge}>
+              <Text style={styles.groupBadgeText}>
+                {((item as any).target_group as string).replace(/_/g, ' ')}
+              </Text>
+            </View>
+          )}
         </View>
 
         {!!(item as any).description && (
@@ -159,6 +219,29 @@ export default function AdminTasks() {
             </View>
           )}
         </View>
+
+        {/* Submission details for submitted tasks */}
+        {isSubmitted && (
+          <View style={styles.submissionArea}>
+            <Text style={styles.submissionByLabel}>Submitted by: {assigneeName}</Text>
+            {!!(item as any).submission_note && (
+              <Text style={styles.submissionNote} numberOfLines={3}>
+                {(item as any).submission_note}
+              </Text>
+            )}
+            {!!(item as any).submitted_at && (
+              <Text style={styles.submissionDate}>
+                {new Date((item as any).submitted_at).toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </Text>
+            )}
+          </View>
+        )}
 
         {isSubmitted && (
           <View style={styles.actionRow}>
@@ -307,6 +390,11 @@ const styles = StyleSheet.create({
     gap: Gap.sm,
     marginBottom: Gap.sm,
   },
+  taskHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   taskTitle: {
     flex: 1,
     fontSize: FontSize.h3,
@@ -334,6 +422,51 @@ const styles = StyleSheet.create({
   dueDate: {
     fontSize: FontSize.xs,
     color: colors.textSecondary,
+  },
+  assigneeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: Gap.sm,
+  },
+  assigneeName: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.text,
+    flex: 1,
+  },
+  groupBadge: {
+    backgroundColor: '#EDE9FE',
+    borderRadius: radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  groupBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.semibold,
+    color: '#6D28D9',
+    textTransform: 'capitalize',
+  },
+  submissionArea: {
+    backgroundColor: colors.success + '0D',
+    borderRadius: radius.md,
+    padding: Gap.sm,
+    marginTop: Gap.sm,
+    gap: 4,
+  },
+  submissionByLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: '#065F46',
+  },
+  submissionNote: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  submissionDate: {
+    fontSize: FontSize.xs,
+    color: colors.textLight,
   },
   actionRow: {
     flexDirection: 'row',

@@ -65,6 +65,13 @@ export default function AdminCreateTask() {
 
     setSubmitting(true);
     try {
+      console.log('[CREATE_TASK] payload:', {
+        adminId: user.id,
+        title: title.trim(),
+        target_group: targetGroup,
+        coin_value: coins,
+        due_date: formatDate(dueDate),
+      });
       const result = await api.tasks.createTask(user.id, {
         title: title.trim(),
         description: description.trim(),
@@ -73,6 +80,7 @@ export default function AdminCreateTask() {
         due_date: formatDate(dueDate),
       });
 
+      console.log('[CREATE_TASK] result:', JSON.stringify(result));
       if (result.error) {
         Alert.alert('Error', result.error.message);
       } else {
@@ -80,6 +88,9 @@ export default function AdminCreateTask() {
           { text: 'OK', onPress: () => router.back() },
         ]);
       }
+    } catch (e) {
+      console.error('[CREATE_TASK] exception:', e);
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to create task');
     } finally {
       setSubmitting(false);
     }
