@@ -12,12 +12,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { createApiClient } from '@upshot/api-client';
+import type { TaskTargetGroup } from '@upshot/types';
 import { colors, Font, FontSize, Gap } from '../../src/constants/theme';
 import { Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
+
+const TARGET_GROUPS: { value: TaskTargetGroup; label: string }[] = [
+  { value: 'campus_cartel', label: 'Campus Cartel' },
+  { value: 'students', label: 'Students' },
+  { value: 'ambassadors', label: 'Ambassadors' },
+];
+
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function formatDateDisplay(date: Date): string {
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 export default function AdminCreateTask() {
   const router = useRouter();
@@ -25,9 +41,10 @@ export default function AdminCreateTask() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [targetGroup, setTargetGroup] = useState<TaskTargetGroup>('campus_cartel');
   const [coinReward, setCoinReward] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [taskType, setTaskType] = useState('');
+  const [dueDate, setDueDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = useCallback(async () => {
@@ -45,24 +62,16 @@ export default function AdminCreateTask() {
       Alert.alert('Validation', 'Please enter a valid coin reward.');
       return;
     }
-    if (!dueDate.trim()) {
-      Alert.alert('Validation', 'Due date is required.');
-      return;
-    }
-    if (!taskType.trim()) {
-      Alert.alert('Validation', 'Task type is required.');
-      return;
-    }
 
     setSubmitting(true);
     try {
       const result = await api.tasks.createTask(user.id, {
         title: title.trim(),
         description: description.trim(),
-        coin_reward: coins,
-        due_date: dueDate.trim(),
-        task_type: taskType.trim(),
-      } as any);
+        target_group: targetGroup,
+        coin_value: coins,
+        due_date: formatDate(dueDate),
+      });
 
       if (result.error) {
         Alert.alert('Error', result.error.message);
@@ -74,7 +83,7 @@ export default function AdminCreateTask() {
     } finally {
       setSubmitting(false);
     }
-  }, [user, title, description, coinReward, dueDate, taskType, router]);
+  }, [user, title, description, targetGroup, coinReward, dueDate, router]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -111,6 +120,34 @@ export default function AdminCreateTask() {
             multiline
             numberOfLines={4}
           />
+
+          {/* Target Group Picker */}
+          <View style={styles.pickerWrapper}>
+            <Text style={styles.pickerLabel}>Assign To *</Text>
+            <View style={styles.pickerRow}>
+              {TARGET_GROUPS.map((group) => (
+                <TouchableOpacity
+                  key={group.value}
+                  style={[
+                    styles.pickerOption,
+                    targetGroup === group.value && styles.pickerOptionActive,
+                  ]}
+                  onPress={() => setTargetGroup(group.value)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.pickerOptionText,
+                      targetGroup === group.value && styles.pickerOptionTextActive,
+                    ]}
+                  >
+                    {group.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
           <Input
             label="Coin Reward *"
             placeholder="e.g. 50"
@@ -118,20 +155,30 @@ export default function AdminCreateTask() {
             onChangeText={setCoinReward}
             keyboardType="numeric"
           />
-          <Input
-            label="Due Date *"
-            placeholder="YYYY-MM-DD"
-            value={dueDate}
-            onChangeText={setDueDate}
-            keyboardType="numbers-and-punctuation"
-          />
-          <Input
-            label="Task Type *"
-            placeholder="e.g. content, outreach, design"
-            value={taskType}
-            onChangeText={setTaskType}
-            autoCapitalize="none"
-          />
+
+          {/* Date Picker */}
+          <View style={styles.pickerWrapper}>
+            <Text style={styles.pickerLabel}>Due Date *</Text>
+            <TouchableOpacity
+              style={styles.dateBtn}
+              onPress={() => setShowDatePicker(!showDatePicker)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.dateBtnText}>{formatDateDisplay(dueDate)}</Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={dueDate}
+                mode="date"
+                display="spinner"
+                minimumDate={new Date()}
+                onChange={(_event: any, selectedDate: Date | undefined) => {
+                  if (selectedDate) setDueDate(selectedDate);
+                }}
+              />
+            )}
+          </View>
 
           <Button
             title="Create Task"
@@ -179,6 +226,55 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: Gap.base,
     paddingBottom: 100,
+  },
+  pickerWrapper: {
+    marginBottom: Gap.base,
+  },
+  pickerLabel: {
+    fontSize: FontSize.small,
+    fontWeight: Font.medium,
+    color: colors.text,
+    marginBottom: 6,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Gap.sm,
+  },
+  pickerOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  pickerOptionActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  pickerOptionText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.medium,
+    color: colors.textSecondary,
+  },
+  pickerOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  dateBtnText: {
+    fontSize: FontSize.body,
+    color: colors.text,
   },
   submitBtn: {
     marginTop: Gap.md,

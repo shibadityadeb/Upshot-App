@@ -288,7 +288,7 @@ export default function AdminUnfilteredScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: DarkBg,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -297,16 +297,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Gap.base,
     paddingTop: 24,
     paddingBottom: 20,
-    backgroundColor: DarkBg,
+    backgroundColor: colors.background,
   },
   headerTitle: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.text,
   },
   headerSubtitle: {
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.45)',
+    color: colors.textSecondary,
     marginTop: 2,
     letterSpacing: 0.5,
   },

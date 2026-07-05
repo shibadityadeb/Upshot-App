@@ -83,14 +83,17 @@ export interface EventApplication {
   reviewed_by: string | null;
 }
 
+export type TaskTargetGroup = 'campus_cartel' | 'students' | 'ambassadors';
+
 export interface Task {
   id: string;
   title: string;
   description: string;
   event_id: string | null;
   event?: Event;
-  assigned_to: string;
+  assigned_to: string | null;
   assigned_by: string;
+  target_group: TaskTargetGroup | null;
   status: TaskStatus;
   due_date: string | null;
   coin_value: number;
@@ -211,7 +214,8 @@ export interface CreateTaskPayload {
   title: string;
   description: string;
   event_id?: string;
-  assigned_to: string;
+  assigned_to?: string;
+  target_group: TaskTargetGroup;
   due_date?: string;
   coin_value: number;
 }

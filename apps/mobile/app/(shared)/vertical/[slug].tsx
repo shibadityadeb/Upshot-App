@@ -151,12 +151,17 @@ export default function VerticalDetailScreen() {
           setStudentStatus(data?.status ?? 'none');
 
           if (data?.status === 'approved') {
-            // Load tasks
+            // Load tasks — fetch all tasks (any status)
             setTasksLoading(true);
-            api.tasks.getMyTasks(user.id).then(({ data: tasksData }) => {
-              setTasks(tasksData ?? []);
-              setTasksLoading(false);
-            });
+            api.supabase
+              .from('tasks')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .then(({ data: tasksData, error: tasksError }) => {
+                console.log('[TASKS] query result:', { count: tasksData?.length, error: tasksError?.message, data: tasksData });
+                setTasks((tasksData ?? []) as any);
+                setTasksLoading(false);
+              });
 
             // Check ambassador status
             api.ambassadors.getMyAmbassadorProfile(user.id).then(({ data: amb }) => {
@@ -216,8 +221,11 @@ export default function VerticalDetailScreen() {
       setSubmissionImageUri(null);
 
       // Refresh tasks
-      const { data: tasksData } = await api.tasks.getMyTasks(user.id);
-      setTasks(tasksData ?? []);
+      const { data: tasksData } = await api.supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setTasks((tasksData ?? []) as any);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to submit task.');
     } finally {

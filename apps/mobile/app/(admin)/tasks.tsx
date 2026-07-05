@@ -51,7 +51,10 @@ export default function AdminTasks() {
   const loadTasks = useCallback(async () => {
     try {
       const result = await api.tasks.getAllTasksAdmin();
-      if (result.data) setTasks(result.data);
+      if (result.error) {
+        console.warn('Tasks load error:', result.error);
+      }
+      setTasks(result.data ?? []);
     } catch (e) {
       console.warn(e);
     } finally {
@@ -255,7 +258,7 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.background,
     paddingHorizontal: Gap.base,
     paddingTop: 32,
     paddingBottom: 20,
@@ -268,11 +271,11 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.text,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.45)',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   addBtn: {

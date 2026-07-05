@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
-import { colors, Font, FontSize, Gap, DarkBg, radius, shadow } from '../../src/constants/theme';
+import { colors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { LoadingScreen } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
@@ -75,7 +75,6 @@ export default function AdminDashboard() {
     pendingTasks: 0,
     totalCoins: 0,
   });
-  const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
 
   const loadData = useCallback(async () => {
     try {
@@ -107,9 +106,6 @@ export default function AdminDashboard() {
         totalCoins,
       });
 
-      if (eventsResult?.data) {
-        setPendingEvents(eventsResult.data.slice(0, 5));
-      }
     } catch {
       Alert.alert('Error', 'Failed to load dashboard data.');
     }
@@ -173,32 +169,6 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Pending Approvals */}
-        {stats.pendingApprovals > 0 && (
-          <View style={styles.pendingSection}>
-            <Text style={styles.sectionLabel}>Needs Review</Text>
-            {pendingEvents.map((event) => (
-              <TouchableOpacity
-                key={event.id}
-                style={styles.pendingCard}
-                onPress={() => router.push('/(admin)/events')}
-                activeOpacity={0.75}
-              >
-                <View style={styles.pendingDot} />
-                <View style={styles.pendingInfo}>
-                  <Text style={styles.pendingTitle} numberOfLines={1}>{event.title}</Text>
-                  <Text style={styles.pendingMeta} numberOfLines={1}>
-                    {(event as any).company?.name ?? 'Unknown Company'}
-                    {' · '}
-                    {new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
         {/* Quick Actions */}
         <View style={styles.quickSection}>
           <Text style={styles.sectionLabel}>Quick Actions</Text>
@@ -233,7 +203,7 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: DarkBg,
+    backgroundColor: colors.background,
   },
   scroll: {
     flex: 1,
@@ -308,45 +278,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
     lineHeight: 16,
-  },
-
-  // Pending
-  pendingSection: {
-    paddingHorizontal: Gap.base,
-    paddingTop: Gap.lg,
-    paddingBottom: Gap.sm,
-  },
-  pendingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: Gap.base,
-    marginBottom: Gap.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: Gap.md,
-    ...shadow.sm,
-  },
-  pendingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.warning,
-    flexShrink: 0,
-  },
-  pendingInfo: {
-    flex: 1,
-  },
-  pendingTitle: {
-    fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: colors.text,
-  },
-  pendingMeta: {
-    fontSize: FontSize.xs,
-    color: colors.textSecondary,
-    marginTop: 2,
   },
 
   // Quick actions

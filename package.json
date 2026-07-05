@@ -22,5 +22,8 @@
   "resolutions": {
     "react-native": "0.79.6",
     "metro": "0.82.5"
+  },
+  "dependencies": {
+    "@react-native-community/datetimepicker": "^9.1.0"
   }
 }
