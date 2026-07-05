@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   ApiResponse,
   Task,
+  TaskTargetGroup,
   CreateTaskPayload,
   SubmitTaskPayload,
 } from '@upshot/types';
@@ -12,8 +13,18 @@ export class TasksService {
   async getMyTasks(userId: string): Promise<ApiResponse<Task[]>> {
     const { data, error } = await this.supabase
       .from('tasks')
-      .select('*, events(*)')
+      .select('*')
       .eq('assigned_to', userId)
+      .order('created_at', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as Task[], error: null };
+  }
+
+  async getTasksForGroup(groups: TaskTargetGroup[]): Promise<ApiResponse<Task[]>> {
+    const { data, error } = await this.supabase
+      .from('tasks')
+      .select('*')
+      .in('target_group', groups)
       .order('created_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
     return { data: (data ?? []) as unknown as Task[], error: null };
@@ -22,7 +33,7 @@ export class TasksService {
   async getAllTasksAdmin(): Promise<ApiResponse<Task[]>> {
     const { data, error } = await this.supabase
       .from('tasks')
-      .select('*, events(*)')
+      .select('*')
       .order('created_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
     return { data: (data ?? []) as unknown as Task[], error: null };
@@ -31,7 +42,7 @@ export class TasksService {
   async getTaskById(id: string): Promise<ApiResponse<Task>> {
     const { data, error } = await this.supabase
       .from('tasks')
-      .select('*, events(*)')
+      .select('*')
       .eq('id', id)
       .single();
     if (error || !data) return { data: null, error: { code: 'NOT_FOUND', message: 'Task not found' } };
@@ -39,30 +50,37 @@ export class TasksService {
   }
 
   async createTask(adminId: string, payload: CreateTaskPayload): Promise<ApiResponse<Task>> {
+    // Build insert row — only include target_group if the column exists
+    const row: Record<string, unknown> = {
+      title: payload.title,
+      description: payload.description,
+      event_id: payload.event_id ?? null,
+      assigned_to: payload.assigned_to ?? adminId,
+      assigned_by: adminId,
+      status: 'assigned',
+      due_date: payload.due_date ?? null,
+      coin_value: payload.coin_value,
+    };
+
+    // First attempt with target_group
     const { data, error } = await this.supabase
       .from('tasks')
-      .insert({
-        title: payload.title,
-        description: payload.description,
-        event_id: payload.event_id ?? null,
-        assigned_to: payload.assigned_to,
-        assigned_by: adminId,
-        status: 'assigned',
-        due_date: payload.due_date ?? null,
-        coin_value: payload.coin_value,
-      })
+      .insert({ ...row, target_group: payload.target_group })
       .select()
       .single();
+
+    // If target_group column doesn't exist, retry without it
+    if (error?.message?.includes('target_group')) {
+      const { data: d2, error: e2 } = await this.supabase
+        .from('tasks')
+        .insert(row)
+        .select()
+        .single();
+      if (e2 || !d2) return { data: null, error: { code: 'CREATE_FAILED', message: e2?.message ?? 'Failed' } };
+      return { data: d2 as unknown as Task, error: null };
+    }
+
     if (error || !data) return { data: null, error: { code: 'CREATE_FAILED', message: error?.message ?? 'Failed' } };
-
-    await this.supabase.from('notifications').insert({
-      user_id: payload.assigned_to,
-      title: 'New task assigned',
-      body: `You have been assigned a new task: "${payload.title}".`,
-      type: 'task_assigned',
-      reference_id: data.id,
-    });
-
     return { data: data as unknown as Task, error: null };
   }
 

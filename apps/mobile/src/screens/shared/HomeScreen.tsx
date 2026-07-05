@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Alert,
   ScrollView,
   View,
   Text,
@@ -11,14 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const LOGO = require('../../../assets/logo.png') as number;
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { Vertical, Event, UnfilteredVideo } from '@upshot/types';
+import type { Vertical, Event, UnfilteredVideo, Task } from '@upshot/types';
 import {
   colors,
   verticalColors,
-  DarkBg,
   Font,
   FontSize,
   Gap,
@@ -38,7 +37,6 @@ const PAGE_H = Gap.base;       // 16 — horizontal padding for all sections
 const SECTION_V = Gap.xl;      // 24 — top/bottom padding for every section
 const CARD_RADIUS = 14;        // border radius applied to every card
 const CARD_PAD = Gap.base;     // 16 — internal padding for every card
-const DIVIDER = '#E4E4E7';     // shared divider color
 
 const FALLBACK_VERTICALS: Vertical[] = [
   {
@@ -83,13 +81,13 @@ const FALLBACK_VERTICALS: Vertical[] = [
   },
 ];
 
-const HERO_TAGS = ['#Unfiltered', '#CampusCartel', '#iRISE', '#iBelieve'];
+const HERO_TAGS = ['Unfiltered', 'Campus cartel', 'iRISE', 'iBelieve'];
 
 function getTimeOfDay(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Morning';
-  if (hour < 17) return 'Afternoon';
-  return 'Evening';
+  if (hour < 12) return 'Morning edition';
+  if (hour < 17) return 'Afternoon edition';
+  return 'Evening edition';
 }
 
 export default function HomeScreen() {
@@ -100,6 +98,8 @@ export default function HomeScreen() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [featuredVideo, setFeaturedVideo] = useState<UnfilteredVideo | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -140,6 +140,19 @@ export default function HomeScreen() {
         if (appsResult.data) {
           setAppliedIds(new Set(appsResult.data.map((a) => a.event_id)));
         }
+
+        // Load tasks for students — fetch all tasks (any status)
+        if (user.role === 'student' || user.role === 'people') {
+          try {
+            const { data: tasksData } = await api.supabase
+              .from('tasks')
+              .select('*')
+              .order('created_at', { ascending: false });
+            setTasks((tasksData ?? []) as Task[]);
+          } catch {
+            // silently fail
+          }
+        }
       }
     } catch {
       /* silently use fallbacks */
@@ -167,38 +180,41 @@ export default function HomeScreen() {
       {/* ─── Hero ────────────────────────────────────────────── */}
       <View style={styles.hero}>
         <View style={styles.heroTopRow}>
-          <View style={styles.heroLogoBadge}>
-            <Image source={LOGO} style={styles.heroLogo} resizeMode="contain" />
-          </View>
-          <View style={styles.timePill}>
-            <Text style={styles.timePillText}>{timeOfDay}</Text>
-          </View>
+          <Text style={styles.heroLogoText}>
+            <Text style={styles.heroLogoGreen}>up</Text>
+            <Text style={styles.heroLogoWhite}>shot</Text>
+          </Text>
+          <Text style={styles.timeText}>{timeOfDay}</Text>
         </View>
 
         <View style={styles.heroHeadlineBlock}>
-          <Text style={styles.heroHeadlineLine}>Conversations.</Text>
-          <Text style={styles.heroHeadlineLine}>Communities.</Text>
-          <Text style={[styles.heroHeadlineLine, styles.heroHeadlineAccent]}>
-            Experiences.
+          <Text style={styles.heroHeadlineLine}>
+            Conversations,{'\n'}communities,{' '}
+            <Text style={styles.heroHeadlineAccent}>experience.</Text>
           </Text>
         </View>
 
         <Text style={styles.heroSubtitle}>
-          India's leading Media & Community Network
+          India's media and community network, told in four parts.
         </Text>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.heroTagsScroll}
-          contentContainerStyle={styles.heroTagsContent}
-        >
-          {HERO_TAGS.map((tag) => (
-            <View key={tag} style={styles.heroTag}>
+        {/* Gradient bar */}
+        <View style={styles.heroGradientBar}>
+          <View style={[styles.heroGradientSegment, { backgroundColor: '#4A90D9', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: '#5BB8A0', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: '#7BC55A', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: '#C4D94A', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: '#E8D44D', flex: 1 }]} />
+        </View>
+
+        <View style={styles.heroTagsRow}>
+          {HERO_TAGS.map((tag, i) => (
+            <React.Fragment key={tag}>
+              {i > 0 && <Text style={styles.heroTagDot}>·</Text>}
               <Text style={styles.heroTagText}>{tag}</Text>
-            </View>
+            </React.Fragment>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       {/* ─── Our Verticals ───────────────────────────────────── */}
@@ -302,6 +318,63 @@ export default function HomeScreen() {
         </>
       )}
 
+      {/* ─── Tasks for Students ───────────────────────────────── */}
+      {tasks.filter((t) => t.status === 'assigned').length > 0 && (
+        <>
+          <View style={styles.divider} />
+          <View style={styles.section}>
+            <SectionHeader title="Your Tasks" />
+            {tasks
+              .filter((t) => t.status === 'assigned')
+              .slice(0, 3)
+              .map((task) => (
+                <View key={task.id} style={styles.taskCard}>
+                  <View style={styles.taskCardHeader}>
+                    <Text style={styles.taskCardTitle} numberOfLines={2}>{task.title}</Text>
+                    <View style={styles.taskCoinPill}>
+                      <Ionicons name="diamond-outline" size={11} color="#92400E" />
+                      <Text style={styles.taskCoinText}>{task.coin_value}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.taskCardDesc} numberOfLines={2}>{task.description}</Text>
+                  {task.due_date && (
+                    <View style={styles.taskMetaRow}>
+                      <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
+                      <Text style={styles.taskMetaText}>Due {task.due_date}</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.taskSubmitBtn}
+                    activeOpacity={0.8}
+                    disabled={submittingTaskId === task.id}
+                    onPress={() => {
+                      Alert.prompt('Submit Task', 'Add a note or link:', [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Submit',
+                          onPress: async (text) => {
+                            setSubmittingTaskId(task.id);
+                            try {
+                              await api.tasks.submitTask(task.id, { submission_note: text ?? '' });
+                              load();
+                            } finally {
+                              setSubmittingTaskId(null);
+                            }
+                          },
+                        },
+                      ], 'plain-text');
+                    }}
+                  >
+                    <Text style={styles.taskSubmitBtnText}>
+                      {submittingTaskId === task.id ? 'Submitting...' : 'Submit'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+          </View>
+        </>
+      )}
+
       <View style={styles.divider} />
 
       {/* ─── Upcoming Events (1 latest, not joined) ──────────── */}
@@ -374,7 +447,7 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.hostBannerBtnText}>Get started</Text>
-            <Ionicons name="arrow-forward" size={13} color="#818CF8" />
+            <Ionicons name="arrow-forward" size={13} color="#A5B4FC" />
           </TouchableOpacity>
         </View>
       </View>
@@ -457,13 +530,13 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: DIVIDER,
+    backgroundColor: '#E4E4E7',
     marginHorizontal: PAGE_H,
   },
   // ── Hero ──────────────────────────────────────────────────
   hero: {
     paddingBottom: SECTION_V,
-    backgroundColor: DarkBg,
+    backgroundColor: '#1A1D23',
   },
   heroTopRow: {
     paddingTop: 52,
@@ -472,32 +545,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  heroLogoBadge: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  heroLogoText: {
+    fontSize: 20,
+    fontWeight: Font.bold,
   },
-  heroLogo: {
-    width: 90,
-    height: 22,
+  heroLogoGreen: {
+    color: '#7BC55A',
+    fontWeight: Font.bold,
   },
-  timePill: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+  heroLogoWhite: {
+    color: '#FFFFFF',
+    fontWeight: Font.bold,
   },
-  timePillText: {
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.6)',
+  timeText: {
+    fontSize: FontSize.small,
+    color: 'rgba(255,255,255,0.45)',
+    fontWeight: Font.regular,
   },
   heroHeadlineBlock: {
     paddingHorizontal: PAGE_H,
-    marginTop: Gap.lg,
+    marginTop: Gap.xl,
   },
   heroHeadlineLine: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: Font.black,
     letterSpacing: -0.5,
     lineHeight: 40,
@@ -505,33 +575,42 @@ const styles = StyleSheet.create({
   },
   heroHeadlineAccent: {
     color: '#7BC55A',
+    fontStyle: 'italic',
   },
   heroSubtitle: {
     paddingHorizontal: PAGE_H,
-    marginTop: Gap.sm,
+    marginTop: Gap.md,
     fontSize: FontSize.body,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(255,255,255,0.45)',
     fontWeight: Font.regular,
-    lineHeight: 20,
+    lineHeight: 22,
   },
-  heroTagsScroll: {
-    marginTop: Gap.base,
-  },
-  heroTagsContent: {
-    paddingHorizontal: PAGE_H,
+  heroGradientBar: {
     flexDirection: 'row',
+    height: 3,
+    marginHorizontal: PAGE_H,
+    marginTop: Gap.lg,
+    borderRadius: 2,
+    overflow: 'hidden',
   },
-  heroTag: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginRight: Gap.sm,
+  heroGradientSegment: {
+    height: 3,
+  },
+  heroTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: PAGE_H,
+    marginTop: Gap.md,
+  },
+  heroTagDot: {
+    fontSize: FontSize.body,
+    color: 'rgba(255,255,255,0.3)',
+    marginHorizontal: 8,
   },
   heroTagText: {
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: FontSize.small,
+    color: '#7BC55A',
+    fontWeight: Font.medium,
   },
 
   // ── Verticals grid ────────────────────────────────────────
@@ -578,7 +657,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     overflow: 'hidden',
     marginBottom: Gap.sm,
-    ...shadow.sm,
   },
   upcomingBanner: {
     width: '100%',
@@ -648,17 +726,17 @@ const styles = StyleSheet.create({
 
   // ── Host an Event Banner ──────────────────────────────────
   hostBanner: {
-    backgroundColor: '#0F1629',
+    backgroundColor: '#141829',
     borderRadius: CARD_RADIUS,
     padding: Gap.lg,
     borderWidth: 1,
-    borderColor: 'rgba(129,140,248,0.15)',
+    borderColor: 'rgba(129,140,248,0.12)',
   },
   hostBannerIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(129,140,248,0.12)',
+    backgroundColor: 'rgba(129,140,248,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Gap.md,
@@ -666,39 +744,40 @@ const styles = StyleSheet.create({
   hostBannerEyebrow: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(129,140,248,0.8)',
+    color: 'rgba(129,140,248,0.7)',
     letterSpacing: 2.5,
     marginBottom: Gap.sm,
   },
   hostBannerHeadline: {
-    fontSize: FontSize.h2,
+    fontSize: FontSize.h1,
     fontWeight: Font.black,
     color: '#FFFFFF',
-    lineHeight: 26,
+    lineHeight: 28,
+    letterSpacing: -0.3,
     marginBottom: Gap.xs,
   },
   hostBannerBody: {
-    fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.5)',
-    lineHeight: 20,
+    fontSize: FontSize.body,
+    color: 'rgba(255,255,255,0.45)',
+    lineHeight: 22,
     marginBottom: Gap.base,
   },
   hostBannerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    height: 36,
-    backgroundColor: 'rgba(129,140,248,0.12)',
+    height: 38,
+    backgroundColor: 'rgba(129,140,248,0.10)',
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: 'rgba(129,140,248,0.35)',
+    borderColor: 'rgba(129,140,248,0.25)',
     paddingHorizontal: Gap.base,
     alignSelf: 'flex-start',
   },
   hostBannerBtnText: {
-    fontSize: FontSize.small,
+    fontSize: FontSize.body,
     fontWeight: Font.semibold,
-    color: '#818CF8',
+    color: '#A5B4FC',
   },
 
   // ── Campus Cartel Banner ──────────────────────────────────
@@ -707,43 +786,46 @@ const styles = StyleSheet.create({
     paddingVertical: SECTION_V,
   },
   campusCartelBanner: {
-    backgroundColor: '#0C1F15',
+    backgroundColor: '#111F16',
     borderRadius: CARD_RADIUS,
     padding: Gap.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(123,197,90,0.12)',
   },
   campusCartelEyebrow: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(123,197,90,0.8)',
+    color: 'rgba(123,197,90,0.7)',
     letterSpacing: 2.5,
     marginBottom: Gap.sm,
   },
   campusCartelHeadline: {
-    fontSize: FontSize.h2,
+    fontSize: FontSize.h1,
     fontWeight: Font.black,
     color: '#FFFFFF',
-    lineHeight: 26,
+    lineHeight: 28,
+    letterSpacing: -0.3,
     marginBottom: Gap.xs,
   },
   campusCartelStats: {
-    fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: FontSize.body,
+    color: 'rgba(255,255,255,0.45)',
     marginBottom: Gap.base,
   },
   campusCartelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    height: 36,
-    backgroundColor: 'rgba(123,197,90,0.12)',
+    height: 38,
+    backgroundColor: 'rgba(123,197,90,0.10)',
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: 'rgba(123,197,90,0.35)',
+    borderColor: 'rgba(123,197,90,0.25)',
     paddingHorizontal: Gap.base,
     alignSelf: 'flex-start',
   },
   campusCartelBtnText: {
-    fontSize: FontSize.small,
+    fontSize: FontSize.body,
     fontWeight: Font.semibold,
     color: '#7BC55A',
   },
@@ -787,7 +869,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
-    ...shadow.sm,
   },
   featuredVideoThumb: {
     width: '100%',
@@ -830,5 +911,73 @@ const styles = StyleSheet.create({
     fontSize: FontSize.small,
     color: colors.textSecondary,
     lineHeight: 18,
+  },
+
+  // ── Tasks ─────────────────────────────────────────────────
+  taskCard: {
+    backgroundColor: colors.surface,
+    borderRadius: CARD_RADIUS,
+    padding: CARD_PAD,
+    marginBottom: Gap.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
+  },
+  taskCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Gap.sm,
+  },
+  taskCardTitle: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.bold,
+    color: colors.text,
+    flex: 1,
+  },
+  taskCoinPill: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  taskCoinText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: '#92400E',
+  },
+  taskCardDesc: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    marginTop: 6,
+    lineHeight: 20,
+  },
+  taskMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  taskMetaText: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+  },
+  taskSubmitBtn: {
+    marginTop: Gap.md,
+    height: 36,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: Gap.xl,
+  },
+  taskSubmitBtnText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: '#FFFFFF',
   },
 });

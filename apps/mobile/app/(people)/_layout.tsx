@@ -56,6 +56,7 @@ export default function PeopleLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="document-text-outline" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen name="tasks" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{
