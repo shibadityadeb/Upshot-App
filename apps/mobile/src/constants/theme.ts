@@ -17,6 +17,10 @@ export const colors = {
   dark: '#0D0F1C',
   darkMid: '#151929',
   darkAccent: '#1E2340',
+  // Campus Cartel brand
+  campusCartelGreen: '#047857',
+  campusCartelTint: '#D1FAE5',
+  campusCartelText: '#065F46',
 } as const;
 
 // ─── Vertical brand colors ────────────────────────────────────────────────────
@@ -27,6 +31,10 @@ export const verticalColors = {
   campus_cartel: '#047857', // backward-compat alias
   irise: '#92400E',
   ibelieve: '#991B1B',
+  // Campus Cartel brand
+  campusCartelGreen: '#047857',
+  campusCartelTint: '#D1FAE5',
+  campusCartelText: '#065F46',
 } as const;
 
 // ─── Legacy dark bg exports (kept for backward compat) ───────────────────────

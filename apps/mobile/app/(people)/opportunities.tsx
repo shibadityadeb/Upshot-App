@@ -83,6 +83,10 @@ export default function PeopleOpportunities() {
   }, [loadEvents]);
 
   const filteredEvents = events.filter((e) => {
+    // Hide past events
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (e.event_date < todayStr) return false;
+
     const q = debouncedSearch.toLowerCase();
     if (!q) return true;
     return e.title.toLowerCase().includes(q) || (e.location ?? '').toLowerCase().includes(q);

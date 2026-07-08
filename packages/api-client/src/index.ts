@@ -8,6 +8,8 @@ export { VerticalsService } from './verticals.service';
 export { WorkforceService } from './workforce.service';
 export { HostingService } from './hosting.service';
 export { UnfilteredService } from './unfiltered.service';
+export { CampusCartelService } from './campus-cartel.service';
+export type { LeaderboardEntry, CampusCartelStats, CampusCartelMember, CampusCartelStatus } from './campus-cartel.service';
 
 import { getSupabaseClient } from './client';
 import { AuthService } from './auth.service';
@@ -19,6 +21,7 @@ import { VerticalsService } from './verticals.service';
 import { WorkforceService } from './workforce.service';
 import { HostingService } from './hosting.service';
 import { UnfilteredService } from './unfiltered.service';
+import { CampusCartelService } from './campus-cartel.service';
 
 export function createApiClient(supabaseUrl?: string, supabaseAnonKey?: string) {
   const supabase = getSupabaseClient(supabaseUrl, supabaseAnonKey);
@@ -33,5 +36,6 @@ export function createApiClient(supabaseUrl?: string, supabaseAnonKey?: string) 
     workforce: new WorkforceService(supabase),
     hosting: new HostingService(supabase),
     unfiltered: new UnfilteredService(supabase),
+    campusCartel: new CampusCartelService(supabase),
   };
 }

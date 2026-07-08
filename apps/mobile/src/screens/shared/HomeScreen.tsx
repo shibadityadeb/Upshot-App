@@ -101,6 +101,7 @@ export default function HomeScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isCartelMember, setIsCartelMember] = useState(false);
 
   useEffect(() => {
     load();
@@ -141,17 +142,25 @@ export default function HomeScreen() {
           setAppliedIds(new Set(appsResult.data.map((a) => a.event_id)));
         }
 
-        // Load tasks for students — fetch all tasks (any status)
-        if (user.role === 'student' || user.role === 'people') {
-          try {
-            const { data: tasksData } = await api.supabase
-              .from('tasks')
-              .select('*')
-              .order('created_at', { ascending: false });
-            setTasks((tasksData ?? []) as Task[]);
-          } catch {
-            // silently fail
+        // Check Campus Cartel membership first — tasks are CC-only
+        try {
+          const member = await api.campusCartel.isMember(user.id);
+          setIsCartelMember(member);
+
+          // Only load tasks for CC members
+          if (member && (user.role === 'student' || user.role === 'people')) {
+            try {
+              const { data: tasksData } = await api.supabase
+                .from('tasks')
+                .select('*')
+                .order('created_at', { ascending: false });
+              setTasks((tasksData ?? []) as Task[]);
+            } catch {
+              // silently fail
+            }
           }
+        } catch {
+          // silently fail
         }
       }
     } catch {
@@ -160,8 +169,10 @@ export default function HomeScreen() {
     setLoading(false);
   }
 
-  const upcomingEvents = allEvents.filter((e) => !appliedIds.has(e.id));
-  const joinedEvents = allEvents.filter((e) => appliedIds.has(e.id));
+  const todayStr = new Date().toISOString().split('T')[0];
+  const futureEvents = allEvents.filter((e) => e.event_date >= todayStr);
+  const upcomingEvents = futureEvents.filter((e) => !appliedIds.has(e.id));
+  const joinedEvents = futureEvents.filter((e) => appliedIds.has(e.id));
 
   if (loading) {
     return <LoadingScreen />;
@@ -318,8 +329,8 @@ export default function HomeScreen() {
         </>
       )}
 
-      {/* ─── Tasks for Students ───────────────────────────────── */}
-      {tasks.filter((t) => t.status === 'assigned').length > 0 && (
+      {/* ─── Tasks for Campus Cartel Members ─────────────────── */}
+      {isCartelMember && tasks.filter((t) => t.status === 'assigned').length > 0 && (
         <>
           <View style={styles.divider} />
           <View style={styles.section}>
@@ -464,10 +475,12 @@ export default function HomeScreen() {
           </Text>
           <TouchableOpacity
             style={styles.campusCartelBtn}
-            onPress={() => router.push('/campus-cartel-apply' as any)}
+            onPress={() => router.push('/(people)/campus-cartel' as any)}
             activeOpacity={0.8}
           >
-            <Text style={styles.campusCartelBtnText}>Join the network</Text>
+            <Text style={styles.campusCartelBtnText}>
+              {isCartelMember ? 'Go to Campus Cartel' : 'Join the network'}
+            </Text>
             <Ionicons name="arrow-forward" size={13} color="#7BC55A" />
           </TouchableOpacity>
         </View>

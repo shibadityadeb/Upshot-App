@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createApiClient } from '@upshot/api-client';
@@ -41,9 +42,11 @@ function getGroupsForRole(role: string | undefined): TaskTargetGroup[] {
 
 export default function PeopleTasksScreen() {
   const user = useAuthStore((s) => s.user);
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isMember, setIsMember] = useState<boolean | null>(null);
 
   // Submission form state
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -54,6 +57,12 @@ export default function PeopleTasksScreen() {
   // Celebration modal state
   const [celebrationTask, setCelebrationTask] = useState<Task | null>(null);
   const [celebrationScale] = useState(new Animated.Value(0));
+
+  // Check Campus Cartel membership first
+  useEffect(() => {
+    if (!user?.id) return;
+    api.campusCartel.isMember(user.id).then(setIsMember).catch(() => setIsMember(false));
+  }, [user]);
 
   const loadTasks = useCallback(async () => {
     if (!user?.id) return;
@@ -194,7 +203,35 @@ export default function PeopleTasksScreen() {
     [submissionNote, submissionImageUri, user?.id, loadTasks],
   );
 
-  if (loading) return <LoadingScreen />;
+  if (loading || isMember === null) return <LoadingScreen />;
+
+  // Non-members see a join prompt instead of tasks
+  if (!isMember) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Tasks</Text>
+        </View>
+        <View style={styles.gateContainer}>
+          <EmptyState
+            iconName="shield-checkmark-outline"
+            title="Campus Cartel members only"
+            subtitle="Join Campus Cartel to access assignments and earn coins"
+            action={
+              <TouchableOpacity
+                style={styles.joinBtn}
+                onPress={() => router.push('/(people)/campus-cartel' as any)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.joinBtnText}>Join Campus Cartel</Text>
+                <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            }
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const activeTasks = tasks.filter((t) => t.status === 'assigned' || t.status === 'in_progress');
   const submittedTasks = tasks.filter((t) => t.status === 'submitted');
@@ -715,6 +752,27 @@ const styles = StyleSheet.create({
   },
   celebrationBtnText: {
     fontSize: FontSize.h3,
+    fontWeight: Font.bold,
+    color: '#FFFFFF',
+  },
+
+  // Membership gate
+  gateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: Gap.base,
+  },
+  joinBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.xs,
+    height: 44,
+    backgroundColor: colors.campusCartelGreen,
+    borderRadius: 10,
+    paddingHorizontal: Gap.xl,
+  },
+  joinBtnText: {
+    fontSize: FontSize.body,
     fontWeight: Font.bold,
     color: '#FFFFFF',
   },

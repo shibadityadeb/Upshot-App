@@ -149,13 +149,8 @@ export default function VerticalDetailScreen() {
     useCallback(() => {
       if (!isCampusCartel || !user?.id) return;
 
-      // Check student status
-      api.supabase
-        .from('students')
-        .select('status')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
+      // Check campus cartel membership status
+      api.campusCartel.getApplicationStatus(user.id).then(({ data }) => {
           setStudentStatus(data?.status ?? 'none');
 
           if (data?.status === 'approved') {
