@@ -68,6 +68,10 @@ export default function PeopleLayout() {
       <Tabs.Screen name="wallet" options={{ href: null }} />
       <Tabs.Screen name="apply/[id]" options={{ href: null }} />
       <Tabs.Screen name="host-event" options={{ href: null }} />
+      <Tabs.Screen name="campus-cartel" options={{ href: null }} />
+      <Tabs.Screen name="my-tasks" options={{ href: null }} />
+      <Tabs.Screen name="task/[id]" options={{ href: null }} />
+      <Tabs.Screen name="leaderboard" options={{ href: null }} />
     </Tabs>
   );
 }

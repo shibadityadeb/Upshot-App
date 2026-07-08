@@ -1,18 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Clipboard,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador, Student } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
-import { AvatarCircle, LoadingScreen, EmptyState } from '../../src/components/common';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { AvatarCircle, LoadingScreen, EmptyState, StatCard } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
@@ -26,20 +30,27 @@ export default function AmbassadorReferrals() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Cartel referrals
+  const [cartelReferrals, setCartelReferrals] = useState<any[]>([]);
+
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
       const ambassadorResult = await api.ambassadors.getMyAmbassadorProfile(user.id);
       if (ambassadorResult.data) {
         setAmbassador(ambassadorResult.data);
-        const studentsResult = await api.ambassadors.getAmbassadorStudents(
-          ambassadorResult.data.id
-        );
+        const [studentsResult, cartelResult] = await Promise.all([
+          api.ambassadors.getAmbassadorStudents(ambassadorResult.data.id),
+          api.campusCartel.getAmbassadorReferrals(ambassadorResult.data.referral_code),
+        ]);
         if (studentsResult.data) {
           const sorted = [...studentsResult.data].sort(
             (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
           setStudents(sorted);
+        }
+        if (cartelResult.data) {
+          setCartelReferrals(cartelResult.data);
         }
       }
     } catch {
@@ -61,15 +72,55 @@ export default function AmbassadorReferrals() {
     setRefreshing(false);
   }, [loadData]);
 
+  const handleCopy = () => {
+    if (!ambassador) return;
+    Clipboard.setString(ambassador.referral_code);
+    Alert.alert('Copied!', 'Referral code copied');
+  };
+
+  const handleShare = () => {
+    if (!ambassador) return;
+    Share.share({
+      message: `Join Campus Cartel using my code ${ambassador.referral_code} with UBM \u{1F393}`,
+    });
+  };
+
   if (loading) return <LoadingScreen />;
 
+  // Combine students + cartel referrals for display
+  const allReferrals = [
+    ...students.map((s) => ({
+      id: s.id,
+      name: s.user?.full_name ?? 'Student',
+      avatarUrl: s.user?.avatar_url,
+      college: s.profession ?? s.college ?? 'Member',
+      date: s.created_at,
+      coins: 0,
+    })),
+    ...cartelReferrals
+      .filter((cr) => !students.some((s) => s.user_id === cr.user_id))
+      .map((cr) => ({
+        id: cr.id,
+        name: cr.profile?.full_name ?? 'Member',
+        avatarUrl: cr.profile?.avatar_url,
+        college: cr.college ?? 'Member',
+        date: cr.joined_at,
+        coins: 0,
+      })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   const filtered = search.trim()
-    ? students.filter((s) =>
-        (s.user?.full_name ?? 'Student')
-          .toLowerCase()
-          .includes(search.trim().toLowerCase())
+    ? allReferrals.filter((r) =>
+        r.name.toLowerCase().includes(search.trim().toLowerCase())
       )
-    : students;
+    : allReferrals;
+
+  // Stats
+  const thisMonth = allReferrals.filter((r) => {
+    const d = new Date(r.date);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -77,22 +128,47 @@ export default function AmbassadorReferrals() {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Referrals</Text>
-          {ambassador && students.length > 0 && (
+          {allReferrals.length > 0 && (
             <View style={styles.countPill}>
-              <Text style={styles.countText}>{students.length} total</Text>
+              <Text style={styles.countText}>{allReferrals.length} total</Text>
             </View>
           )}
         </View>
         <Text style={styles.headerSubtitle}>People who joined using your code</Text>
       </View>
 
+      {/* Stats row */}
+      <View style={styles.statsRow}>
+        <StatCard label="Total Referred" value={allReferrals.length} color={colors.primary} />
+        <StatCard label="This Month" value={thisMonth} color={colors.success} />
+        <StatCard label="Network Coins" value={ambassador?.total_coins_earned ?? 0} color={colors.warning} />
+      </View>
+
+      {/* Referral code card */}
+      {ambassador && (
+        <View style={styles.codeCard}>
+          <Text style={styles.codeLabel}>YOUR REFERRAL CODE</Text>
+          <Text style={styles.codeValue}>{ambassador.referral_code}</Text>
+          <View style={styles.codeActions}>
+            <TouchableOpacity style={styles.codeBtn} onPress={handleCopy} activeOpacity={0.7}>
+              <Ionicons name="copy-outline" size={16} color={colors.primary} />
+              <Text style={styles.codeBtnText}>Copy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.codeBtn} onPress={handleShare} activeOpacity={0.7}>
+              <Ionicons name="share-outline" size={16} color={colors.primary} />
+              <Text style={styles.codeBtnText}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Search bar */}
       <View style={styles.searchSection}>
         <View style={styles.searchWrapper}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={16} color={colors.textLight} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by name…"
+            placeholder="Search by name..."
             placeholderTextColor={colors.textLight}
             value={search}
             onChangeText={setSearch}
@@ -118,7 +194,7 @@ export default function AmbassadorReferrals() {
       >
         {filtered.length === 0 ? (
           <EmptyState
-            icon="👥"
+            iconName="people-outline"
             title={search.trim() ? 'No results found' : 'No referrals yet'}
             subtitle={
               search.trim()
@@ -128,23 +204,24 @@ export default function AmbassadorReferrals() {
           />
         ) : (
           <View style={styles.listCard}>
-            {filtered.map((student, idx) => (
-              <View key={student.id}>
+            {filtered.map((ref, idx) => (
+              <View key={ref.id}>
                 <View style={styles.studentRow}>
                   <AvatarCircle
-                    name={student.user?.full_name ?? 'Student'}
+                    name={ref.name}
                     size={44}
+                    avatarUrl={ref.avatarUrl}
                   />
                   <View style={styles.studentInfo}>
                     <Text style={styles.studentName} numberOfLines={1}>
-                      {student.user?.full_name ?? 'Student'}
+                      {ref.name}
                     </Text>
                     <Text style={styles.studentSub} numberOfLines={1}>
-                      {student.profession ?? student.college ?? 'Member'}
+                      {ref.college}
                     </Text>
                   </View>
                   <Text style={styles.studentDate}>
-                    {new Date(student.created_at).toLocaleDateString('en-IN', {
+                    {new Date(ref.date).toLocaleDateString('en-IN', {
                       day: 'numeric', month: 'short',
                     })}
                   </Text>
@@ -201,6 +278,57 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
 
+  // Stats row
+  statsRow: {
+    flexDirection: 'row',
+    gap: Gap.sm,
+    paddingHorizontal: Gap.base,
+    paddingVertical: Gap.base,
+  },
+
+  // Code card
+  codeCard: {
+    backgroundColor: colors.surface,
+    marginHorizontal: Gap.base,
+    borderRadius: radius.lg,
+    padding: Gap.lg,
+    alignItems: 'center',
+    marginBottom: Gap.md,
+    ...shadow.sm,
+  },
+  codeLabel: {
+    fontSize: FontSize.micro,
+    fontWeight: Font.bold,
+    color: colors.textSecondary,
+    letterSpacing: 2,
+  },
+  codeValue: {
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
+    color: colors.text,
+    letterSpacing: 4,
+    marginTop: Gap.sm,
+    marginBottom: Gap.base,
+  },
+  codeActions: {
+    flexDirection: 'row',
+    gap: Gap.md,
+  },
+  codeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.xs,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    paddingHorizontal: Gap.base,
+    paddingVertical: Gap.sm,
+  },
+  codeBtnText: {
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
+    color: colors.primary,
+  },
+
   // Search
   searchSection: {
     backgroundColor: colors.surface,
@@ -217,10 +345,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Gap.md,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  searchIcon: {
-    fontSize: 14,
-    marginRight: Gap.sm,
+    gap: Gap.sm,
   },
   searchInput: {
     flex: 1,

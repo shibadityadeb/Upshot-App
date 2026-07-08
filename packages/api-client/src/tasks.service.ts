@@ -247,28 +247,34 @@ export class TasksService {
     return { data: data as unknown as Task, error: null };
   }
 
-  async deleteTask(taskId: string): Promise<ApiResponse<null>> {
-    // Fetch the task first to check if it's a group task
-    const { data: task } = await this.supabase
+  async getMyPendingTasks(userId: string): Promise<ApiResponse<Task[]>> {
+    if (!userId) return { data: [], error: null };
+    const { data, error } = await this.supabase
       .from('tasks')
-      .select('title, assigned_by, target_group')
-      .eq('id', taskId)
-      .single();
+      .select('*')
+      .eq('assigned_to', userId)
+      .in('status', ['assigned', 'in_progress'])
+      .order('created_at', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as Task[], error: null };
+  }
 
-    // Delete the task itself
+  async getMyCompletedTasks(userId: string): Promise<ApiResponse<Task[]>> {
+    if (!userId) return { data: [], error: null };
+    const { data, error } = await this.supabase
+      .from('tasks')
+      .select('*')
+      .eq('assigned_to', userId)
+      .in('status', ['submitted', 'approved', 'rejected'])
+      .order('created_at', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as Task[], error: null };
+  }
+
+  async deleteTask(taskId: string): Promise<ApiResponse<null>> {
+    // Delete only the specified task — no cascade
     const { error } = await this.supabase.from('tasks').delete().eq('id', taskId);
     if (error) return { data: null, error: { code: 'DELETE_FAILED', message: error.message } };
-
-    // If it was a group task, also delete all personal copies (cloned submissions)
-    if (task?.target_group) {
-      await this.supabase
-        .from('tasks')
-        .delete()
-        .eq('title', task.title)
-        .eq('assigned_by', task.assigned_by)
-        .is('target_group', null);
-    }
-
     return { data: null, error: null };
   }
 }

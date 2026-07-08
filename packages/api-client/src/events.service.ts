@@ -17,10 +17,19 @@ export class EventsService {
     perPage: number = 20,
     category?: string,
   ): Promise<ApiResponse<PaginatedResponse<Event>>> {
+    // Auto-mark past approved events as completed
+    const today = new Date().toISOString().split('T')[0];
+    await this.supabase
+      .from('events')
+      .update({ status: 'completed' })
+      .eq('status', 'approved')
+      .lt('event_date', today);
+
     let query = this.supabase
       .from('events')
       .select('*, companies(*), vertical:verticals(id, name, slug, color)', { count: 'exact' })
       .eq('status', 'approved')
+      .gte('event_date', today)
       .order('event_date', { ascending: true })
       .range((page - 1) * perPage, page * perPage - 1);
 

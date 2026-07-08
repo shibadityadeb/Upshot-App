@@ -50,7 +50,7 @@ interface QuickAction {
 
 const QUICK_ACTIONS: QuickAction[] = [
   { label: 'New Task', iconName: 'checkbox-outline', route: '/(admin)/create-task', description: 'Assign to team' },
-  { label: 'Give Coins', iconName: 'diamond-outline', route: '/(admin)/tasks', description: 'Reward members' },
+  { label: 'Campus Cartel', iconName: 'shield-checkmark-outline', route: '/(admin)/campus-cartel', description: 'Review applications' },
   { label: 'Manage Codes', iconName: 'key-outline', route: '/(admin)/people', description: 'Ambassador codes', params: { tab: 'codes' } },
   { label: 'Ambassadors', iconName: 'star-outline', route: '/(admin)/people', description: 'View all', params: { tab: 'ambassadors' } },
 ];

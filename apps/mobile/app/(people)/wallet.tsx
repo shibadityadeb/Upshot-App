@@ -9,7 +9,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
+import type { LeaderboardEntry } from '@upshot/api-client';
 import type { WalletBalance, CoinTransaction } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import { Badge, CoinBadge, Divider, EmptyState } from '../../src/components/common';
@@ -29,10 +32,12 @@ function isPositive(type: string) {
 }
 
 export default function PeopleWallet() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
+  const [myRank, setMyRank] = useState<LeaderboardEntry | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -66,12 +71,22 @@ export default function PeopleWallet() {
     [user],
   );
 
+  const loadRank = useCallback(async () => {
+    if (!user) return;
+    try {
+      const result = await api.campusCartel.getMyRank(user.id);
+      if (result.data) setMyRank(result.data);
+    } catch {
+      // silent
+    }
+  }, [user]);
+
   const initialLoad = useCallback(async () => {
     setLoading(true);
-    await Promise.all([loadBalance(), loadTransactions(1, false)]);
+    await Promise.all([loadBalance(), loadTransactions(1, false), loadRank()]);
     setPage(1);
     setLoading(false);
-  }, [loadBalance, loadTransactions]);
+  }, [loadBalance, loadTransactions, loadRank]);
 
   useEffect(() => {
     initialLoad();
@@ -79,10 +94,10 @@ export default function PeopleWallet() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadBalance(), loadTransactions(1, false)]);
+    await Promise.all([loadBalance(), loadTransactions(1, false), loadRank()]);
     setPage(1);
     setRefreshing(false);
-  }, [loadBalance, loadTransactions]);
+  }, [loadBalance, loadTransactions, loadRank]);
 
   const handleLoadMore = useCallback(async () => {
     if (!hasMore || loadingMore) return;
@@ -140,7 +155,7 @@ export default function PeopleWallet() {
       <View style={styles.balanceHeader}>
         <Text style={styles.balanceLabel}>YOUR REWARDS</Text>
         <Text style={styles.balanceAmount}>{balance?.current_balance ?? 0}</Text>
-        <Text style={styles.balanceUnit}>coins available</Text>
+        <Text style={styles.balanceUnit}>rewards available</Text>
         <CoinBadge amount={balance?.current_balance ?? 0} />
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
@@ -163,18 +178,44 @@ export default function PeopleWallet() {
     </View>
   );
 
-  const footer = hasMore ? (
-    <TouchableOpacity
-      style={styles.loadMoreBtn}
-      onPress={handleLoadMore}
-      disabled={loadingMore}
-      activeOpacity={0.7}
-    >
-      <Text style={styles.loadMoreText}>
-        {loadingMore ? 'Loading...' : 'Load more'}
-      </Text>
-    </TouchableOpacity>
-  ) : null;
+  const leaderboardTeaser = (
+    <View style={styles.leaderboardTeaser}>
+      <View style={styles.leaderboardTeaserInner}>
+        <Ionicons name="trophy" size={20} color={colors.campusCartelGreen} />
+        <View style={styles.leaderboardTeaserInfo}>
+          <Text style={styles.leaderboardTeaserTitle}>
+            {myRank ? `You are ranked #${myRank.rank}` : 'Check your ranking'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.leaderboardTeaserBtn}
+          onPress={() => router.push('/(people)/leaderboard' as any)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.leaderboardTeaserBtnText}>View leaderboard</Text>
+          <Ionicons name="arrow-forward" size={13} color={colors.campusCartelGreen} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const footer = (
+    <View>
+      {hasMore && (
+        <TouchableOpacity
+          style={styles.loadMoreBtn}
+          onPress={handleLoadMore}
+          disabled={loadingMore}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.loadMoreText}>
+            {loadingMore ? 'Loading...' : 'Load more'}
+          </Text>
+        </TouchableOpacity>
+      )}
+      {leaderboardTeaser}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -193,7 +234,7 @@ export default function PeopleWallet() {
             <EmptyState
               icon="🪙"
               title="No transactions yet"
-              subtitle="Complete assignments to earn coins"
+              subtitle="Complete assignments to earn rewards"
             />
           </View>
         }
@@ -337,5 +378,39 @@ const styles = StyleSheet.create({
   emptyWrapper: {
     paddingTop: Gap.xl,
     paddingHorizontal: Gap.base,
+  },
+
+  // Leaderboard teaser
+  leaderboardTeaser: {
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.xl,
+    paddingBottom: Gap.base,
+    backgroundColor: colors.surface,
+  },
+  leaderboardTeaserInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.campusCartelTint,
+    borderRadius: radius.lg,
+    padding: Gap.base,
+    gap: Gap.md,
+  },
+  leaderboardTeaserInfo: {
+    flex: 1,
+  },
+  leaderboardTeaserTitle: {
+    fontSize: FontSize.body,
+    fontWeight: Font.bold,
+    color: colors.campusCartelText,
+  },
+  leaderboardTeaserBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.xs,
+  },
+  leaderboardTeaserBtnText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.campusCartelGreen,
   },
 });

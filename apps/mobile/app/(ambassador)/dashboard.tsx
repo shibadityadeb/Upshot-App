@@ -11,9 +11,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador, Student } from '@upshot/types';
-import { colors } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import {
   AvatarCircle,
   LoadingScreen,
@@ -46,6 +48,7 @@ interface LeaderboardEntry {
 }
 
 export default function AmbassadorDashboard() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
   const [ambassador, setAmbassador] = useState<Ambassador | null>(null);
@@ -53,6 +56,11 @@ export default function AmbassadorDashboard() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Campus Cartel impact
+  const [cartelActiveCount, setCartelActiveCount] = useState(0);
+  const [cartelNetworkCoins, setCartelNetworkCoins] = useState(0);
+  const [recentCartelReferrals, setRecentCartelReferrals] = useState<any[]>([]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -78,6 +86,26 @@ export default function AmbassadorDashboard() {
 
       if (leaderboardResult.data) {
         setLeaderboard(leaderboardResult.data as LeaderboardEntry[]);
+      }
+
+      // Load Campus Cartel impact data
+      if (ambassadorResult.data) {
+        try {
+          const cartelResult = await api.campusCartel.getAmbassadorReferrals(
+            ambassadorResult.data.referral_code
+          );
+          if (cartelResult.data) {
+            const activeMembers = cartelResult.data.filter((m: any) => m.is_active);
+            setCartelActiveCount(activeMembers.length);
+            setRecentCartelReferrals(cartelResult.data.slice(0, 3));
+          }
+          const statsResult = await api.campusCartel.getStats();
+          if (statsResult.data) {
+            setCartelNetworkCoins(statsResult.data.totalCoins);
+          }
+        } catch {
+          // silent
+        }
       }
     } catch {
       Alert.alert('Error', 'Failed to load dashboard data.');
@@ -189,6 +217,58 @@ export default function AmbassadorDashboard() {
             <View style={styles.shareButtonInner}>
               <Text style={styles.shareButtonText}>Share your code</Text>
             </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Campus Cartel impact */}
+        <View style={styles.cartelSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Campus Cartel Impact</Text>
+          </View>
+          <View style={styles.cartelStatsRow}>
+            <StatCard
+              label="Active Members"
+              value={cartelActiveCount}
+              color={colors.campusCartelGreen}
+            />
+            <StatCard
+              label="Network Coins"
+              value={cartelNetworkCoins}
+              color={colors.warning}
+            />
+          </View>
+          {recentCartelReferrals.length > 0 && (
+            <View style={styles.cartelRecentList}>
+              {recentCartelReferrals.map((ref: any, idx: number) => (
+                <View key={ref.id}>
+                  <View style={styles.cartelRefRow}>
+                    <AvatarCircle
+                      name={ref.profile?.full_name ?? 'Member'}
+                      size={36}
+                    />
+                    <View style={styles.cartelRefInfo}>
+                      <Text style={styles.cartelRefName} numberOfLines={1}>
+                        {ref.profile?.full_name ?? 'Member'}
+                      </Text>
+                      <Text style={styles.cartelRefCollege} numberOfLines={1}>
+                        {ref.college ?? 'Campus Cartel'}
+                      </Text>
+                    </View>
+                  </View>
+                  {idx < recentCartelReferrals.length - 1 && (
+                    <View style={styles.rowSeparator} />
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+          <TouchableOpacity
+            style={styles.cartelViewAll}
+            onPress={() => router.push('/(ambassador)/referrals' as any)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.cartelViewAllText}>View all</Text>
+            <Ionicons name="arrow-forward" size={14} color={colors.campusCartelGreen} />
           </TouchableOpacity>
         </View>
 
@@ -586,5 +666,55 @@ const styles = StyleSheet.create({
   leaderCoins: {
     fontSize: 13,
     color: '#6B7280',
+  },
+
+  // Campus Cartel impact
+  cartelSection: {
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 16,
+  },
+  cartelStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  cartelRecentList: {
+    marginHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+    overflow: 'hidden',
+  },
+  cartelRefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  cartelRefInfo: {
+    flex: 1,
+  },
+  cartelRefName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0D0D0D',
+  },
+  cartelRefCollege: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  cartelViewAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  cartelViewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.campusCartelGreen,
   },
 });

@@ -49,10 +49,12 @@ export class VerticalsService {
   }
 
   async getRecentEvents(limit = 8): Promise<Event[]> {
+    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await this.supabase
       .from('events')
       .select('*, company:companies(id, name, logo_url), vertical:verticals(id, name, color, slug)')
       .eq('status', 'approved')
+      .gte('event_date', today)
       .order('event_date', { ascending: true })
       .limit(limit);
     if (error) throw error;

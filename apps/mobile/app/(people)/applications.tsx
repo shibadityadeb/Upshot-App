@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import type { EventApplication, HostingApplication } from '@upshot/types';
+import type { CampusCartelMember } from '@upshot/api-client';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../src/constants/theme';
 import { Button, Card, EmptyState, StatusBadge } from '../../src/components/common';
@@ -21,26 +22,14 @@ import { useAuthStore } from '../../src/store/auth.store';
 const api = createApiClient();
 const GREEN = verticalColors.campusCartel;
 
-type StudentRecord = {
-  id: string;
-  college: string | null;
-  city: string | null;
-  state: string | null;
-  ambassador_code: string | null;
-  referred_by: string | null;
-  created_at: string;
-  profession: string | null;
-  status: string;
-};
-
 export default function PeopleApplications() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
 
   // ─── Campus Cartel application ───────────────────────────────
-  const [student, setStudent] = useState<StudentRecord | null>(null);
-  const [studentLoading, setStudentLoading] = useState(true);
+  const [ccApp, setCcApp] = useState<CampusCartelMember | null>(null);
+  const [ccLoading, setCcLoading] = useState(true);
 
   // ─── Hosting applications ────────────────────────────────────
   const [hostingApps, setHostingApps] = useState<HostingApplication[]>([]);
@@ -52,15 +41,11 @@ export default function PeopleApplications() {
   const [refreshing, setRefreshing] = useState(false);
   const [withdrawingIds, setWithdrawingIds] = useState<Set<string>>(new Set());
 
-  const loadStudent = useCallback(async () => {
-    if (!user?.id) { setStudentLoading(false); return; }
-    const { data } = await api.supabase
-      .from('students')
-      .select('id, college, city, state, ambassador_code, referred_by, created_at, profession, status')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    setStudent(data ?? null);
-    setStudentLoading(false);
+  const loadCcApp = useCallback(async () => {
+    if (!user?.id) { setCcLoading(false); return; }
+    const result = await api.campusCartel.getApplicationStatus(user.id);
+    setCcApp(result.data ?? null);
+    setCcLoading(false);
   }, [user?.id]);
 
   const loadHostingApps = useCallback(async () => {
@@ -90,18 +75,18 @@ export default function PeopleApplications() {
 
   useFocusEffect(
     useCallback(() => {
-      loadStudent();
+      loadCcApp();
       loadApplications();
       loadHostingApps();
-    }, [loadStudent, loadApplications, loadHostingApps]),
+    }, [loadCcApp, loadApplications, loadHostingApps]),
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadStudent();
+    loadCcApp();
     loadApplications();
     loadHostingApps();
-  }, [loadStudent, loadApplications, loadHostingApps]);
+  }, [loadCcApp, loadApplications, loadHostingApps]);
 
   const handleWithdraw = useCallback(async (appId: string) => {
     setWithdrawingIds((prev) => new Set(prev).add(appId));
@@ -120,7 +105,7 @@ export default function PeopleApplications() {
     ]);
   }, [handleWithdraw]);
 
-  if (studentLoading && appLoading) {
+  if (ccLoading && appLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -144,11 +129,11 @@ export default function PeopleApplications() {
         {/* ── Campus Cartel Section ── */}
         <Text style={styles.sectionTitle}>Campus Cartel</Text>
 
-        {studentLoading ? (
+        {ccLoading ? (
           <View style={styles.miniLoader}>
             <ActivityIndicator size="small" color={GREEN} />
           </View>
-        ) : student ? (
+        ) : ccApp ? (
           <View style={styles.ccCard}>
             {/* Header row */}
             <View style={styles.ccCardHeader}>
@@ -157,16 +142,16 @@ export default function PeopleApplications() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.ccCardTitle}>Campus Cartel</Text>
-                <Text style={styles.ccCardSub}>{student.status === 'approved' ? 'Member' : student.status === 'rejected' ? 'Application rejected' : 'Application submitted'}</Text>
+                <Text style={styles.ccCardSub}>{ccApp.status === 'approved' ? 'Member' : ccApp.status === 'rejected' ? 'Application rejected' : 'Application submitted'}</Text>
               </View>
-              <View style={[styles.ccStatusBadge, student.status === 'pending' && styles.ccStatusPending, student.status === 'rejected' && styles.ccStatusRejected]}>
+              <View style={[styles.ccStatusBadge, ccApp.status === 'pending' && styles.ccStatusPending, ccApp.status === 'rejected' && styles.ccStatusRejected]}>
                 <Ionicons
-                  name={student.status === 'approved' ? 'checkmark-circle' : student.status === 'rejected' ? 'close-circle' : 'hourglass-outline'}
+                  name={ccApp.status === 'approved' ? 'checkmark-circle' : ccApp.status === 'rejected' ? 'close-circle' : 'hourglass-outline'}
                   size={14}
-                  color={student.status === 'approved' ? GREEN : student.status === 'rejected' ? colors.error : '#F59E0B'}
+                  color={ccApp.status === 'approved' ? GREEN : ccApp.status === 'rejected' ? colors.error : '#F59E0B'}
                 />
-                <Text style={[styles.ccStatusText, student.status === 'pending' && { color: '#F59E0B' }, student.status === 'rejected' && { color: colors.error }]}>
-                  {student.status === 'approved' ? 'Approved' : student.status === 'rejected' ? 'Rejected' : 'Pending'}
+                <Text style={[styles.ccStatusText, ccApp.status === 'pending' && { color: '#F59E0B' }, ccApp.status === 'rejected' && { color: colors.error }]}>
+                  {ccApp.status === 'approved' ? 'Approved' : ccApp.status === 'rejected' ? 'Rejected' : 'Pending'}
                 </Text>
               </View>
             </View>
@@ -175,44 +160,34 @@ export default function PeopleApplications() {
 
             {/* Details grid */}
             <View style={styles.ccDetailsGrid}>
-              <View style={styles.ccDetailItem}>
-                <Ionicons name="school-outline" size={14} color={colors.textSecondary} />
-                <View>
-                  <Text style={styles.ccDetailLabel}>College</Text>
-                  <Text style={styles.ccDetailValue}>{student.college ?? '—'}</Text>
-                </View>
-              </View>
-
-              {(student.city || student.state) && (
+              {ccApp.college && (
                 <View style={styles.ccDetailItem}>
-                  <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                  <Ionicons name="school-outline" size={14} color={colors.textSecondary} />
                   <View>
-                    <Text style={styles.ccDetailLabel}>Location</Text>
-                    <Text style={styles.ccDetailValue}>
-                      {[student.city, student.state].filter(Boolean).join(', ')}
-                    </Text>
+                    <Text style={styles.ccDetailLabel}>College</Text>
+                    <Text style={styles.ccDetailValue}>{ccApp.college}</Text>
                   </View>
                 </View>
               )}
 
-              {student.ambassador_code && (
+              {ccApp.city && (
+                <View style={styles.ccDetailItem}>
+                  <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                  <View>
+                    <Text style={styles.ccDetailLabel}>City</Text>
+                    <Text style={styles.ccDetailValue}>{ccApp.city}</Text>
+                  </View>
+                </View>
+              )}
+
+              {ccApp.ambassador_code && (
                 <View style={styles.ccDetailItem}>
                   <Ionicons name="gift-outline" size={14} color={colors.textSecondary} />
                   <View>
                     <Text style={styles.ccDetailLabel}>Referred via</Text>
                     <Text style={[styles.ccDetailValue, { color: GREEN, fontWeight: Font.bold }]}>
-                      {student.ambassador_code}
+                      {ccApp.ambassador_code}
                     </Text>
-                  </View>
-                </View>
-              )}
-
-              {!student.ambassador_code && (
-                <View style={styles.ccDetailItem}>
-                  <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
-                  <View>
-                    <Text style={styles.ccDetailLabel}>Type</Text>
-                    <Text style={styles.ccDetailValue}>Regular Student</Text>
                   </View>
                 </View>
               )}
@@ -222,7 +197,7 @@ export default function PeopleApplications() {
                 <View>
                   <Text style={styles.ccDetailLabel}>Applied on</Text>
                   <Text style={styles.ccDetailValue}>
-                    {new Date(student.created_at).toLocaleDateString('en-IN', {
+                    {new Date(ccApp.joined_at).toLocaleDateString('en-IN', {
                       day: 'numeric', month: 'short', year: 'numeric',
                     })}
                   </Text>
@@ -230,14 +205,14 @@ export default function PeopleApplications() {
               </View>
             </View>
 
-            {student.status === 'approved' ? (
+            {ccApp.status === 'approved' ? (
               <TouchableOpacity
                 style={[styles.ccEditBtn, { backgroundColor: GREEN, borderColor: GREEN }]}
-                onPress={() => router.push('/(shared)/vertical/campus-cartel' as any)}
+                onPress={() => router.push('/(people)/campus-cartel' as any)}
                 activeOpacity={0.8}
               >
                 <Ionicons name="grid-outline" size={14} color="#fff" />
-                <Text style={[styles.ccEditBtnText, { color: '#fff' }]}>Open Dashboard</Text>
+                <Text style={[styles.ccEditBtnText, { color: '#fff' }]}>Open Campus Cartel</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -246,7 +221,7 @@ export default function PeopleApplications() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="create-outline" size={14} color={GREEN} />
-                <Text style={styles.ccEditBtnText}>Update Application</Text>
+                <Text style={styles.ccEditBtnText}>View Application</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -331,10 +306,15 @@ export default function PeopleApplications() {
         )}
 
         {/* ── Event Applications Section ── */}
-        {!appLoading && applications.length > 0 && (
+        {!appLoading && applications.length > 0 && (() => {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const activeApps = applications.filter(
+            (app) => app.status !== 'withdrawn' && (!app.event?.event_date || app.event.event_date >= todayStr)
+          );
+          return activeApps.length > 0 ? (
           <>
             <Text style={[styles.sectionTitle, { marginTop: Gap.xl }]}>Event Applications</Text>
-            {applications.filter((app) => app.status !== 'withdrawn').map((app) => {
+            {activeApps.map((app) => {
               const isWithdrawing = withdrawingIds.has(app.id);
               return (
                 <Card key={app.id} style={styles.appCard}>
@@ -383,7 +363,8 @@ export default function PeopleApplications() {
               );
             })}
           </>
-        )}
+          ) : null;
+        })()}
       </ScrollView>
     </View>
   );
