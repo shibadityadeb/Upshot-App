@@ -15,7 +15,6 @@ export default function Index() {
     case 'company':
       return <Redirect href="/(company)/dashboard" />;
     case 'ambassador':
-      return <Redirect href="/(ambassador)/dashboard" />;
     case 'student':
     case 'people':
     default:

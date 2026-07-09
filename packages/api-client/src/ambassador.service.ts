@@ -7,7 +7,7 @@ export class AmbassadorService {
   async getMyAmbassadorProfile(userId: string): Promise<ApiResponse<Ambassador>> {
     const { data, error } = await this.supabase
       .from('ambassadors')
-      .select('*, profiles(*)')
+      .select('*, profiles!user_id(*)')
       .eq('user_id', userId)
       .single();
     if (error || !data) return { data: null, error: { code: 'NOT_FOUND', message: 'Ambassador not found' } };
@@ -17,21 +17,25 @@ export class AmbassadorService {
   async getAllAmbassadors(): Promise<ApiResponse<Ambassador[]>> {
     const { data, error } = await this.supabase
       .from('ambassadors')
-      .select('*, profiles(*)')
+      .select('*, profiles!user_id(*)')
       .order('total_coins_earned', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
     return { data: (data ?? []) as unknown as Ambassador[], error: null };
   }
 
-  private generateReferralCode(fullName: string): string {
-    const clean = fullName.trim().toUpperCase().replace(/[^A-Z]/g, '');
-    const prefix = clean.slice(0, 4) || 'AMBR';
-    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}${rand}`;
+  private async generateUniqueCode(): Promise<string> {
+    const { data, error } = await this.supabase.rpc('generate_random_code');
+    if (error || !data) {
+      // Fallback: timestamp + random
+      const ts = Date.now().toString(36).toUpperCase().slice(-4);
+      const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+      return `UBM-${ts}${rand}`;
+    }
+    return data as string;
   }
 
   async createAmbassador(userId: string, fullName: string): Promise<ApiResponse<Ambassador>> {
-    const referralCode = this.generateReferralCode(fullName);
+    const referralCode = await this.generateUniqueCode();
 
     const { data, error } = await this.supabase
       .from('ambassadors')
@@ -43,7 +47,7 @@ export class AmbassadorService {
         tier: 'bronze',
         is_active: true,
       })
-      .select('*, profiles(*)')
+      .select('*, profiles!user_id(*)')
       .single();
     if (error) return { data: null, error: { code: 'CREATE_FAILED', message: error.message } };
 
@@ -96,6 +100,7 @@ export class AmbassadorService {
 
   async validateCode(code: string): Promise<{ valid: boolean; codeData?: AmbassadorCode }> {
     const cleanCode = code.trim().toUpperCase();
+    // Check ambassador_codes table first
     const { data, error } = await this.supabase
       .from('ambassador_codes')
       .select('*, vertical:verticals(id, name, color, slug)')
@@ -103,8 +108,16 @@ export class AmbassadorService {
       .eq('is_active', true)
       .eq('is_claimed', false)
       .maybeSingle();
-    if (error || !data) return { valid: false };
-    return { valid: true, codeData: data as AmbassadorCode };
+    if (!error && data) return { valid: true, codeData: data as AmbassadorCode };
+    // Fall back to ambassadors table (personal referral codes)
+    const { data: amb } = await this.supabase
+      .from('ambassadors')
+      .select('id, referral_code')
+      .eq('referral_code', cleanCode)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (amb) return { valid: true };
+    return { valid: false };
   }
 
   async claimCode(code: string, userId: string): Promise<AmbassadorCode> {
@@ -119,7 +132,8 @@ export class AmbassadorService {
     if (error) throw error;
     const { data: existingAmbassador } = await this.supabase.from('ambassadors').select('id').eq('user_id', userId).maybeSingle();
     if (!existingAmbassador) {
-      await this.supabase.from('ambassadors').insert({ user_id: userId, referral_code: cleanCode, code_type: codeData.code_type, issued_by: codeData.issued_by });
+      const ownCode = await this.generateUniqueCode();
+      await this.supabase.from('ambassadors').insert({ user_id: userId, referral_code: ownCode, code_type: codeData.code_type, issued_by: codeData.issued_by });
       await this.supabase.from('profiles').update({ role: 'ambassador' }).eq('id', userId);
     }
     return data as AmbassadorCode;
@@ -135,16 +149,16 @@ export class AmbassadorService {
 
     const earned = current.total_coins_earned;
     let tier: AmbassadorTier;
-    if (earned >= 10000) tier = 'platinum';
-    else if (earned >= 5000) tier = 'gold';
-    else if (earned >= 2000) tier = 'silver';
+    if (earned >= 5000) tier = 'platinum';
+    else if (earned >= 2500) tier = 'gold';
+    else if (earned >= 1000) tier = 'silver';
     else tier = 'bronze';
 
     const { data, error } = await this.supabase
       .from('ambassadors')
       .update({ tier })
       .eq('id', ambassadorId)
-      .select('*, profiles(*)')
+      .select('*, profiles!user_id(*)')
       .single();
     if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
     return { data: data as unknown as Ambassador, error: null };
@@ -164,7 +178,7 @@ export class AmbassadorService {
   async getAmbassadorStudents(ambassadorId: string): Promise<ApiResponse<Student[]>> {
     const { data, error } = await this.supabase
       .from('students')
-      .select('*, profiles(*)')
+      .select('*, profiles!user_id(*)')
       .eq('referred_by', ambassadorId)
       .order('created_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };

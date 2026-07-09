@@ -271,31 +271,6 @@ export default function VerticalDetailScreen() {
     }
   }, [submissionNote, submissionImageUri, user?.id]);
 
-  // ─── Ambassador code claim ───────────────────────────────
-  const [ambassadorCodeInput, setAmbassadorCodeInput] = useState('');
-  const [claimingCode, setClaimingCode] = useState(false);
-
-  const handleClaimAmbassadorCode = useCallback(async () => {
-    const code = ambassadorCodeInput.trim().toUpperCase();
-    if (!code) {
-      Alert.alert('Enter Code', 'Please enter the ambassador code provided by admin.');
-      return;
-    }
-    if (!user?.id) return;
-
-    setClaimingCode(true);
-    try {
-      await api.ambassadors.claimCode(code, user.id);
-      setIsAmbassador(true);
-      setAmbassadorCodeInput('');
-      Alert.alert('Congratulations!', 'You are now a Campus Cartel Ambassador!');
-    } catch (e) {
-      Alert.alert('Invalid Code', e instanceof Error ? e.message : 'This code is invalid or already used.');
-    } finally {
-      setClaimingCode(false);
-    }
-  }, [ambassadorCodeInput, user?.id]);
-
   const dismissCelebration = useCallback(() => {
     Animated.timing(celebrationScale, {
       toValue: 0,
@@ -340,72 +315,50 @@ export default function VerticalDetailScreen() {
           {/* ─── APPROVED STUDENT DASHBOARD ─────────────────── */}
           {isApprovedStudent ? (
             <>
-              {/* Wallet & Stats */}
-              <View style={styles.dashboardHeader}>
-                <Text style={styles.dashboardTitle}>Student Dashboard</Text>
-                <View style={styles.walletPill}>
-                  <Ionicons name="diamond" size={14} color="#92400E" />
-                  <Text style={styles.walletText}>{walletBalance} coins</Text>
+              {/* Stats Row */}
+              <View style={styles.statsRow}>
+                <View style={styles.statCard}>
+                  <View style={[styles.statIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                    <Ionicons name="diamond" size={18} color="#92400E" />
+                  </View>
+                  <Text style={styles.statValue}>{walletBalance}</Text>
+                  <Text style={styles.statLabel}>Coins</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <View style={[styles.statIconWrap, { backgroundColor: verticalColors.campusCartel + '15' }]}>
+                    <Ionicons name="clipboard-outline" size={18} color={verticalColors.campusCartel} />
+                  </View>
+                  <Text style={styles.statValue}>{tasks.filter(t => t.status === 'approved').length}</Text>
+                  <Text style={styles.statLabel}>Completed</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <View style={[styles.statIconWrap, { backgroundColor: colors.primary + '15' }]}>
+                    <Ionicons name="time-outline" size={18} color={colors.primary} />
+                  </View>
+                  <Text style={styles.statValue}>{tasks.filter(t => t.status === 'assigned' || t.status === 'in_progress').length}</Text>
+                  <Text style={styles.statLabel}>Pending</Text>
                 </View>
               </View>
 
-              {/* Ambassador Section */}
-              <View style={styles.ambassadorSection}>
-                {isAmbassador ? (
+              {/* Ambassador badge */}
+              {isAmbassador && (
+                <View style={styles.ambassadorSection}>
                   <View style={styles.ambassadorBadge}>
-                    <Ionicons name="shield-checkmark" size={18} color={verticalColors.campusCartel} />
-                    <Text style={styles.ambassadorBadgeText}>Already an Ambassador</Text>
+                    <Ionicons name="shield-checkmark" size={16} color={verticalColors.campusCartel} />
+                    <Text style={styles.ambassadorBadgeText}>Ambassador</Text>
                   </View>
-                ) : (
-                  <View style={styles.ambassadorCodeSection}>
-                    <TouchableOpacity
-                      style={styles.beAmbassadorBtn}
-                      onPress={() => setExpandedTaskId(expandedTaskId === '__ambassador__' ? null : '__ambassador__')}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="shield-outline" size={18} color={verticalColors.campusCartel} />
-                      <Text style={styles.beAmbassadorText}>Be an Ambassador</Text>
-                      <Ionicons
-                        name={expandedTaskId === '__ambassador__' ? 'chevron-up' : 'chevron-down'}
-                        size={18}
-                        color={verticalColors.campusCartel}
-                      />
-                    </TouchableOpacity>
+                </View>
+              )}
 
-                    {expandedTaskId === '__ambassador__' && (
-                      <View style={styles.ambassadorDropdown}>
-                        <Text style={styles.ambassadorCodeLabel}>Enter your ambassador code</Text>
-                        <View style={styles.ambassadorCodeRow}>
-                          <View style={styles.ambassadorCodeInputWrapper}>
-                            <Ionicons name="key-outline" size={16} color={colors.textSecondary} />
-                            <TextInput
-                              style={styles.ambassadorCodeInput}
-                              placeholder="Enter code e.g. UBM-XXXX"
-                              placeholderTextColor={colors.textLight}
-                              value={ambassadorCodeInput}
-                              onChangeText={(t) => setAmbassadorCodeInput(t.toUpperCase())}
-                              autoCapitalize="characters"
-                              autoCorrect={false}
-                            />
-                          </View>
-                          <TouchableOpacity
-                            style={[styles.ambassadorClaimBtn, claimingCode && { opacity: 0.6 }]}
-                            onPress={handleClaimAmbassadorCode}
-                            activeOpacity={0.8}
-                            disabled={claimingCode}
-                          >
-                            {claimingCode ? (
-                              <ActivityIndicator size="small" color="#fff" />
-                            ) : (
-                              <Text style={styles.ambassadorClaimText}>Claim</Text>
-                            )}
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
+              {/* Member badge for non-ambassadors */}
+              {!isAmbassador && (
+                <View style={styles.ambassadorSection}>
+                  <View style={[styles.ambassadorBadge, { borderColor: colors.primary + '30', backgroundColor: colors.primary + '08' }]}>
+                    <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                    <Text style={[styles.ambassadorBadgeText, { color: colors.primary }]}>Campus Cartel Member</Text>
                   </View>
-                )}
-              </View>
+                </View>
+              )}
 
               {/* Tasks */}
               <Text style={styles.eventsHeading}>Your Tasks</Text>
@@ -726,18 +679,20 @@ const styles = StyleSheet.create({
   // Hero
   hero: {
     height: 260,
+    paddingTop: 52,
   },
   backButton: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    paddingTop: 52,
-    paddingLeft: 16,
-    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Gap.base,
+    marginBottom: Gap.sm,
   },
   heroContent: {
-    paddingTop: 100,
-    paddingHorizontal: 24,
+    paddingHorizontal: Gap.lg,
   },
   heroLabel: {
     fontSize: 11,
@@ -760,9 +715,9 @@ const styles = StyleSheet.create({
 
   // Content area
   contentArea: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.lg,
+    paddingBottom: 40,
   },
 
   // Campus Cartel CTA
@@ -800,31 +755,37 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
-  // Dashboard
-  dashboardHeader: {
+  // Dashboard Stats
+  statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    gap: Gap.sm,
+    marginBottom: Gap.md,
   },
-  dashboardTitle: {
-    fontSize: 20,
-    fontWeight: Font.bold,
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: Gap.md,
+    alignItems: 'center',
+    ...shadow.sm,
+  },
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.xs,
+  },
+  statValue: {
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
     color: colors.text,
   },
-  walletPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FEF3C7',
-    borderRadius: radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  walletText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: '#92400E',
+  statLabel: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 
   // Ambassador
@@ -846,71 +807,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.body,
     fontWeight: Font.semibold,
     color: verticalColors.campusCartel,
-  },
-  ambassadorCodeSection: {
-    gap: 0,
-  },
-  beAmbassadorBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: verticalColors.campusCartel + '12',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: verticalColors.campusCartel + '30',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  beAmbassadorText: {
-    flex: 1,
-    fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: verticalColors.campusCartel,
-  },
-  ambassadorDropdown: {
-    marginTop: 8,
-    gap: 8,
-  },
-  ambassadorCodeLabel: {
-    fontSize: FontSize.small,
-    fontWeight: Font.semibold,
-    color: colors.text,
-  },
-  ambassadorCodeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  ambassadorCodeInputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    height: 44,
-  },
-  ambassadorCodeInput: {
-    flex: 1,
-    fontSize: FontSize.body,
-    color: colors.text,
-    paddingVertical: 0,
-  },
-  ambassadorClaimBtn: {
-    backgroundColor: verticalColors.campusCartel,
-    borderRadius: radius.lg,
-    paddingHorizontal: 20,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.sm,
-  },
-  ambassadorClaimText: {
-    fontSize: FontSize.body,
-    fontWeight: Font.bold,
-    color: '#fff',
   },
 
   // Tasks
