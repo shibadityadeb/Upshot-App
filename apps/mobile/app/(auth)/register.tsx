@@ -219,7 +219,7 @@ export default function RegisterScreen() {
               <View style={styles.divider} />
               <Text style={styles.referralLabel}>Have a referral code?</Text>
               <Input
-                label="Ambassador Code (optional)"
+                label="Ambassador / Referral Code (optional)"
                 placeholder="e.g. UBM-ABCD-1234"
                 value={ambassadorCode}
                 onChangeText={setAmbassadorCode}

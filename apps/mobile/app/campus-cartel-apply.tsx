@@ -271,11 +271,11 @@ export default function CampusCartelApply() {
             ))}
           </View>
 
-          <Text style={styles.sectionLabel}>Ambassador Code</Text>
-          <Text style={styles.sectionHint}>Have a code from a Campus Cartel ambassador? Enter it below to get referred.</Text>
+          <Text style={styles.sectionLabel}>Ambassador / Referral Code</Text>
+          <Text style={styles.sectionHint}>Have a referral code from an ambassador? Enter it below to get referred.</Text>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Ambassador Code <Text style={styles.optional}>(optional)</Text></Text>
+            <Text style={styles.fieldLabel}>Ambassador / Referral Code <Text style={styles.optional}>(optional)</Text></Text>
             <View style={[styles.inputWrapper, codeState === 'valid' && styles.inputValid, codeState === 'invalid' && styles.inputInvalid]}>
               <Ionicons name="gift-outline" size={16} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput style={[styles.input, { textTransform: 'uppercase' }]} placeholder="e.g. JOHN1A2B" placeholderTextColor={colors.textLight} value={ambassadorCode} onChangeText={(t) => setAmbassadorCode(t.toUpperCase())} autoCapitalize="characters" autoCorrect={false} returnKeyType="next" />

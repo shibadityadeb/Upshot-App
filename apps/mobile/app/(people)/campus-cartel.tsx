@@ -230,7 +230,7 @@ export default function CampusCartelScreen() {
               </Text>
 
               <Input
-                label="Ambassador Code (optional)"
+                label="Ambassador / Referral Code (optional)"
                 placeholder="e.g. JOHN1234"
                 value={code}
                 onChangeText={setCode}

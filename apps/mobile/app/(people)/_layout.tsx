@@ -21,7 +21,7 @@ const LABEL_STYLE = {
 export default function PeopleLayout() {
   const user = useAuthStore((s) => s.user);
 
-  if (!user || (user.role !== 'people' && user.role !== 'student')) {
+  if (!user || (user.role !== 'people' && user.role !== 'student' && user.role !== 'ambassador')) {
     return <Redirect href="/" />;
   }
 

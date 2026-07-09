@@ -238,7 +238,13 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={vertical.id}
               style={[styles.verticalCard, { backgroundColor: vertical.color }]}
-              onPress={() => router.push(`/(shared)/vertical/${vertical.slug}` as any)}
+              onPress={() => {
+                if (vertical.slug === 'campus-cartel' && user?.role === 'ambassador') {
+                  router.push('/(ambassador)/dashboard' as any);
+                } else {
+                  router.push(`/(shared)/vertical/${vertical.slug}` as any);
+                }
+              }}
               activeOpacity={0.82}
             >
               <View style={styles.verticalCardCircle} />
@@ -475,7 +481,7 @@ export default function HomeScreen() {
           </Text>
           <TouchableOpacity
             style={styles.campusCartelBtn}
-            onPress={() => router.push('/(people)/campus-cartel' as any)}
+            onPress={() => router.push(user?.role === 'ambassador' ? '/(ambassador)/dashboard' as any : '/(people)/campus-cartel' as any)}
             activeOpacity={0.8}
           >
             <Text style={styles.campusCartelBtnText}>

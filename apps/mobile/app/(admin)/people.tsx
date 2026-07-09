@@ -87,12 +87,31 @@ export default function AdminPeople() {
 
   const loadProfiles = useCallback(async () => {
     try {
-      const { data } = await (api as any).supabase
-        .from('profiles')
-        .select('id, full_name, email, role, avatar_url')
-        .in('role', ['people', 'student', 'ambassador', 'admin'])
-        .order('created_at', { ascending: false });
-      if (data) setProfiles(data as Profile[]);
+      const [profilesRes, studentsRes, ambassadorsRes] = await Promise.all([
+        (api as any).supabase
+          .from('profiles')
+          .select('id, full_name, email, role, avatar_url')
+          .order('created_at', { ascending: false }),
+        (api as any).supabase
+          .from('students')
+          .select('user_id'),
+        (api as any).supabase
+          .from('ambassadors')
+          .select('user_id'),
+      ]);
+
+      if (profilesRes.data) {
+        const studentIds = new Set((studentsRes.data ?? []).map((s: any) => s.user_id));
+        const ambassadorIds = new Set((ambassadorsRes.data ?? []).map((a: any) => a.user_id));
+
+        const mapped = (profilesRes.data as Profile[]).map((p) => {
+          if (p.role === 'admin') return p;
+          if (ambassadorIds.has(p.id)) return { ...p, role: 'ambassador' };
+          if (studentIds.has(p.id)) return { ...p, role: 'student' };
+          return { ...p, role: 'people' };
+        });
+        setProfiles(mapped);
+      }
     } catch (e) {
       console.warn(e);
     }
@@ -136,6 +155,7 @@ export default function AdminPeople() {
   }, [loadAll]);
 
   const filteredProfiles = profiles.filter((p) => {
+    if (p.role !== 'people' && p.role !== 'admin') return false;
     const q = debouncedSearch.toLowerCase();
     if (!q) return true;
     return (
@@ -160,6 +180,16 @@ export default function AdminPeople() {
     const name = s.profile?.full_name ?? '';
     const email = s.profile?.email ?? '';
     return name.toLowerCase().includes(q) || email.toLowerCase().includes(q) || (s.college ?? '').toLowerCase().includes(q);
+  });
+
+  const filteredCampusCartel = profiles.filter((p) => {
+    if (p.role !== 'student' && p.role !== 'ambassador') return false;
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return true;
+    return (
+      (p.full_name ?? '').toLowerCase().includes(q) ||
+      (p.email ?? '').toLowerCase().includes(q)
+    );
   });
 
   const updateStudentStatus = useCallback(async (studentId: string, status: 'approved' | 'rejected') => {
@@ -337,9 +367,9 @@ export default function AdminPeople() {
         />
       ) : activeTab === 'campus-cartel' ? (
         <FlatList
-          data={filteredStudents}
+          data={filteredCampusCartel}
           keyExtractor={(item) => item.id}
-          renderItem={renderStudent}
+          renderItem={renderProfile}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -349,8 +379,8 @@ export default function AdminPeople() {
           ListEmptyComponent={
             <EmptyState
               iconName="school-outline"
-              title="No applications yet"
-              subtitle="Campus Cartel applications will appear here"
+              title="No members yet"
+              subtitle="Students and ambassadors will appear here"
             />
           }
         />

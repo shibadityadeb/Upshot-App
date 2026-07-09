@@ -14,37 +14,48 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { Ambassador, Student } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
+import type { Ambassador, Student, Task } from '@upshot/types';
+import { colors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import {
   AvatarCircle,
   LoadingScreen,
   EmptyState,
-  StatCard,
+  CoinBadge,
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
 
+const TIER_THRESHOLDS: Record<string, number> = { newbie: 0, bronze: 500, silver: 1000, gold: 2500, legend: 5000 };
+const TIER_ORDER = ['newbie', 'bronze', 'silver', 'gold', 'legend'] as const;
 const TIER_COLORS: Record<string, string> = {
+  newbie: '#6B7280',
   bronze: '#CD7F32',
   silver: '#9CA3AF',
   gold: '#F59E0B',
-  platinum: '#8B5CF6',
+  legend: '#8B5CF6',
+};
+const TIER_ICONS: Record<string, string> = {
+  newbie: 'leaf-outline',
+  bronze: 'shield-outline',
+  silver: 'shield-half-outline',
+  gold: 'shield',
+  legend: 'diamond',
 };
 
-const tierThresholds = { bronze: 0, silver: 500, gold: 2000, platinum: 5000 };
-const TIER_ORDER: Array<'bronze' | 'silver' | 'gold' | 'platinum'> = [
-  'bronze',
-  'silver',
-  'gold',
-  'platinum',
-];
+// DB stores 'platinum', UI shows 'legend'; DB 'bronze' with 0 coins shows 'newbie'
+function dbTierToDisplay(dbTier: string, coins: number): string {
+  if (dbTier === 'platinum') return 'legend';
+  if (dbTier === 'bronze' && coins < 500) return 'newbie';
+  return dbTier;
+}
 
-interface LeaderboardEntry {
-  user_id: string;
-  total_earned: number;
-  profiles: { id: string; full_name: string } | null;
+function getCurrentTier(coins: number): string {
+  if (coins >= TIER_THRESHOLDS.legend) return 'legend';
+  if (coins >= TIER_THRESHOLDS.gold) return 'gold';
+  if (coins >= TIER_THRESHOLDS.silver) return 'silver';
+  if (coins >= TIER_THRESHOLDS.bronze) return 'bronze';
+  return 'newbie';
 }
 
 export default function AmbassadorDashboard() {
@@ -53,59 +64,57 @@ export default function AmbassadorDashboard() {
 
   const [ambassador, setAmbassador] = useState<Ambassador | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Campus Cartel impact
-  const [cartelActiveCount, setCartelActiveCount] = useState(0);
-  const [cartelNetworkCoins, setCartelNetworkCoins] = useState(0);
-  const [recentCartelReferrals, setRecentCartelReferrals] = useState<any[]>([]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
-      const [ambassadorResult, leaderboardResult] = await Promise.all([
-        api.ambassadors.getMyAmbassadorProfile(user.id),
-        api.supabase
-          .from('wallet_balances')
-          .select('*, profiles(id, full_name)')
-          .order('total_earned', { ascending: false })
-          .limit(10),
-      ]);
+      const ambassadorResult = await api.ambassadors.getMyAmbassadorProfile(user.id);
 
       if (ambassadorResult.data) {
-        setAmbassador(ambassadorResult.data);
-        const studentsResult = await api.ambassadors.getAmbassadorStudents(
-          ambassadorResult.data.id
-        );
-        if (studentsResult.data) {
-          setStudents(studentsResult.data);
+        let ambData = ambassadorResult.data;
+
+        // Generate a unique referral code if missing or not in UBM- format
+        const rc = ambData.referral_code;
+        const hasValidCode = typeof rc === 'string' && rc.length > 3 && rc.startsWith('UBM-');
+        if (!hasValidCode) {
+          // Try DB RPC first, fall back to client-side generation
+          let newCode: string;
+          try {
+            const { data: generated, error: rpcErr } = await api.supabase.rpc('generate_random_code');
+            if (rpcErr || !generated) throw new Error('RPC failed');
+            newCode = generated as string;
+          } catch {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let part1 = '', part2 = '';
+            for (let i = 0; i < 4; i++) {
+              part1 += chars[Math.floor(Math.random() * chars.length)];
+              part2 += chars[Math.floor(Math.random() * chars.length)];
+            }
+            newCode = `UBM-${part1}-${part2}`;
+          }
+          const { error: updateErr } = await api.supabase
+            .from('ambassadors')
+            .update({ referral_code: newCode })
+            .eq('id', ambData.id);
+          if (!updateErr) {
+            ambData = { ...ambData, referral_code: newCode };
+          }
         }
+
+        setAmbassador(ambData);
+        const studentsResult = await api.ambassadors.getAmbassadorStudents(ambData.id);
+        if (studentsResult.data) setStudents(studentsResult.data);
       }
 
-      if (leaderboardResult.data) {
-        setLeaderboard(leaderboardResult.data as LeaderboardEntry[]);
-      }
-
-      // Load Campus Cartel impact data
-      if (ambassadorResult.data) {
-        try {
-          const cartelResult = await api.campusCartel.getAmbassadorReferrals(
-            ambassadorResult.data.referral_code
-          );
-          if (cartelResult.data) {
-            const activeMembers = cartelResult.data.filter((m: any) => m.is_active);
-            setCartelActiveCount(activeMembers.length);
-            setRecentCartelReferrals(cartelResult.data.slice(0, 3));
-          }
-          const statsResult = await api.campusCartel.getStats();
-          if (statsResult.data) {
-            setCartelNetworkCoins(statsResult.data.totalCoins);
-          }
-        } catch {
-          // silent
-        }
+      // Load assigned tasks
+      try {
+        const tasksResult = await api.tasks.getMyPendingTasks(user.id);
+        if (tasksResult.data) setTasks(tasksResult.data);
+      } catch {
+        // silent
       }
     } catch {
       Alert.alert('Error', 'Failed to load dashboard data.');
@@ -129,7 +138,7 @@ export default function AmbassadorDashboard() {
   const handleCopy = () => {
     if (!ambassador) return;
     Clipboard.setString(ambassador.referral_code);
-    Alert.alert('Copied!', 'Referral code copied');
+    Alert.alert('Copied!', 'Referral code copied to clipboard.');
   };
 
   const handleShare = () => {
@@ -141,23 +150,19 @@ export default function AmbassadorDashboard() {
 
   if (loading) return <LoadingScreen />;
 
-  const currentTierIdx = ambassador ? TIER_ORDER.indexOf(ambassador.tier) : 0;
-  const nextTier = TIER_ORDER[currentTierIdx + 1] ?? null;
-  const nextThreshold = nextTier ? tierThresholds[nextTier] : null;
   const totalEarned = ambassador?.total_coins_earned ?? 0;
+  const currentTier = ambassador ? dbTierToDisplay(ambassador.tier, totalEarned) : getCurrentTier(totalEarned);
+  const tierColor = TIER_COLORS[currentTier];
+  const currentTierIdx = TIER_ORDER.indexOf(currentTier as any);
+  const nextTier = TIER_ORDER[currentTierIdx + 1] ?? null;
+  const nextThreshold = nextTier ? TIER_THRESHOLDS[nextTier] : null;
   const progress = nextThreshold ? Math.min(1, totalEarned / nextThreshold) : 1;
-
-  const rankInLeaderboard =
-    ambassador && leaderboard.length > 0
-      ? leaderboard.findIndex((e) => e.user_id === user?.id) + 1
-      : 0;
-  const rankDisplay = rankInLeaderboard > 0 ? `#${rankInLeaderboard}` : 'N/A';
 
   const recentStudents = [...students]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5);
 
-  const topThree = leaderboard.slice(0, 3);
+  const pendingTasks = tasks.filter((t) => t.status === 'assigned');
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -165,249 +170,163 @@ export default function AmbassadorDashboard() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Identity Card */}
-        <View style={styles.identityCard}>
-          <Text style={styles.identityName}>{user?.full_name ?? 'Ambassador'}</Text>
+        {/* ── Hero ── */}
+        <View style={styles.hero}>
+          <TouchableOpacity onPress={() => router.replace('/(people)/events' as any)} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
 
-          <View style={styles.ambassadorChip}>
-            <Text style={styles.ambassadorChipText}>AMBASSADOR</Text>
+          <Text style={styles.heroEyebrow}>AMBASSADOR</Text>
+          <Text style={styles.heroName}>{user?.full_name ?? 'Ambassador'}</Text>
+
+          <View style={[styles.tierChip, { borderColor: tierColor }]}>
+            <Ionicons name={TIER_ICONS[currentTier] as any} size={13} color={tierColor} />
+            <Text style={[styles.tierChipText, { color: tierColor }]}>
+              {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
+            </Text>
           </View>
 
-          <View style={styles.referralBlock}>
-            <Text style={styles.referralLabel}>YOUR CODE</Text>
+          {/* Referral code */}
+          <View style={styles.codeBlock}>
+            <Text style={styles.codeLabel}>YOUR REFERRAL CODE</Text>
             <View style={styles.codeRow}>
-              <Text style={styles.referralCode}>{ambassador?.referral_code ?? '------'}</Text>
-              <TouchableOpacity onPress={handleCopy} style={styles.copyButton} activeOpacity={0.7}>
-                <Text style={styles.copyIcon}>🔗</Text>
-                <Text style={styles.copyText}>Copy</Text>
+              <Text style={styles.codeValue}>{ambassador?.referral_code ?? '------'}</Text>
+              <TouchableOpacity onPress={handleCopy} style={styles.codeAction} activeOpacity={0.7}>
+                <Ionicons name="copy-outline" size={14} color="#FFFFFF" />
+                <Text style={styles.codeActionText}>Copy</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {ambassador && (
-            <View style={styles.tierBadgeRow}>
-              <View
-                style={[
-                  styles.tierDot,
-                  { backgroundColor: TIER_COLORS[ambassador.tier] ?? colors.warning },
-                ]}
-              />
-              <Text style={styles.tierName}>
-                {ambassador.tier.charAt(0).toUpperCase() + ambassador.tier.slice(1)}
-              </Text>
-              <Text style={styles.tierMeta}>
-                {'· '}
-                {ambassador.referral_count ?? 0}
-                {' referrals · '}
-                {ambassador.total_coins_earned ?? 0}
-                {' coins'}
-              </Text>
-            </View>
-          )}
-
-          <TouchableOpacity onPress={handleShare} activeOpacity={0.7} style={styles.shareButton}>
-            <View style={styles.shareButtonInner}>
-              <Text style={styles.shareButtonText}>Share your code</Text>
-            </View>
+          <TouchableOpacity onPress={handleShare} activeOpacity={0.7} style={styles.shareBtn}>
+            <Ionicons name="share-social-outline" size={15} color={colors.accent} />
+            <Text style={styles.shareBtnText}>Share your code</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Campus Cartel impact */}
-        <View style={styles.cartelSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Campus Cartel Impact</Text>
-          </View>
-          <View style={styles.cartelStatsRow}>
-            <StatCard
-              label="Active Members"
-              value={cartelActiveCount}
-              color={colors.campusCartelGreen}
-            />
-            <StatCard
-              label="Network Coins"
-              value={cartelNetworkCoins}
-              color={colors.warning}
-            />
-          </View>
-          {recentCartelReferrals.length > 0 && (
-            <View style={styles.cartelRecentList}>
-              {recentCartelReferrals.map((ref: any, idx: number) => (
-                <View key={ref.id}>
-                  <View style={styles.cartelRefRow}>
-                    <AvatarCircle
-                      name={ref.profile?.full_name ?? 'Member'}
-                      size={36}
-                    />
-                    <View style={styles.cartelRefInfo}>
-                      <Text style={styles.cartelRefName} numberOfLines={1}>
-                        {ref.profile?.full_name ?? 'Member'}
-                      </Text>
-                      <Text style={styles.cartelRefCollege} numberOfLines={1}>
-                        {ref.college ?? 'Campus Cartel'}
-                      </Text>
-                    </View>
-                  </View>
-                  {idx < recentCartelReferrals.length - 1 && (
-                    <View style={styles.rowSeparator} />
-                  )}
-                </View>
-              ))}
+        {/* ── Stats ── */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statItem}>
+            <View style={[styles.statIconWrap, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="people-outline" size={18} color={colors.primary} />
             </View>
-          )}
-          <TouchableOpacity
-            style={styles.cartelViewAll}
-            onPress={() => router.push('/(ambassador)/referrals' as any)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cartelViewAllText}>View all</Text>
-            <Ionicons name="arrow-forward" size={14} color={colors.campusCartelGreen} />
-          </TouchableOpacity>
+            <Text style={styles.statValue}>{ambassador?.referral_count ?? 0}</Text>
+            <Text style={styles.statLabel}>Referrals</Text>
+          </View>
+          <View style={styles.statItem}>
+            <View style={[styles.statIconWrap, { backgroundColor: colors.warning + '18' }]}>
+              <Ionicons name="diamond-outline" size={18} color={colors.warning} />
+            </View>
+            <Text style={styles.statValue}>{totalEarned}</Text>
+            <Text style={styles.statLabel}>Coins Earned</Text>
+          </View>
         </View>
 
-        {/* Progress to next tier */}
-        <View style={styles.progressSection}>
-          <View style={styles.progressLabelRow}>
-            <Text style={styles.progressLeft}>
+        {/* ── Coins Info ── */}
+        <View style={styles.infoCard}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.campusCartelGreen} />
+          <Text style={styles.infoText}>12 referrals = 20 coins</Text>
+        </View>
+
+        {/* ── Tier Progress ── */}
+        <View style={styles.card}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.cardTitle}>
               {nextTier
                 ? `Progress to ${nextTier.charAt(0).toUpperCase() + nextTier.slice(1)}`
                 : 'Maximum tier reached'}
             </Text>
-            <Text style={styles.progressRight}>
-              {totalEarned} / {nextThreshold ?? '∞'} coins
+            <Text style={styles.progressCount}>
+              {totalEarned} / {nextThreshold ?? '---'} coins
             </Text>
           </View>
           <View style={styles.progressBarBg}>
             <View
-              style={[
-                styles.progressBarFill,
-                {
-                  width: `${progress * 100}%`,
-                  backgroundColor: TIER_COLORS[ambassador?.tier ?? 'bronze'],
-                },
-              ]}
+              style={[styles.progressBarFill, { width: `${progress * 100}%`, backgroundColor: tierColor }]}
             />
+          </View>
+          <View style={styles.tierLegend}>
+            {TIER_ORDER.map((t) => (
+              <View key={t} style={styles.tierLegendItem}>
+                <View style={[styles.tierLegendDot, { backgroundColor: TIER_COLORS[t] }]} />
+                <Text style={styles.tierLegendLabel}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)} ({TIER_THRESHOLDS[t]})
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <StatCard
-            label="Total Referrals"
-            value={ambassador?.referral_count ?? 0}
-            color={colors.primary}
-          />
-          <StatCard
-            label="Coins Earned"
-            value={ambassador?.total_coins_earned ?? 0}
-            color={colors.warning}
-          />
-          <StatCard
-            label="Rank"
-            value={rankDisplay}
-            color={colors.info}
-          />
-        </View>
+        {/* ── Assigned Tasks ── */}
+        {pendingTasks.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <Ionicons name="checkbox-outline" size={18} color={colors.campusCartelGreen} />
+              <Text style={styles.cardTitle}>Your Tasks</Text>
+            </View>
+            <View style={styles.miniList}>
+              {pendingTasks.map((task, idx) => (
+                <View key={task.id}>
+                  <TouchableOpacity
+                    style={styles.taskRow}
+                    onPress={() => router.push(`/(people)/task/${task.id}` as any)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.miniName} numberOfLines={1}>{task.title}</Text>
+                    </View>
+                    <CoinBadge amount={task.coin_value} />
+                    <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+                  </TouchableOpacity>
+                  {idx < pendingTasks.length - 1 && <View style={styles.separator} />}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
-        {/* Recent Referrals */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Referrals</Text>
-        </View>
-
-        {recentStudents.length === 0 ? (
-          <View style={styles.emptyWrapper}>
+        {/* ── Recent Referrals ── */}
+        <View style={styles.card}>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="person-add-outline" size={18} color={colors.primary} />
+            <Text style={styles.cardTitle}>Recent Referrals</Text>
+          </View>
+          {recentStudents.length === 0 ? (
             <EmptyState
-              icon="👥"
+              iconName="people-outline"
               title="No referrals yet"
               subtitle="Share your referral code to get started"
             />
-          </View>
-        ) : (
-          <View style={styles.listSection}>
-            <View style={styles.borderedList}>
+          ) : (
+            <View style={styles.miniList}>
               {recentStudents.map((student, idx) => (
                 <View key={student.id}>
-                  <View style={styles.referralRow}>
-                    <AvatarCircle
-                      name={student.user?.full_name ?? 'Student'}
-                      size={40}
-                    />
-                    <View style={styles.referralInfo}>
-                      <Text style={styles.referralName} numberOfLines={1}>
+                  <View style={styles.miniRow}>
+                    <AvatarCircle name={student.user?.full_name ?? 'Student'} size={36} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.miniName} numberOfLines={1}>
                         {student.user?.full_name ?? 'Student'}
                       </Text>
-                      <Text style={styles.referralCollege} numberOfLines={1}>
+                      <Text style={styles.miniSub} numberOfLines={1}>
                         {student.user?.email ?? ''}
                       </Text>
                     </View>
-                    <Text style={styles.referralDate}>
+                    <Text style={styles.miniDate}>
                       {new Date(student.created_at).toLocaleDateString()}
                     </Text>
                   </View>
-                  {idx < recentStudents.length - 1 && (
-                    <View style={styles.rowSeparator} />
-                  )}
+                  {idx < recentStudents.length - 1 && <View style={styles.separator} />}
                 </View>
               ))}
             </View>
-          </View>
-        )}
-
-        {/* Top Ambassadors */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Top Ambassadors</Text>
+          )}
         </View>
 
-        {topThree.length === 0 ? (
-          <View style={styles.emptyWrapper}>
-            <EmptyState iconName="trophy-outline" title="No leaderboard data" />
-          </View>
-        ) : (
-          <View style={styles.leaderSection}>
-            <View style={styles.borderedList}>
-              {topThree.map((entry, idx) => (
-                <View key={entry.user_id ?? idx}>
-                  <View style={styles.leaderRow}>
-                    <View
-                      style={[
-                        styles.rankCircle,
-                        {
-                          backgroundColor:
-                            idx === 0 ? '#F59E0B' : '#E4E4E7',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.rankNumber,
-                          {
-                            color: idx === 0 ? '#FFFFFF' : colors.textSecondary,
-                          },
-                        ]}
-                      >
-                        {idx + 1}
-                      </Text>
-                    </View>
-                    <Text style={styles.leaderName} numberOfLines={1}>
-                      {entry.profiles?.full_name ?? 'Unknown'}
-                    </Text>
-                    <Text style={styles.leaderCoins}>{entry.total_earned} coins</Text>
-                  </View>
-                  {idx < topThree.length - 1 && (
-                    <View style={styles.rowSeparator} />
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -416,305 +335,270 @@ export default function AmbassadorDashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F0F0F5',
+    backgroundColor: DarkBg,
   },
   scroll: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
 
-  // Identity card
-  identityCard: {
-    backgroundColor: '#0D0F1C',
-    paddingTop: 52,
-    paddingHorizontal: 20,
-    paddingBottom: 28,
+  // ── Hero ──
+  hero: {
+    backgroundColor: DarkBg,
+    paddingTop: Gap.sm,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xl,
   },
-  identityName: {
-    fontSize: 22,
-    fontWeight: '700',
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.md,
+  },
+  heroEyebrow: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 2.5,
+    marginBottom: Gap.xs,
+  },
+  heroName: {
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
     color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
-  ambassadorChip: {
-    marginTop: 6,
+  tierChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     borderWidth: 1,
-    borderColor: '#7BC55A',
-    borderRadius: 4,
+    borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
     alignSelf: 'flex-start',
+    marginTop: Gap.md,
   },
-  ambassadorChipText: {
-    fontSize: 11,
-    color: '#7BC55A',
-    fontWeight: '700',
-    letterSpacing: 2,
+  tierChipText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    letterSpacing: 0.5,
   },
-  referralBlock: {
-    marginTop: 20,
+  codeBlock: {
+    marginTop: Gap.lg,
   },
-  referralLabel: {
+  codeLabel: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
+    fontWeight: Font.bold,
     letterSpacing: 2,
   },
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Gap.md,
     marginTop: 4,
   },
-  referralCode: {
-    fontSize: 28,
-    fontWeight: '900',
+  codeValue: {
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
     color: '#FFFFFF',
-    letterSpacing: 4,
+    letterSpacing: 3,
   },
-  copyButton: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  codeAction: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  copyIcon: {
-    fontSize: 14,
-  },
-  copyText: {
-    fontSize: 12,
+  codeActionText: {
+    fontSize: FontSize.small,
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: Font.semibold,
   },
-  tierBadgeRow: {
-    marginTop: 16,
+  shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  tierDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  tierName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  tierMeta: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-    marginLeft: 4,
-  },
-  shareButton: {
-    marginTop: 16,
+    gap: Gap.xs,
+    marginTop: Gap.base,
     alignSelf: 'flex-start',
+    backgroundColor: 'rgba(123,197,90,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(123,197,90,0.25)',
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  shareButtonInner: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  shareButtonText: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '600',
+  shareBtnText: {
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
+    color: colors.accent,
   },
 
-  // Progress section
-  progressSection: {
-    backgroundColor: '#F0F0F5',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+  // ── Stats Grid ──
+  statsGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.lg,
+    paddingBottom: Gap.sm,
+    gap: Gap.sm,
   },
-  progressLabelRow: {
+  statItem: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: Gap.md,
+    alignItems: 'center',
+    ...shadow.sm,
+  },
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.sm,
+  },
+  statValue: {
+    fontSize: FontSize.h1,
+    fontWeight: Font.black,
+    color: colors.text,
+  },
+  statLabel: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+
+  // ── Info card ──
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.sm,
+    marginHorizontal: Gap.base,
+    marginTop: Gap.sm,
+    backgroundColor: colors.campusCartelTint,
+    borderRadius: radius.lg,
+    paddingHorizontal: Gap.md,
+    paddingVertical: Gap.sm,
+  },
+  infoText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.campusCartelText,
+  },
+
+  // ── Cards ──
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    marginHorizontal: Gap.base,
+    marginTop: Gap.md,
+    padding: Gap.base,
+    ...shadow.sm,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.sm,
+    marginBottom: Gap.md,
+  },
+  cardTitle: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.bold,
+    color: colors.text,
+  },
+
+  // ── Progress ──
+  progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: Gap.sm,
   },
-  progressLeft: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  progressRight: {
-    fontSize: 12,
-    color: '#6B7280',
+  progressCount: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
   },
   progressBarBg: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E4E4E7',
+    backgroundColor: colors.border,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: 6,
     borderRadius: 3,
   },
-
-  // Stats row
-  statsRow: {
-    backgroundColor: '#F0F0F5',
+  tierLegend: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+    flexWrap: 'wrap',
+    gap: Gap.sm,
+    marginTop: Gap.md,
   },
-
-  // Section header
-  sectionHeader: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0D0D0D',
-  },
-
-  // List sections (recent referrals + leaderboard)
-  listSection: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  leaderSection: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingBottom: 100,
-  },
-  borderedList: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E4E4E7',
-    overflow: 'hidden',
-  },
-
-  // Empty state wrapper
-  emptyWrapper: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-
-  // Referral row
-  referralRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  referralInfo: {
-    flex: 1,
-  },
-  referralName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0D0D0D',
-  },
-  referralCollege: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  referralDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-
-  // Row separator
-  rowSeparator: {
-    height: 0.5,
-    backgroundColor: '#E4E4E7',
-    marginHorizontal: 14,
-  },
-
-  // Leader row
-  leaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  rankCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankNumber: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  leaderName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0D0D0D',
-    flex: 1,
-  },
-  leaderCoins: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-
-  // Campus Cartel impact
-  cartelSection: {
-    backgroundColor: '#FFFFFF',
-    paddingBottom: 16,
-  },
-  cartelStatsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  cartelRecentList: {
-    marginHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E4E4E7',
-    overflow: 'hidden',
-  },
-  cartelRefRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  cartelRefInfo: {
-    flex: 1,
-  },
-  cartelRefName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0D0D0D',
-  },
-  cartelRefCollege: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  cartelViewAll: {
+  tierLegendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 16,
-    paddingTop: 12,
   },
-  cartelViewAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.campusCartelGreen,
+  tierLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  tierLegendLabel: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+  },
+
+  // ── Tasks ──
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Gap.md,
+    paddingVertical: Gap.sm,
+    gap: Gap.sm,
+  },
+
+  // ── Mini Lists ──
+  miniList: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  miniRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Gap.md,
+    paddingVertical: Gap.sm,
+    gap: Gap.sm,
+  },
+  miniName: {
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
+    color: colors.text,
+  },
+  miniSub: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+  },
+  miniDate: {
+    fontSize: FontSize.xs,
+    color: colors.textLight,
+  },
+  separator: {
+    height: 0.5,
+    backgroundColor: colors.border,
+    marginHorizontal: Gap.md,
   },
 });
