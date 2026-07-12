@@ -187,6 +187,13 @@ export class EventsService {
     adminId: string,
     status: ApplicationStatus,
   ): Promise<ApiResponse<EventApplication>> {
+    // Get current application to know its previous status and event_id
+    const { data: current } = await this.supabase
+      .from('event_applications')
+      .select('status, event_id, user_id')
+      .eq('id', applicationId)
+      .single();
+
     const { data, error } = await this.supabase
       .from('event_applications')
       .update({ status, reviewed_at: new Date().toISOString(), reviewed_by: adminId })
@@ -194,6 +201,29 @@ export class EventsService {
       .select()
       .single();
     if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
+
+    // Update current_attendees count on the event
+    if (current) {
+      const wasApproved = current.status === 'approved';
+      const isNowApproved = status === 'approved';
+
+      if (!wasApproved && isNowApproved) {
+        await this.supabase.rpc('increment_attendees', { event_id_input: current.event_id });
+      } else if (wasApproved && !isNowApproved) {
+        await this.supabase.rpc('decrement_attendees', { event_id_input: current.event_id });
+      }
+
+      // Notify the applicant
+      const statusLabel = status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : status;
+      await this.supabase.from('notifications').insert({
+        user_id: current.user_id,
+        title: `Application ${statusLabel}`,
+        body: `Your event application has been ${statusLabel}.`,
+        type: 'application_status',
+        reference_id: current.event_id,
+      });
+    }
+
     return { data: data as unknown as EventApplication, error: null };
   }
 

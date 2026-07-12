@@ -31,7 +31,8 @@ export default function PeopleApply() {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [applying, setApplying] = useState(false);
-  const [alreadyApplied, setAlreadyApplied] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [isCartelMember, setIsCartelMember] = useState(false);
 
   const [organizer, setOrganizer] = useState<{ full_name?: string; email?: string } | null>(null);
 
@@ -56,9 +57,14 @@ export default function PeopleApply() {
         setError('Event not found');
       }
       if (appRes.data) {
-        const applied = appRes.data.some((a) => a.event_id === id);
-        setAlreadyApplied(applied);
+        const myApp = appRes.data.find((a) => a.event_id === id);
+        if (myApp) setApplicationStatus(myApp.status);
       }
+      try {
+        const member = await api.campusCartel.isMember(user.id);
+        setIsCartelMember(member);
+      } catch {}
+
     } catch (e) {
       setError('Failed to load event');
       console.warn(e);
@@ -80,9 +86,8 @@ export default function PeopleApply() {
       if (result.error) {
         Alert.alert('Error', result.error.message);
       } else {
-        Alert.alert('Applied!', 'Your application has been submitted successfully.', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
+        setApplicationStatus('pending');
+        Alert.alert('Application Submitted', 'Your application is pending approval by the organiser.');
       }
     } finally {
       setApplying(false);
@@ -189,7 +194,7 @@ export default function PeopleApply() {
             </View>
           )}
 
-          {event.coin_reward > 0 && (
+          {event.coin_reward > 0 && isCartelMember && (
             <View style={styles.coinRow}>
               <Ionicons name="diamond-outline" size={13} color="#92400E" />
               <Text style={styles.coinText}>Earn {event.coin_reward} coins</Text>
@@ -225,7 +230,7 @@ export default function PeopleApply() {
         )}
 
         {/* 6 — Note input (only if not applied) */}
-        {!alreadyApplied && (
+        {!applicationStatus && (
           <View style={styles.noteBlock}>
             <Input
               label="Note (optional)"
@@ -240,10 +245,20 @@ export default function PeopleApply() {
 
         {/* 7 — Action area */}
         <View style={[styles.actionBlock, { paddingBottom: insets.bottom + 20 }]}>
-          {alreadyApplied ? (
+          {applicationStatus === 'approved' ? (
             <View style={styles.appliedButton}>
               <Ionicons name="checkmark-circle" size={18} color="#065F46" />
-              <Text style={styles.appliedButtonText}>Already Applied</Text>
+              <Text style={styles.appliedButtonText}>Approved</Text>
+            </View>
+          ) : applicationStatus === 'pending' ? (
+            <View style={styles.pendingButton}>
+              <Ionicons name="time-outline" size={18} color="#92400E" />
+              <Text style={styles.pendingButtonText}>Pending Approval</Text>
+            </View>
+          ) : applicationStatus === 'rejected' ? (
+            <View style={styles.rejectedButton}>
+              <Ionicons name="close-circle" size={18} color="#991B1B" />
+              <Text style={styles.rejectedButtonText}>Application Rejected</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -485,5 +500,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: Font.bold,
     color: '#065F46',
+  },
+  pendingButton: {
+    width: '100%',
+    height: 52,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  pendingButtonText: {
+    fontSize: 16,
+    fontWeight: Font.bold,
+    color: '#92400E',
+  },
+  rejectedButton: {
+    width: '100%',
+    height: 52,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  rejectedButtonText: {
+    fontSize: 16,
+    fontWeight: Font.bold,
+    color: '#991B1B',
   },
 });
