@@ -72,6 +72,7 @@ export class CampusCartelService {
       .eq('is_active', true)
       .eq('status', 'approved')
       .not('college', 'is', null);
+    if (e2) return { data: null, error: { code: 'FETCH_FAILED', message: e2.message } };
 
     const uniqueColleges = collegeData
       ? new Set(collegeData.map((r: any) => r.college)).size
@@ -175,6 +176,16 @@ export class CampusCartelService {
     memberId: string,
     updates: { college?: string; course?: string; city?: string; ambassador_code?: string | null },
   ): Promise<ApiResponse<CampusCartelMember>> {
+    // Only allow updates on pending/rejected applications
+    const { data: existing } = await this.supabase
+      .from('campus_cartel_members')
+      .select('status')
+      .eq('id', memberId)
+      .single();
+    if (existing && existing.status === 'approved') {
+      return { data: null, error: { code: 'ALREADY_APPROVED', message: 'Cannot update an approved application' } };
+    }
+
     // If ambassador code provided, validate it
     if (updates.ambassador_code) {
       const cleanCode = updates.ambassador_code.trim().toUpperCase();
@@ -198,16 +209,16 @@ export class CampusCartelService {
       updates.ambassador_code = cleanCode;
     }
 
+    // Only include fields that are explicitly provided
+    const payload: Record<string, any> = { status: 'pending', is_active: false };
+    if ('college' in updates) payload.college = updates.college ?? null;
+    if ('course' in updates) payload.course = updates.course ?? null;
+    if ('city' in updates) payload.city = updates.city ?? null;
+    if ('ambassador_code' in updates) payload.ambassador_code = updates.ambassador_code ?? null;
+
     const { data, error } = await this.supabase
       .from('campus_cartel_members')
-      .update({
-        college: updates.college ?? null,
-        course: updates.course ?? null,
-        city: updates.city ?? null,
-        ambassador_code: updates.ambassador_code ?? null,
-        status: 'pending',
-        is_active: false,
-      })
+      .update(payload)
       .eq('id', memberId)
       .select()
       .single();
@@ -246,7 +257,7 @@ export class CampusCartelService {
   async getApplications(status?: CampusCartelStatus): Promise<ApiResponse<(CampusCartelMember & { profile?: any })[]>> {
     let query = this.supabase
       .from('campus_cartel_members')
-      .select('*')
+      .select('*, profile:profiles!user_id(id, full_name, avatar_url, email)')
       .order('joined_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
@@ -254,24 +265,7 @@ export class CampusCartelService {
     const { data, error } = await query;
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
 
-    const members = (data ?? []) as CampusCartelMember[];
-
-    // Fetch profiles for display
-    const userIds = members.map((m) => m.user_id);
-    if (userIds.length > 0) {
-      const { data: profiles } = await this.supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, email')
-        .in('id', userIds);
-      if (profiles) {
-        const profileMap = new Map(profiles.map((p: any) => [p.id, p]));
-        for (const m of members as any[]) {
-          m.profile = profileMap.get(m.user_id) ?? null;
-        }
-      }
-    }
-
-    return { data: members as any[], error: null };
+    return { data: (data ?? []) as any[], error: null };
   }
 
   /** Admin approves an application → set approved, is_active=true, award coins */

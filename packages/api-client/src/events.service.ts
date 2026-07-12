@@ -17,17 +17,11 @@ export class EventsService {
     perPage: number = 20,
     category?: string,
   ): Promise<ApiResponse<PaginatedResponse<Event>>> {
-    // Auto-mark past approved events as completed
     const today = new Date().toISOString().split('T')[0];
-    await this.supabase
-      .from('events')
-      .update({ status: 'completed' })
-      .eq('status', 'approved')
-      .lt('event_date', today);
 
     let query = this.supabase
       .from('events')
-      .select('*, companies(*), vertical:verticals(id, name, slug, color)', { count: 'exact' })
+      .select('*, company:companies(*), vertical:verticals(id, name, slug, color)', { count: 'exact' })
       .eq('status', 'approved')
       .gte('event_date', today)
       .order('event_date', { ascending: true })
@@ -53,7 +47,7 @@ export class EventsService {
   async getEventById(id: string): Promise<ApiResponse<Event>> {
     const { data, error } = await this.supabase
       .from('events')
-      .select('*, companies(*), vertical:verticals(id, name, slug, color)')
+      .select('*, company:companies(*), vertical:verticals(id, name, slug, color)')
       .eq('id', id)
       .single();
     if (error || !data) return { data: null, error: { code: 'NOT_FOUND', message: 'Event not found' } };
@@ -73,7 +67,7 @@ export class EventsService {
   async getAllEventsAdmin(status?: string): Promise<ApiResponse<Event[]>> {
     let query = this.supabase
       .from('events')
-      .select('*, companies(*), vertical:verticals(id, name, slug, color)')
+      .select('*, company:companies(*), vertical:verticals(id, name, slug, color)')
       .order('created_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
@@ -127,7 +121,7 @@ export class EventsService {
         rejection_reason: payload.rejection_reason ?? null,
       })
       .eq('id', eventId)
-      .select('*, companies(*)')
+      .select('*, company:companies(*)')
       .single();
     if (error || !data) return { data: null, error: { code: 'UPDATE_FAILED', message: error?.message ?? 'Not found' } };
 
@@ -148,6 +142,17 @@ export class EventsService {
     userId: string,
     note?: string,
   ): Promise<ApiResponse<EventApplication>> {
+    // Check for existing application to prevent duplicates
+    const { data: existing } = await this.supabase
+      .from('event_applications')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (existing) {
+      return { data: null, error: { code: 'ALREADY_APPLIED', message: 'You have already applied for this event' } };
+    }
+
     const { data, error } = await this.supabase
       .from('event_applications')
       .insert({ event_id: eventId, user_id: userId, status: 'pending', note: note ?? null })
@@ -160,7 +165,7 @@ export class EventsService {
   async getMyApplications(userId: string): Promise<ApiResponse<EventApplication[]>> {
     const { data, error } = await this.supabase
       .from('event_applications')
-      .select('*, events(*)')
+      .select('*, event:events(*)')
       .eq('user_id', userId)
       .order('applied_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
@@ -170,7 +175,7 @@ export class EventsService {
   async getEventApplications(eventId: string): Promise<ApiResponse<EventApplication[]>> {
     const { data, error } = await this.supabase
       .from('event_applications')
-      .select('*, profiles(*)')
+      .select('*, user:profiles(*)')
       .eq('event_id', eventId)
       .order('applied_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
@@ -192,11 +197,12 @@ export class EventsService {
     return { data: data as unknown as EventApplication, error: null };
   }
 
-  async withdrawApplication(applicationId: string): Promise<ApiResponse<EventApplication>> {
+  async withdrawApplication(applicationId: string, userId: string): Promise<ApiResponse<EventApplication>> {
     const { data, error } = await this.supabase
       .from('event_applications')
       .update({ status: 'withdrawn' })
       .eq('id', applicationId)
+      .eq('user_id', userId)
       .select()
       .single();
     if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };

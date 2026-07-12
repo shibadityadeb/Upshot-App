@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  Clipboard,
   RefreshControl,
   ScrollView,
   Share,
@@ -12,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador, Student } from '@upshot/types';
@@ -39,9 +39,12 @@ export default function AmbassadorReferrals() {
       const ambassadorResult = await api.ambassadors.getMyAmbassadorProfile(user.id);
       if (ambassadorResult.data) {
         setAmbassador(ambassadorResult.data);
+        const referralCode = ambassadorResult.data.referral_code;
         const [studentsResult, cartelResult] = await Promise.all([
           api.ambassadors.getAmbassadorStudents(ambassadorResult.data.id),
-          api.campusCartel.getAmbassadorReferrals(ambassadorResult.data.referral_code),
+          referralCode
+            ? api.campusCartel.getAmbassadorReferrals(referralCode)
+            : Promise.resolve({ data: [], error: null }),
         ]);
         if (studentsResult.data) {
           const sorted = [...studentsResult.data].sort(
@@ -72,14 +75,14 @@ export default function AmbassadorReferrals() {
     setRefreshing(false);
   }, [loadData]);
 
-  const handleCopy = () => {
-    if (!ambassador) return;
-    Clipboard.setString(ambassador.referral_code);
+  const handleCopy = async () => {
+    if (!ambassador?.referral_code) return;
+    await Clipboard.setStringAsync(ambassador.referral_code);
     Alert.alert('Copied!', 'Referral code copied');
   };
 
   const handleShare = () => {
-    if (!ambassador) return;
+    if (!ambassador?.referral_code) return;
     Share.share({
       message: `Join Campus Cartel using my code ${ambassador.referral_code} with UBM \u{1F393}`,
     });

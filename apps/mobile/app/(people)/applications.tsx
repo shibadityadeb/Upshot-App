@@ -69,7 +69,6 @@ export default function PeopleApplications() {
       console.warn(e);
     } finally {
       setAppLoading(false);
-      setRefreshing(false);
     }
   }, [user]);
 
@@ -81,22 +80,22 @@ export default function PeopleApplications() {
     }, [loadCcApp, loadApplications, loadHostingApps]),
   );
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    loadCcApp();
-    loadApplications();
-    loadHostingApps();
+    await Promise.all([loadCcApp(), loadApplications(), loadHostingApps()]);
+    setRefreshing(false);
   }, [loadCcApp, loadApplications, loadHostingApps]);
 
   const handleWithdraw = useCallback(async (appId: string) => {
+    if (!user) return;
     setWithdrawingIds((prev) => new Set(prev).add(appId));
     try {
-      await api.events.withdrawApplication(appId);
+      await api.events.withdrawApplication(appId, user.id);
       await loadApplications();
     } finally {
       setWithdrawingIds((prev) => { const s = new Set(prev); s.delete(appId); return s; });
     }
-  }, [loadApplications]);
+  }, [user, loadApplications]);
 
   const confirmWithdraw = useCallback((appId: string) => {
     Alert.alert('Withdraw Application', 'This cannot be undone.', [

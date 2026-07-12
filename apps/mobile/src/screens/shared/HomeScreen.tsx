@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Alert,
+  Platform,
   ScrollView,
   View,
   Text,
   Image,
+  TextInput,
   TouchableOpacity,
+  Modal,
   StyleSheet,
   StatusBar,
   Linking,
@@ -100,12 +103,14 @@ export default function HomeScreen() {
   const [featuredVideo, setFeaturedVideo] = useState<UnfilteredVideo | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);
+  const [submitModalTaskId, setSubmitModalTaskId] = useState<string | null>(null);
+  const [submitNote, setSubmitNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCartelMember, setIsCartelMember] = useState(false);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [user]);
 
   async function load() {
     setLoading(true);
@@ -147,12 +152,13 @@ export default function HomeScreen() {
           const member = await api.campusCartel.isMember(user.id);
           setIsCartelMember(member);
 
-          // Only load tasks for CC members
+          // Only load tasks for CC members — filter to tasks assigned to this user or their group
           if (member && (user.role === 'student' || user.role === 'people')) {
             try {
               const { data: tasksData } = await api.supabase
                 .from('tasks')
                 .select('*')
+                .or(`assigned_to.eq.${user.id},target_group.eq.campus_cartel,target_group.eq.students`)
                 .order('created_at', { ascending: false });
               setTasks((tasksData ?? []) as Task[]);
             } catch {
@@ -365,21 +371,26 @@ export default function HomeScreen() {
                     activeOpacity={0.8}
                     disabled={submittingTaskId === task.id}
                     onPress={() => {
-                      Alert.prompt('Submit Task', 'Add a note or link:', [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Submit',
-                          onPress: async (text) => {
-                            setSubmittingTaskId(task.id);
-                            try {
-                              await api.tasks.submitTask(task.id, { submission_note: text ?? '' });
-                              load();
-                            } finally {
-                              setSubmittingTaskId(null);
-                            }
+                      if (Platform.OS === 'ios') {
+                        Alert.prompt('Submit Task', 'Add a note or link:', [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Submit',
+                            onPress: async (text) => {
+                              setSubmittingTaskId(task.id);
+                              try {
+                                await api.tasks.submitTask(task.id, { submission_note: text ?? '' }, user?.id);
+                                load();
+                              } finally {
+                                setSubmittingTaskId(null);
+                              }
+                            },
                           },
-                        },
-                      ], 'plain-text');
+                        ], 'plain-text');
+                      } else {
+                        setSubmitNote('');
+                        setSubmitModalTaskId(task.id);
+                      }
                     }}
                   >
                     <Text style={styles.taskSubmitBtnText}>
@@ -528,6 +539,46 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ))}
       </View>
+      {/* Android submit modal */}
+      <Modal visible={!!submitModalTaskId} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Submit Task</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Add a note or link..."
+              placeholderTextColor={colors.textLight}
+              value={submitNote}
+              onChangeText={setSubmitNote}
+              multiline
+            />
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setSubmitModalTaskId(null)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSubmitBtn}
+                onPress={async () => {
+                  const taskId = submitModalTaskId!;
+                  setSubmitModalTaskId(null);
+                  setSubmittingTaskId(taskId);
+                  try {
+                    await api.tasks.submitTask(taskId, { submission_note: submitNote }, user?.id);
+                    load();
+                  } finally {
+                    setSubmittingTaskId(null);
+                  }
+                }}
+              >
+                <Text style={styles.modalSubmitText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -997,6 +1048,61 @@ const styles = StyleSheet.create({
   taskSubmitBtnText: {
     fontSize: FontSize.small,
     fontWeight: Font.bold,
+    color: '#FFFFFF',
+  },
+
+  // Android submit modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: Gap.lg,
+  },
+  modalTitle: {
+    fontSize: FontSize.h2,
+    fontWeight: Font.bold,
+    color: colors.text,
+    marginBottom: Gap.md,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: Gap.md,
+    fontSize: FontSize.body,
+    color: colors.text,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginBottom: Gap.md,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Gap.sm,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: Gap.base,
+    paddingVertical: Gap.sm,
+  },
+  modalCancelText: {
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
+    color: colors.textSecondary,
+  },
+  modalSubmitBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: Gap.base,
+    paddingVertical: Gap.sm,
+  },
+  modalSubmitText: {
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
     color: '#FFFFFF',
   },
 });

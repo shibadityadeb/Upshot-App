@@ -164,7 +164,7 @@ export default function AdminTasks() {
     const rejectingThis = actionLoading === item.id + 'reject';
     const deletingThis = actionLoading === item.id + 'delete';
     const isActioning = approvingThis || rejectingThis || deletingThis;
-    const assignee = (item as any).assignee;
+    const assignee = item.assignee;
     const assigneeName = assignee?.full_name ?? 'Unknown User';
 
     return (
@@ -192,26 +192,26 @@ export default function AdminTasks() {
         <View style={styles.assigneeRow}>
           <AvatarCircle name={assigneeName} size={24} avatarUrl={assignee?.avatar_url} />
           <Text style={styles.assigneeName}>{assigneeName}</Text>
-          {!!(item as any).target_group && (
+          {!!item.target_group && (
             <View style={styles.groupBadge}>
               <Text style={styles.groupBadgeText}>
-                {((item as any).target_group as string).replace(/_/g, ' ')}
+                {item.target_group.replace(/_/g, ' ')}
               </Text>
             </View>
           )}
         </View>
 
-        {!!(item as any).description && (
-          <Text style={styles.taskDesc} numberOfLines={2}>{(item as any).description}</Text>
+        {!!item.description && (
+          <Text style={styles.taskDesc} numberOfLines={2}>{item.description}</Text>
         )}
 
         <View style={styles.taskMeta}>
-          <CoinBadge amount={(item as any).coin_value ?? (item as any).coin_reward ?? 0} />
-          {!!(item as any).due_date && (
+          <CoinBadge amount={item.coin_value ?? 0} />
+          {!!item.due_date && (
             <View style={styles.dueDateWrap}>
               <Ionicons name="calendar-outline" size={11} color={colors.textSecondary} />
               <Text style={styles.dueDate}>
-                Due {new Date((item as any).due_date).toLocaleDateString('en-IN', {
+                Due {new Date(item.due_date).toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'short',
                 })}
@@ -224,14 +224,14 @@ export default function AdminTasks() {
         {isSubmitted && (
           <View style={styles.submissionArea}>
             <Text style={styles.submissionByLabel}>Submitted by: {assigneeName}</Text>
-            {!!(item as any).submission_note && (
+            {!!item.submission_note && (
               <Text style={styles.submissionNote} numberOfLines={3}>
-                {(item as any).submission_note}
+                {item.submission_note}
               </Text>
             )}
-            {!!(item as any).submitted_at && (
+            {!!item.submitted_at && (
               <Text style={styles.submissionDate}>
-                {new Date((item as any).submitted_at).toLocaleDateString('en-IN', {
+                {new Date(item.submitted_at).toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'short',
                   year: 'numeric',
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    backgroundColor: colors.background,
+    backgroundColor: DarkBg,
     paddingHorizontal: Gap.base,
     paddingTop: 32,
     paddingBottom: 20,
@@ -354,11 +354,11 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: Font.black,
-    color: colors.text,
+    color: '#FFFFFF',
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: colors.textSecondary,
+    color: 'rgba(255,255,255,0.45)',
     marginTop: 2,
   },
   addBtn: {

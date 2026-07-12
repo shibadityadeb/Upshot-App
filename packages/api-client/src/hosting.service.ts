@@ -97,6 +97,7 @@ export class HostingService {
       current_attendees: 0,
       status: 'approved',
       requirements: app.requirements,
+      coin_reward: 0,
       created_by: app.user_id,
       approved_by: adminId,
       approved_at: new Date().toISOString(),
