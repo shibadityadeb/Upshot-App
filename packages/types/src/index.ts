@@ -46,8 +46,8 @@ export interface Event {
   id: string;
   title: string;
   description: string;
-  company_id: string;
-  company?: Company;
+  company_id: string | null;
+  company?: Company | null;
   event_date: string;
   event_time: string | null;
   location: string;
@@ -93,6 +93,7 @@ export interface Task {
   event?: Event;
   assigned_to: string | null;
   assigned_by: string;
+  assignee?: User;
   target_group: TaskTargetGroup | null;
   status: TaskStatus;
   due_date: string | null;
@@ -215,7 +216,7 @@ export interface CreateTaskPayload {
   description: string;
   event_id?: string;
   assigned_to?: string;
-  target_group: TaskTargetGroup;
+  target_group?: TaskTargetGroup;
   due_date?: string;
   coin_value: number;
 }

@@ -122,7 +122,6 @@ export default function AdminEvents() {
       console.warn(e);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
@@ -144,10 +143,10 @@ export default function AdminEvents() {
     loadHostApps();
   }, [loadEvents, loadHostApps]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    loadEvents();
-    loadHostApps();
+    await Promise.all([loadEvents(), loadHostApps()]);
+    setRefreshing(false);
   }, [loadEvents, loadHostApps]);
 
   const filteredEvents = events.filter((e) => {
@@ -178,7 +177,7 @@ export default function AdminEvents() {
       if (result.error) {
         Alert.alert('Error', result.error.message);
       } else {
-        if (selectedVertical.id) {
+        if (selectedVertical.id && selectedVertical.id.includes('-') && selectedVertical.id.length >= 36) {
           try {
             await api.events.updateEventVertical(pendingApproveEventId, selectedVertical.id);
           } catch (e) {
@@ -203,6 +202,10 @@ export default function AdminEvents() {
 
   const handleConfirmChangeVertical = useCallback(async () => {
     if (!pendingChangeEventId) return;
+    if (changeSelectedVertical.id && !(changeSelectedVertical.id.includes('-') && changeSelectedVertical.id.length >= 36)) {
+      Alert.alert('Error', 'Vertical data not loaded yet. Please try again.');
+      return;
+    }
     setActionLoading(pendingChangeEventId);
     try {
       await api.events.updateEventVertical(pendingChangeEventId, changeSelectedVertical.id);
@@ -495,7 +498,7 @@ export default function AdminEvents() {
           </View>
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => router.push('/(admin)/create-event' as any)}
+            onPress={() => router.push('/(people)/host-event' as any)}
             activeOpacity={0.75}
           >
             <Ionicons name="add" size={22} color="#fff" />
@@ -533,11 +536,14 @@ export default function AdminEvents() {
         >
           <Ionicons name="document-text-outline" size={16} color={activeTab === 'hosting' ? colors.primary : colors.textSecondary} />
           <Text style={[styles.tabText, activeTab === 'hosting' && styles.tabTextActive]}>Host Applications</Text>
-          {hostApps.filter(a => a.status === 'pending').length > 0 && (
-            <View style={styles.tabBadge}>
-              <Text style={styles.tabBadgeText}>{hostApps.filter(a => a.status === 'pending').length}</Text>
-            </View>
-          )}
+          {(() => {
+            const pendingCount = hostApps.filter(a => a.status === 'pending').length;
+            return pendingCount > 0 ? (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{pendingCount}</Text>
+              </View>
+            ) : null;
+          })()}
         </TouchableOpacity>
       </View>
 

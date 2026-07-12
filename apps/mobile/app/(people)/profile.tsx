@@ -204,7 +204,7 @@ export default function PeopleProfile() {
 
   if (!user) return null;
 
-  const showCoinBadge = user.role === 'student' && hasAmbassadorCode;
+  const showCoinBadge = balance > 0 || (user.role === 'student' && hasAmbassadorCode) || user.role === 'ambassador';
   const rows = INFO_ROWS(user);
 
   if (loading) {

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  Clipboard,
   RefreshControl,
   ScrollView,
   Share,
@@ -11,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
@@ -135,14 +135,14 @@ export default function AmbassadorDashboard() {
     setRefreshing(false);
   }, [loadData]);
 
-  const handleCopy = () => {
-    if (!ambassador) return;
-    Clipboard.setString(ambassador.referral_code);
+  const handleCopy = async () => {
+    if (!ambassador?.referral_code) return;
+    await Clipboard.setStringAsync(ambassador.referral_code);
     Alert.alert('Copied!', 'Referral code copied to clipboard.');
   };
 
   const handleShare = () => {
-    if (!ambassador) return;
+    if (!ambassador?.referral_code) return;
     Share.share({
       message: `Join Upshot Brand Media! Use my referral code: ${ambassador.referral_code}`,
     });
@@ -279,7 +279,7 @@ export default function AmbassadorDashboard() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.miniName} numberOfLines={1}>{task.title}</Text>
                     </View>
-                    <CoinBadge amount={task.coin_value} />
+                    <CoinBadge amount={task.coin_value ?? 0} />
                     <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
                   </TouchableOpacity>
                   {idx < pendingTasks.length - 1 && <View style={styles.separator} />}

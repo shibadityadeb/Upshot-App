@@ -22,6 +22,7 @@ export default function AdminSettings() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
+  const refreshUser = useAuthStore((s) => s.refreshUser);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user?.full_name ?? '');
@@ -52,13 +53,14 @@ export default function AdminSettings() {
       if (result.error) {
         Alert.alert('Error', result.error.message);
       } else {
+        await refreshUser();
         Alert.alert('Saved', 'Profile updated successfully.');
         setIsEditing(false);
       }
     } finally {
       setSaving(false);
     }
-  }, [user, editName, editPhone]);
+  }, [user, editName, editPhone, refreshUser]);
 
   const handleSignOut = useCallback(() => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [

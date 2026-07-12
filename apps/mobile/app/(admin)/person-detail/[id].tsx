@@ -139,7 +139,7 @@ export default function AdminPersonDetail() {
           onPress: async () => {
             setAmbLoading(true);
             try {
-              const result = await api.ambassadors.createAmbassador(profile.id, profile.full_name);
+              const result = await api.ambassadors.createAmbassador(profile.id);
               if (result.error) {
                 Alert.alert('Error', result.error.message);
               } else {

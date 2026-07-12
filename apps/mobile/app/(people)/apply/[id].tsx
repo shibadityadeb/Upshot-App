@@ -119,10 +119,15 @@ export default function PeopleApply() {
     month: 'long',
     year: 'numeric',
   });
-  const eventTime = new Date(event.event_date).toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const eventTime = event.event_time
+    ? (() => {
+        const [h, m] = event.event_time.split(':');
+        const hour = parseInt(h, 10);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const h12 = hour % 12 || 12;
+        return `${h12}:${m} ${ampm}`;
+      })()
+    : null;
   const venue = (event as any).venue;
   const city = (event as any).city;
   const locationLine = venue ? `${venue}${city ? ', ' + city : ''}` : (event.location ?? '');
@@ -174,7 +179,7 @@ export default function PeopleApply() {
 
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-            <Text style={styles.metaText}>{eventDate} · {eventTime}</Text>
+            <Text style={styles.metaText}>{eventDate}{eventTime ? ` · ${eventTime}` : ''}</Text>
           </View>
 
           {!!locationLine && (

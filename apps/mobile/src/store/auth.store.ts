@@ -4,6 +4,9 @@ import type { User, RegisterStudentPayload } from '@upshot/types';
 
 const api = createApiClient();
 
+// Module-level subscription ref for proper cleanup
+let authSubscription: { unsubscribe: () => void } | null = null;
+
 interface AuthState {
   user: User | null;
   isLoading: boolean;
@@ -17,7 +20,7 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: false,
   isInitialized: false,
@@ -38,7 +41,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isInitialized: true });
     }
 
-    api.supabase.auth.onAuthStateChange(async (event) => {
+    // Unsubscribe previous listener before creating a new one
+    if (authSubscription) {
+      authSubscription.unsubscribe();
+      authSubscription = null;
+    }
+
+    const { data: { subscription } } = api.supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_OUT') {
         set({ user: null });
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
@@ -48,17 +57,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
     });
+    authSubscription = subscription;
   },
 
   signIn: async (email, password) => {
     set({ isLoading: true, error: null });
-    const result = await api.auth.signIn(email, password);
-    if (result.error) {
-      set({ isLoading: false, error: result.error.message });
+    try {
+      const result = await api.auth.signIn(email, password);
+      if (result.error) {
+        set({ isLoading: false, error: result.error.message });
+        return false;
+      }
+      set({ user: result.data?.user ?? null, isLoading: false });
+      return true;
+    } catch (e: any) {
+      set({ isLoading: false, error: e?.message ?? 'Sign in failed' });
       return false;
     }
-    set({ user: result.data!.user, isLoading: false });
-    return true;
   },
 
   signOut: async () => {
@@ -69,13 +84,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   registerStudent: async (payload) => {
     set({ isLoading: true, error: null });
-    const result = await api.auth.registerStudent(payload);
-    if (result.error) {
-      set({ isLoading: false, error: result.error.message });
+    try {
+      const result = await api.auth.registerStudent(payload);
+      if (result.error) {
+        set({ isLoading: false, error: result.error.message });
+        return false;
+      }
+      set({ user: result.data?.user ?? null, isLoading: false });
+      return true;
+    } catch (e: any) {
+      set({ isLoading: false, error: e?.message ?? 'Registration failed' });
       return false;
     }
-    set({ user: result.data?.user ?? null, isLoading: false });
-    return true;
   },
 
   refreshUser: async () => {

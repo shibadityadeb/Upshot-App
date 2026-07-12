@@ -7,7 +7,7 @@ export class AmbassadorService {
   async getMyAmbassadorProfile(userId: string): Promise<ApiResponse<Ambassador>> {
     const { data, error } = await this.supabase
       .from('ambassadors')
-      .select('*, profiles!user_id(*)')
+      .select('*, user:profiles!user_id(*)')
       .eq('user_id', userId)
       .single();
     if (error || !data) return { data: null, error: { code: 'NOT_FOUND', message: 'Ambassador not found' } };
@@ -17,7 +17,7 @@ export class AmbassadorService {
   async getAllAmbassadors(): Promise<ApiResponse<Ambassador[]>> {
     const { data, error } = await this.supabase
       .from('ambassadors')
-      .select('*, profiles!user_id(*)')
+      .select('*, user:profiles!user_id(*)')
       .order('total_coins_earned', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
     return { data: (data ?? []) as unknown as Ambassador[], error: null };
@@ -34,7 +34,7 @@ export class AmbassadorService {
     return data as string;
   }
 
-  async createAmbassador(userId: string, fullName: string): Promise<ApiResponse<Ambassador>> {
+  async createAmbassador(userId: string): Promise<ApiResponse<Ambassador>> {
     const referralCode = await this.generateUniqueCode();
 
     const { data, error } = await this.supabase
@@ -47,18 +47,23 @@ export class AmbassadorService {
         tier: 'bronze',
         is_active: true,
       })
-      .select('*, profiles!user_id(*)')
+      .select('*, user:profiles!user_id(*)')
       .single();
     if (error) return { data: null, error: { code: 'CREATE_FAILED', message: error.message } };
 
-    await this.supabase.from('profiles').update({ role: 'ambassador' }).eq('id', userId);
+    const { error: roleError } = await this.supabase.from('profiles').update({ role: 'ambassador' }).eq('id', userId);
+    if (roleError) {
+      // Rollback: remove the ambassador row since role update failed
+      await this.supabase.from('ambassadors').delete().eq('user_id', userId);
+      return { data: null, error: { code: 'ROLE_UPDATE_FAILED', message: roleError.message } };
+    }
 
     return { data: data as unknown as Ambassador, error: null };
   }
 
-  async validateReferralCode(code: string): Promise<ApiResponse<{ valid: boolean; ambassador_id: string | null }>> {
+  async validateReferralCode(code: string): Promise<ApiResponse<{ valid: boolean; code_id: string | null }>> {
     const result = await this.validateCode(code);
-    return { data: { valid: result.valid, ambassador_id: result.codeData?.assigned_to ?? null }, error: null };
+    return { data: { valid: result.valid, code_id: result.codeData?.id ?? null }, error: null };
   }
 
   async generateCode(adminId: string, payload: CreateAmbassadorCodePayload): Promise<AmbassadorCode> {
@@ -158,7 +163,7 @@ export class AmbassadorService {
       .from('ambassadors')
       .update({ tier })
       .eq('id', ambassadorId)
-      .select('*, profiles!user_id(*)')
+      .select('*, user:profiles!user_id(*)')
       .single();
     if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
     return { data: data as unknown as Ambassador, error: null };
@@ -178,7 +183,7 @@ export class AmbassadorService {
   async getAmbassadorStudents(ambassadorId: string): Promise<ApiResponse<Student[]>> {
     const { data, error } = await this.supabase
       .from('students')
-      .select('*, profiles!user_id(*)')
+      .select('*, user:profiles!user_id(*)')
       .eq('referred_by', ambassadorId)
       .order('created_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
