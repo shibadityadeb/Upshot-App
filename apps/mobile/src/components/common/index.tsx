@@ -565,6 +565,7 @@ interface OpportunityCardProps {
   onApply: () => void;
   hasApplied: boolean;
   isApplying?: boolean;
+  showCoins?: boolean;
 }
 
 export function OpportunityCard({
@@ -573,6 +574,7 @@ export function OpportunityCard({
   onApply,
   hasApplied,
   isApplying = false,
+  showCoins = false,
 }: OpportunityCardProps) {
   const accentColor = (event.vertical?.color) ?? colors.primary;
   const hasBanner = !!event.banner_url;
@@ -613,14 +615,16 @@ export function OpportunityCard({
             {event.category}
           </Text>
         </View>
-        <View style={ocStyles.coinPill}>
-          <Ionicons name="diamond-outline" size={11} color="#92400E" />
-          <Text style={ocStyles.coinText}>{event.coin_reward}</Text>
-        </View>
+        {showCoins && (
+          <View style={ocStyles.coinPill}>
+            <Ionicons name="diamond-outline" size={11} color="#92400E" />
+            <Text style={ocStyles.coinText}>{event.coin_reward}</Text>
+          </View>
+        )}
       </View>
       )}
 
-      {hasBanner && (
+      {hasBanner && showCoins && (
         <View style={ocStyles.row1}>
           <View style={ocStyles.coinPill}>
             <Ionicons name="diamond-outline" size={11} color="#92400E" />

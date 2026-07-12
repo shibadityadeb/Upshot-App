@@ -617,7 +617,9 @@ export default function VerticalDetailScreen() {
                         <Text style={styles.eventLocation} numberOfLines={1}>{ev.location}</Text>
                       )}
                       <View style={styles.eventFooter}>
-                        <CoinBadge amount={ev.coin_reward} />
+                        {ev.max_attendees && (
+                          <Text style={styles.eventLocation}>{ev.max_attendees} spots</Text>
+                        )}
                       </View>
                     </View>
                   </TouchableOpacity>
