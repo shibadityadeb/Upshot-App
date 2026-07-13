@@ -1,9 +1,26 @@
 {
   "expo": {
     "name": "Upshot Brand Media",
-    "slug": "upshot-brand-media",
+    "slug": "upshot-monorepo",
     "version": "1.0.0",
     "scheme": "upshot",
+    "android": {
+      "package": "upshot.ap",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "upshot.ap",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bd4c4c89-a95a-4402-abf0-ecb9675124e9"
+      }
+    },
     "platforms": [
       "ios",
       "android",
@@ -20,6 +37,7 @@
           "photosPermission": "Allow Upshot to access your photos to attach proof of task completion."
         }
       ]
-    ]
+    ],
+    "owner": "shibadityadeb"
   }
 }

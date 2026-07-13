@@ -26,6 +26,7 @@ import {
   StatusBadge,
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -82,7 +83,7 @@ export default function AdminTasks() {
       setActionLoading(taskId + 'approve');
       try {
         const result = await api.tasks.reviewTask(taskId, user.id, true);
-        if (result.error) Alert.alert('Error', result.error.message);
+        if (result.error) showError(result.error);
         else await loadTasks();
       } finally {
         setActionLoading(null);
@@ -99,7 +100,7 @@ export default function AdminTasks() {
           setActionLoading(taskId + 'reject');
           try {
             const result = await api.tasks.reviewTask(taskId, user.id, false, note ?? undefined);
-            if (result.error) Alert.alert('Error', result.error.message);
+            if (result.error) showError(result.error);
             else await loadTasks();
           } finally {
             setActionLoading(null);
@@ -141,7 +142,7 @@ export default function AdminTasks() {
               setActionLoading(task.id + 'delete');
               try {
                 const result = await api.tasks.deleteTask(task.id);
-                if (result.error) Alert.alert('Error', result.error.message);
+                if (result.error) showError(result.error);
                 else await loadTasks();
               } finally {
                 setActionLoading(null);

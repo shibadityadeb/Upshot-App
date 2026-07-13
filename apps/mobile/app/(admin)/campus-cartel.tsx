@@ -24,6 +24,7 @@ import {
   FilterPills,
   StatusBadge,
 } from '../../src/components/common';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -76,7 +77,7 @@ export default function AdminCampusCartel() {
     setActionLoading(id + 'approve');
     try {
       const result = await api.campusCartel.approveApplication(id);
-      if (result.error) Alert.alert('Error', result.error.message);
+      if (result.error) showError(result.error);
       else await loadApplications();
     } finally {
       setActionLoading(null);
@@ -89,7 +90,7 @@ export default function AdminCampusCartel() {
         setActionLoading(id + 'reject');
         try {
           const result = await api.campusCartel.rejectApplication(id, reason ?? undefined);
-          if (result.error) Alert.alert('Error', result.error.message);
+          if (result.error) showError(result.error);
           else await loadApplications();
         } finally {
           setActionLoading(null);

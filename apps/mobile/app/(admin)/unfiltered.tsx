@@ -16,6 +16,7 @@ import { createApiClient } from '@upshot/api-client';
 import type { UnfilteredVideo } from '@upshot/types';
 import { colors, verticalColors, Font, FontSize, Gap, DarkBg, radius, shadow } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -91,7 +92,7 @@ export default function AdminUnfilteredScreen() {
     setAdding(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      showError(error);
       return;
     }
 

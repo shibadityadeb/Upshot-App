@@ -21,6 +21,7 @@ import {
   radius,
 } from '../../src/constants/theme';
 import { Button, Input } from '../../src/components/common';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -100,7 +101,7 @@ export default function PostRequirement() {
         .single();
 
       if (!companyResult) {
-        Alert.alert('Error', 'Could not find your company profile.');
+        showError(null, { context: 'Could not find your company profile.' });
         return;
       }
 
@@ -121,7 +122,7 @@ export default function PostRequirement() {
 
       setSubmitted(true);
     } catch {
-      Alert.alert('Error', 'Failed to submit. Please try again.');
+      showError(null, { context: 'Failed to submit. Please try again.' });
     } finally {
       setSubmitting(false);
     }

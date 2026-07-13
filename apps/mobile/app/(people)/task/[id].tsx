@@ -18,6 +18,7 @@ import type { Task } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
 import { Button, Input, StatusBadge, CoinBadge, EmptyState } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
+import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -65,7 +66,7 @@ export default function TaskDetailScreen() {
         router.back();
       }
     } catch {
-      Alert.alert('Error', 'Failed to load task');
+      showError(null, { context: 'Failed to load task' });
       router.back();
     }
   }, [id, user]);
@@ -107,13 +108,13 @@ export default function TaskDetailScreen() {
       }, user.id);
 
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         setSubmitted(true);
         setTask(result.data);
       }
     } catch {
-      Alert.alert('Error', 'Failed to submit');
+      showError(null, { context: 'Failed to submit' });
     }
     setSubmitting(false);
   };

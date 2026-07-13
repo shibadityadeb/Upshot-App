@@ -23,6 +23,7 @@ import {
   CoinBadge,
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -117,7 +118,7 @@ export default function AmbassadorDashboard() {
         // silent
       }
     } catch {
-      Alert.alert('Error', 'Failed to load dashboard data.');
+      showError(null, { context: 'Failed to load dashboard data.' });
     }
   }, [user]);
 

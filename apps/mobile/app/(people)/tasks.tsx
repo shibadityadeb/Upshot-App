@@ -24,6 +24,7 @@ import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants
 import { LoadingScreen, EmptyState } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { uploadEventImage } from '../../src/utils/uploadEventImage';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -186,7 +187,7 @@ export default function PeopleTasksScreen() {
           submission_url: imageUrl ?? undefined,
         }, user.id);
         if (result.error) {
-          Alert.alert('Error', result.error.message);
+          showError(result.error);
         } else {
           Alert.alert('Submitted!', 'Your task has been sent for admin review.');
           setExpandedTaskId(null);
@@ -195,7 +196,7 @@ export default function PeopleTasksScreen() {
           await loadTasks();
         }
       } catch (e) {
-        Alert.alert('Error', e instanceof Error ? e.message : 'Failed to submit task.');
+        showError(e, { context: 'Failed to submit task.' });
       } finally {
         setSubmitting(false);
       }

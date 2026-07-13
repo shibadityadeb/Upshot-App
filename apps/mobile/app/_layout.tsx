@@ -4,6 +4,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useAuthStore } from '../src/store/auth.store';
 import { colors } from '../src/constants/theme';
+import { AppLoader } from '../src/components/common/AppLoader';
+import { ErrorPopup } from '../src/components/common/ErrorPopup';
 
 const styles = StyleSheet.create({
   loading: {
@@ -34,21 +36,24 @@ export default function RootLayout() {
     initialize();
   }, [initialize]);
 
-  // Must return null (not a View) while uninitialised —
-  // expo-router layouts can only return a navigator or null.
-  if (!isInitialized) return null;
-
+  // The Stack must always render (expo-router layouts can only return a
+  // navigator or null), so the startup loader sits on top as an overlay
+  // and fades itself out once auth has initialised.
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-        <Stack.Screen name="(company)" options={{ headerShown: false }} />
-        <Stack.Screen name="(people)" options={{ headerShown: false }} />
-        <Stack.Screen name="(ambassador)" options={{ headerShown: false }} />
-        <Stack.Screen name="(shared)" options={{ headerShown: false }} />
-        <Stack.Screen name="campus-cartel-apply" options={{ headerShown: false }} />
-      </Stack>
+      <View style={{ flex: 1 }}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+          <Stack.Screen name="(company)" options={{ headerShown: false }} />
+          <Stack.Screen name="(people)" options={{ headerShown: false }} />
+          <Stack.Screen name="(ambassador)" options={{ headerShown: false }} />
+          <Stack.Screen name="(shared)" options={{ headerShown: false }} />
+          <Stack.Screen name="campus-cartel-apply" options={{ headerShown: false }} />
+        </Stack>
+        <ErrorPopup />
+        <AppLoader visible={!isInitialized} />
+      </View>
     </SafeAreaProvider>
   );
 }

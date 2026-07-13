@@ -18,6 +18,7 @@ import type { Ambassador, Student } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { AvatarCircle, LoadingScreen, EmptyState, StatCard } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -57,7 +58,7 @@ export default function AmbassadorReferrals() {
         }
       }
     } catch {
-      Alert.alert('Error', 'Failed to load referrals.');
+      showError(null, { context: 'Failed to load referrals.' });
     }
   }, [user]);
 

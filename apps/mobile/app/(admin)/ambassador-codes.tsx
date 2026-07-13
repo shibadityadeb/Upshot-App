@@ -22,6 +22,7 @@ import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants
 import { verticalColors } from '../../src/constants/theme';
 import { Button, Card, EmptyState, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -141,7 +142,7 @@ export default function AmbassadorCodesScreen() {
       setGeneratedCode(result);
       await loadCodes();
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Failed to generate code');
+      showError(e, { context: 'Failed to generate code' });
     } finally {
       setGenerating(false);
     }
@@ -169,7 +170,7 @@ export default function AmbassadorCodesScreen() {
               await api.ambassadors.deactivateCode(codeId);
               await loadCodes();
             } catch (e: any) {
-              Alert.alert('Error', e?.message ?? 'Failed to deactivate');
+              showError(e, { context: 'Failed to deactivate' });
             }
           },
         },

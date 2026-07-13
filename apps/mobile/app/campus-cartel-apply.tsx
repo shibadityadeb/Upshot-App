@@ -19,6 +19,7 @@ import type { CampusCartelMember } from '@upshot/api-client';
 import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../src/constants/theme';
 import { useAuthStore } from '../src/store/auth.store';
 import { useDebounce } from '../src/hooks/useDebounce';
+import { showError } from '../src/store/error.store';
 
 const api = createApiClient();
 const GREEN = verticalColors.campusCartel;
@@ -130,12 +131,12 @@ export default function CampusCartelApply() {
         );
       }
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         setScreen('success');
       }
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong.');
+      showError(e, { context: 'Something went wrong.' });
     } finally {
       setSubmitting(false);
     }
@@ -179,7 +180,7 @@ export default function CampusCartelApply() {
               setCity('');
               setAmbassadorCode('');
             } catch (e) {
-              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to withdraw.');
+              showError(e, { context: 'Failed to withdraw.' });
             }
           },
         },

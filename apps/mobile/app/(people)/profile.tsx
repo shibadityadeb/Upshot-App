@@ -22,6 +22,7 @@ import {
   Input,
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -177,7 +178,7 @@ export default function PeopleProfile() {
         } as any),
       ]);
       if (authRes.error) {
-        Alert.alert('Error', authRes.error.message);
+        showError(authRes.error);
       } else {
         Alert.alert('Saved', 'Profile updated successfully.');
         setIsEditing(false);

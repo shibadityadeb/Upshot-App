@@ -17,6 +17,7 @@ import type { Event } from '@upshot/types';
 import { colors, Font, FontSize, Gap } from '../../../src/constants/theme';
 import { AvatarCircle, Input } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
+import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -84,7 +85,7 @@ export default function PeopleApply() {
     try {
       const result = await api.events.applyForEvent(event.id, user.id, note.trim() || undefined);
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         setApplicationStatus('pending');
         Alert.alert('Application Submitted', 'Your application is pending approval by the organiser.');
