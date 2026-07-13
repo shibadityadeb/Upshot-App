@@ -29,6 +29,7 @@ import {
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useDebounce } from '../../src/hooks/useDebounce';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -175,7 +176,7 @@ export default function AdminEvents() {
         status: 'approved',
       });
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         if (selectedVertical.id && selectedVertical.id.includes('-') && selectedVertical.id.length >= 36) {
           try {
@@ -203,7 +204,7 @@ export default function AdminEvents() {
   const handleConfirmChangeVertical = useCallback(async () => {
     if (!pendingChangeEventId) return;
     if (changeSelectedVertical.id && !(changeSelectedVertical.id.includes('-') && changeSelectedVertical.id.length >= 36)) {
-      Alert.alert('Error', 'Vertical data not loaded yet. Please try again.');
+      showError(null, { context: 'Vertical data not loaded yet. Please try again.' });
       return;
     }
     setActionLoading(pendingChangeEventId);
@@ -213,7 +214,7 @@ export default function AdminEvents() {
       setPendingChangeEventId(null);
       await loadEvents();
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Failed to update vertical');
+      showError(e, { context: 'Failed to update vertical' });
     } finally {
       setActionLoading(null);
     }
@@ -234,7 +235,7 @@ export default function AdminEvents() {
                 rejection_reason: reason || 'Rejected by admin',
               });
               if (result.error) {
-                Alert.alert('Error', result.error.message);
+                showError(result.error);
               } else {
                 await loadEvents();
               }
@@ -277,7 +278,7 @@ export default function AdminEvents() {
     try {
       const result = await api.hosting.approveApplication(appId, user.id);
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         Alert.alert('Approved', 'Event has been created from this application.');
         await Promise.all([loadHostApps(), loadEvents()]);
@@ -294,7 +295,7 @@ export default function AdminEvents() {
         setHostActionLoading(appId);
         try {
           const result = await api.hosting.rejectApplication(appId, user.id, reason || undefined);
-          if (result.error) Alert.alert('Error', result.error.message);
+          if (result.error) showError(result.error);
           else await loadHostApps();
         } finally {
           setHostActionLoading(null);

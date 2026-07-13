@@ -14,6 +14,7 @@ import { createApiClient } from '@upshot/api-client';
 import { colors, Font, FontSize, Gap } from '../../src/constants/theme';
 import { AvatarCircle, Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -39,12 +40,12 @@ export default function AmbassadorProfile() {
         phone: editPhone.trim() || null,
       });
       if (result.error) {
-        Alert.alert('Error', result.error.message ?? 'Failed to save profile.');
+        showError(result.error, { context: 'Failed to save profile.' });
       } else {
         Alert.alert('Saved', 'Your profile has been updated.');
       }
     } catch {
-      Alert.alert('Error', 'An unexpected error occurred.');
+      showError(null, { context: 'An unexpected error occurred.' });
     } finally {
       setSaving(false);
     }

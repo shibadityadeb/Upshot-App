@@ -18,6 +18,7 @@ import type { Task } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { Button, Input, CoinBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -129,13 +130,13 @@ export default function CampusCartelScreen() {
         city || undefined,
       );
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         setJustApplied(true);
         setScreenState('pending');
       }
     } catch {
-      Alert.alert('Error', 'Something went wrong');
+      showError(null, { context: 'Something went wrong' });
     }
     setSubmitting(false);
   };
@@ -166,7 +167,7 @@ export default function CampusCartelScreen() {
               setCodeValid(null);
               setJustApplied(false);
             } catch {
-              Alert.alert('Error', 'Failed to withdraw.');
+              showError(null, { context: 'Failed to withdraw.' });
             }
             setWithdrawing(false);
           },

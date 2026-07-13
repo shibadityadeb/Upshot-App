@@ -19,6 +19,7 @@ import { createApiClient } from '@upshot/api-client';
 import type { AmbassadorCode, CreateAmbassadorCodePayload, Vertical } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../constants/theme';
 import { Button, Card, EmptyState, Input } from '../../components/common';
+import { showError } from '../../store/error.store';
 
 const api = createApiClient();
 
@@ -131,7 +132,7 @@ export function AmbassadorCodesPanel({ adminId }: Props) {
       setGeneratedCode(result);
       await loadCodes();
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Failed to generate code');
+      showError(e, { context: 'Failed to generate code' });
     } finally {
       setGenerating(false);
     }
@@ -159,7 +160,7 @@ export function AmbassadorCodesPanel({ adminId }: Props) {
               await api.ambassadors.deactivateCode(codeId);
               await loadCodes();
             } catch (e: any) {
-              Alert.alert('Error', e?.message ?? 'Failed to deactivate');
+              showError(e, { context: 'Failed to deactivate' });
             }
           },
         },

@@ -18,6 +18,7 @@ import type { TaskTargetGroup } from '@upshot/types';
 import { colors, Font, FontSize, Gap } from '../../src/constants/theme';
 import { Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -82,7 +83,7 @@ export default function AdminCreateTask() {
 
       console.log('[CREATE_TASK] result:', JSON.stringify(result));
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         Alert.alert('Success', 'Task created successfully!', [
           { text: 'OK', onPress: () => router.back() },
@@ -90,7 +91,7 @@ export default function AdminCreateTask() {
       }
     } catch (e) {
       console.error('[CREATE_TASK] exception:', e);
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to create task');
+      showError(e, { context: 'Failed to create task' });
     } finally {
       setSubmitting(false);
     }

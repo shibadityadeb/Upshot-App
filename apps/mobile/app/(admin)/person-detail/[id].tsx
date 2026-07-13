@@ -27,6 +27,7 @@ import {
   RoleTag,
 } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
+import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -114,7 +115,7 @@ export default function AdminPersonDetail() {
         bonusDescription.trim(),
       );
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         Alert.alert('Success', `${amount} coins added to ${profile.full_name}`);
         setBonusAmount('');
@@ -141,7 +142,7 @@ export default function AdminPersonDetail() {
             try {
               const result = await api.ambassadors.createAmbassador(profile.id);
               if (result.error) {
-                Alert.alert('Error', result.error.message);
+                showError(result.error);
               } else {
                 Alert.alert('Success', `${profile.full_name} is now an ambassador!`);
                 await load();
@@ -170,7 +171,7 @@ export default function AdminPersonDetail() {
             try {
               const result = await api.ambassadors.deactivateAmbassador(ambassador.id);
               if (result.error) {
-                Alert.alert('Error', result.error.message);
+                showError(result.error);
               } else {
                 Alert.alert('Done', 'Ambassador deactivated.');
                 await load();

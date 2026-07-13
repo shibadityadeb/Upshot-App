@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
+
   Alert,
   ActivityIndicator,
   Image,
@@ -23,6 +24,7 @@ import { Button, Card, EmptyState, LoadingScreen, CoinBadge, StatusBadge } from 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../../src/store/auth.store';
 import { uploadEventImage } from '../../../src/utils/uploadEventImage';
+import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 const SEEN_APPROVALS_KEY = 'seen_approved_task_ids';
@@ -265,7 +267,7 @@ export default function VerticalDetailScreen() {
       const idSet = new Set(myT.map((t) => t.id));
       setTasks([...myT, ...grpT.filter((t) => !idSet.has(t.id))] as any);
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to submit task.');
+      showError(e, { context: 'Failed to submit task.' });
     } finally {
       setSubmitting(false);
     }

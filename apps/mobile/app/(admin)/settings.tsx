@@ -15,6 +15,7 @@ import { createApiClient } from '@upshot/api-client';
 import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import { AvatarCircle, Button, Divider, Input, RoleTag } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -51,7 +52,7 @@ export default function AdminSettings() {
         phone: editPhone.trim() || undefined,
       });
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         await refreshUser();
         Alert.alert('Saved', 'Profile updated successfully.');

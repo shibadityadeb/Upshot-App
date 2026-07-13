@@ -25,6 +25,7 @@ import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants
 import { StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { uploadEventImage } from '../../src/utils/uploadEventImage';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -551,7 +552,7 @@ export default function HostEvent() {
       });
 
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         const msg = imageWarning
           ? 'Your hosting application was submitted, but the image could not be uploaded.'
@@ -566,7 +567,7 @@ export default function HostEvent() {
         }]);
       }
     } catch {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      showError(null, { context: 'Something went wrong. Please try again.' });
     } finally {
       setSubmitting(false);
     }

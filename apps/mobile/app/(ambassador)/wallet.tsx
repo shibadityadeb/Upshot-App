@@ -14,6 +14,7 @@ import type { WalletBalance, CoinTransaction } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import { LoadingScreen, EmptyState } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -64,7 +65,7 @@ export default function AmbassadorWallet() {
       if (balanceResult.data) setBalance(balanceResult.data);
       setPage(1);
     } catch {
-      Alert.alert('Error', 'Failed to load wallet data.');
+      showError(null, { context: 'Failed to load wallet data.' });
     }
   }, [user, loadTransactionsPage]);
 

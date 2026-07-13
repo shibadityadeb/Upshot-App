@@ -27,6 +27,7 @@ import {
 import { AmbassadorCodesPanel } from '../../src/screens/admin/AmbassadorCodesPanel';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useDebounce } from '../../src/hooks/useDebounce';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -201,7 +202,7 @@ export default function AdminPeople() {
       if (error) throw new Error(error.message);
       setStudents((prev) => prev.map((s) => s.id === studentId ? { ...s, status } : s));
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to update status.');
+      showError(e, { context: 'Failed to update status.' });
     }
   }, []);
 

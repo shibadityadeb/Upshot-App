@@ -27,6 +27,7 @@ import {
   LoadingScreen,
 } from '../../src/components/common';
 import type { Company } from '@upshot/types';
+import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -96,13 +97,13 @@ export default function CompanyProfile() {
         .eq('id', company.id);
 
       if (error) {
-        Alert.alert('Error', 'Failed to save changes. Please try again.');
+        showError(null, { context: 'Failed to save changes. Please try again.' });
       } else {
         Alert.alert('Saved', 'Profile updated');
         fetchCompany();
       }
     } catch {
-      Alert.alert('Error', 'Failed to save changes. Please try again.');
+      showError(null, { context: 'Failed to save changes. Please try again.' });
     } finally {
       setSaving(false);
     }

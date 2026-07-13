@@ -18,6 +18,8 @@ import { colors, Font, FontSize, Gap, radius, shadow } from '../../constants/the
 
 export { SegmentedControl } from './SegmentedControl';
 export { FilterPills } from './FilterPills';
+export { AppLoader } from './AppLoader';
+export { ErrorPopup } from './ErrorPopup';
 
 // ─── Button ──────────────────────────────────────────────────────────────────
 

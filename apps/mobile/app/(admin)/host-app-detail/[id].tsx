@@ -18,6 +18,7 @@ import { colors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../../sr
 import { Button, StatusBadge } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
 import { TouchableOpacity } from 'react-native';
+import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -70,7 +71,7 @@ export default function HostAppDetail() {
     try {
       const result = await api.hosting.approveApplication(id, user.id);
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         Alert.alert('Approved', 'Event has been created from this application.', [
           { text: 'OK', onPress: () => router.back() },
@@ -88,7 +89,7 @@ export default function HostAppDetail() {
         setActionLoading(true);
         try {
           const result = await api.hosting.rejectApplication(id, user.id, reason || undefined);
-          if (result.error) Alert.alert('Error', result.error.message);
+          if (result.error) showError(result.error);
           else Alert.alert('Rejected', 'Application has been rejected.', [
             { text: 'OK', onPress: () => router.back() },
           ]);

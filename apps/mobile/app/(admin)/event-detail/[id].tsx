@@ -27,6 +27,7 @@ import {
   StatusBadge,
 } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
+import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 
@@ -78,7 +79,7 @@ export default function AdminEventDetail() {
     try {
       const result = await api.events.updateEventStatus(event.id, user.id, { status: 'approved' });
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        showError(result.error);
       } else {
         await load();
       }
@@ -97,7 +98,7 @@ export default function AdminEventDetail() {
             status: 'rejected',
             rejection_reason: reason || 'Rejected by admin',
           });
-          if (result.error) Alert.alert('Error', result.error.message);
+          if (result.error) showError(result.error);
           else await load();
         } finally {
           setEventActioning(false);
@@ -133,7 +134,7 @@ export default function AdminEventDetail() {
       try {
         const result = await api.events.updateApplicationStatus(appId, user.id, status);
         if (result.error) {
-          Alert.alert('Error', result.error.message);
+          showError(result.error);
         } else {
           await load();
         }
