@@ -16,13 +16,14 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { CampusCartelMember } from '@upshot/api-client';
-import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../src/constants/theme';
 import { useAuthStore } from '../src/store/auth.store';
 import { useDebounce } from '../src/hooks/useDebounce';
 import { showError } from '../src/store/error.store';
 
 const api = createApiClient();
-const GREEN = verticalColors.campusCartel;
+// Campus Cartel screens follow the shared editorial theme: ink accents.
+const GREEN = colors.ink;
 
 type CodeState = 'idle' | 'checking' | 'valid' | 'invalid';
 type ScreenState = 'form' | 'checking-existing' | 'success';

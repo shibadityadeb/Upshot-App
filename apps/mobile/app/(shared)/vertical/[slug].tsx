@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { createApiClient } from '@upshot/api-client';
 import type { Vertical, Event, Task, UnfilteredVideo } from '@upshot/types';
-import { colors, verticalColors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
 import { Button, Card, EmptyState, LoadingScreen, CoinBadge, StatusBadge } from '../../../src/components/common';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../../src/store/auth.store';
@@ -313,21 +313,20 @@ export default function VerticalDetailScreen() {
     return <LoadingScreen />;
   }
 
-  const verticalColor = vertical?.color ?? DarkBg;
   const isApprovedStudent = isCampusCartel && studentStatus === 'approved';
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Hero Header */}
-        <View style={[styles.hero, { backgroundColor: verticalColor }]}>
+        {/* Hero Header — brand lime with ink text, same as the homepage */}
+        <View style={styles.hero}>
           {/* Back Button */}
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={24} color="white" />
+            <Ionicons name="chevron-back" size={24} color={colors.ink} />
           </TouchableOpacity>
 
           {/* Hero Content */}
@@ -355,8 +354,8 @@ export default function VerticalDetailScreen() {
                   <Text style={styles.statLabel}>Coins</Text>
                 </View>
                 <View style={styles.statCard}>
-                  <View style={[styles.statIconWrap, { backgroundColor: verticalColors.campusCartel + '15' }]}>
-                    <Ionicons name="clipboard-outline" size={18} color={verticalColors.campusCartel} />
+                  <View style={[styles.statIconWrap, { backgroundColor: colors.primaryTint }]}>
+                    <Ionicons name="clipboard-outline" size={18} color={colors.ink} />
                   </View>
                   <Text style={styles.statValue}>{tasks.filter(t => t.status === 'approved').length}</Text>
                   <Text style={styles.statLabel}>Completed</Text>
@@ -374,7 +373,7 @@ export default function VerticalDetailScreen() {
               {isAmbassador && (
                 <View style={styles.ambassadorSection}>
                   <View style={styles.ambassadorBadge}>
-                    <Ionicons name="shield-checkmark" size={16} color={verticalColors.campusCartel} />
+                    <Ionicons name="shield-checkmark" size={16} color={colors.ink} />
                     <Text style={styles.ambassadorBadgeText}>Ambassador</Text>
                   </View>
                 </View>
@@ -393,7 +392,7 @@ export default function VerticalDetailScreen() {
               {/* Tasks */}
               <Text style={styles.eventsHeading}>Your Tasks</Text>
               {tasksLoading ? (
-                <ActivityIndicator size="small" color={verticalColors.campusCartel} style={{ marginVertical: 20 }} />
+                <ActivityIndicator size="small" color={colors.ink} style={{ marginVertical: 20 }} />
               ) : tasks.length === 0 ? (
                 <EmptyState
                   iconName="clipboard-outline"
@@ -482,7 +481,7 @@ export default function VerticalDetailScreen() {
                                 onPress={pickImage}
                                 activeOpacity={0.8}
                               >
-                                <Ionicons name="camera-outline" size={18} color={verticalColors.campusCartel} />
+                                <Ionicons name="camera-outline" size={18} color={colors.ink} />
                                 <Text style={styles.imagePickerText}>
                                   {submissionImageUri ? 'Change Screenshot' : 'Attach Screenshot / Image'}
                                 </Text>
@@ -536,8 +535,8 @@ export default function VerticalDetailScreen() {
                   style={[
                     styles.campusCartelCard,
                     {
-                      backgroundColor: verticalColors.campus_cartel + '15',
-                      borderLeftColor: verticalColors.campus_cartel,
+                      backgroundColor: colors.primaryTint,
+                      borderLeftColor: colors.primary,
                     },
                   ]}
                 >
@@ -577,7 +576,7 @@ export default function VerticalDetailScreen() {
                     onPress={() => Linking.openURL(unfilteredChannelUrl)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.seeAllText, { color: verticalColors.unfiltered }]}>See all →</Text>
+                    <Text style={styles.seeAllText}>See all →</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -637,7 +636,7 @@ export default function VerticalDetailScreen() {
                     onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
                     activeOpacity={0.8}
                   >
-                    <View style={[styles.eventColorBar, { backgroundColor: verticalColor }]} />
+                    <View style={styles.eventColorBar} />
                     <View style={styles.eventBody}>
                       <Text style={styles.eventTitle} numberOfLines={2}>{ev.title}</Text>
                       <Text style={styles.eventMeta}>
@@ -665,7 +664,7 @@ export default function VerticalDetailScreen() {
         <View style={styles.fabWrap} pointerEvents="box-none">
           {featExpanded && (
             <TouchableOpacity
-              style={[styles.fabBubble, { backgroundColor: verticalColor }]}
+              style={[styles.fabBubble, { backgroundColor: colors.ink }]}
               onPress={() => router.push('/unfiltered-feature' as any)}
               activeOpacity={0.9}
             >
@@ -678,7 +677,7 @@ export default function VerticalDetailScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={[styles.fab, { backgroundColor: verticalColor }]}
+            style={[styles.fab, { backgroundColor: colors.ink }]}
             onPress={toggleFeat}
             activeOpacity={0.85}
           >
@@ -688,7 +687,7 @@ export default function VerticalDetailScreen() {
                 style={[
                   styles.fabPulse,
                   {
-                    backgroundColor: verticalColor,
+                    backgroundColor: colors.ink,
                     opacity: fabPulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
                     transform: [{ scale: fabPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] }) }],
                   },
@@ -748,18 +747,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Hero — compact
+  // Hero — compact, brand lime with ink text
   hero: {
     paddingTop: 52,
     paddingBottom: Gap.lg,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
+    backgroundColor: colors.primary,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Gap.base,
@@ -772,19 +772,19 @@ const styles = StyleSheet.create({
   heroLabel: {
     fontSize: 11,
     letterSpacing: 3,
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(14,14,14,0.6)',
     fontWeight: '700',
   },
   heroName: {
     fontSize: 30,
     fontWeight: '900',
-    color: 'white',
+    color: colors.ink,
     marginTop: 4,
     letterSpacing: -0.6,
   },
   heroTagline: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(14,14,14,0.7)',
     marginTop: 6,
     lineHeight: 20,
   },
@@ -872,17 +872,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: verticalColors.campusCartel + '15',
+    backgroundColor: colors.primaryTint,
     borderRadius: radius.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: verticalColors.campusCartel + '30',
+    borderColor: colors.borderStrong,
   },
   ambassadorBadgeText: {
     fontSize: FontSize.body,
     fontWeight: Font.semibold,
-    color: verticalColors.campusCartel,
+    color: colors.ink,
   },
 
   // Tasks
@@ -1000,17 +1000,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: verticalColors.campusCartel + '12',
+    backgroundColor: colors.primaryTint,
     borderRadius: radius.md,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: verticalColors.campusCartel + '30',
+    borderColor: colors.borderStrong,
     borderStyle: 'dashed',
   },
   imagePickerText: {
     fontSize: FontSize.small,
-    color: verticalColors.campusCartel,
+    color: colors.ink,
     fontWeight: Font.semibold,
   },
   imagePreviewContainer: {
@@ -1035,7 +1035,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: verticalColors.campusCartel,
+    backgroundColor: colors.ink,
     borderRadius: radius.md,
     paddingVertical: 12,
     ...shadow.sm,
@@ -1070,6 +1070,7 @@ const styles = StyleSheet.create({
   },
   eventColorBar: {
     width: 3,
+    backgroundColor: colors.primary,
   },
   eventBody: {
     flex: 1,
@@ -1161,7 +1162,8 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     fontSize: FontSize.small,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
   unfilteredEmpty: {
     alignItems: 'center',

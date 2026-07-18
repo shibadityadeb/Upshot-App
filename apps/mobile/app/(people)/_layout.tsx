@@ -45,7 +45,7 @@ export default function PeopleLayout() {
       <Tabs.Screen
         name="opportunities"
         options={{
-          title: 'Opportunities',
+          title: 'Workshops',
           tabBarIcon: ({ color, size }) => <Ionicons name="briefcase-outline" size={size} color={color} />,
         }}
       />

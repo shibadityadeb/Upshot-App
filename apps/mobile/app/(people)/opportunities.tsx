@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,98 +10,176 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
-import type { Event } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
-import { EmptyState, OpportunityCard } from '../../src/components/common';
+import type { EventApplication } from '@upshot/types';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { EmptyState, StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useDebounce } from '../../src/hooks/useDebounce';
 
 const api = createApiClient();
 
-const CATEGORIES = ['All', 'Social', 'BFSI', 'Corporate', 'Other'];
+const VERTICAL_FILTERS = [
+  { label: 'All', slug: null },
+  { label: 'iRISE', slug: 'irise' },
+  { label: 'iBelieve', slug: 'ibelieve' },
+] as const;
+const TIME_FILTERS = ['Upcoming', 'Past'];
 
-export default function PeopleOpportunities() {
+/** Joined workshops stay visible for a week after the event, then leave
+    the UI only — the application rows are never touched in the DB. */
+const JOINED_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
+export default function PeopleWorkshops() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
 
-  const [events, setEvents] = useState<Event[]>([]);
-  const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
+  const [applications, setApplications] = useState<EventApplication[]>([]);
+  const [verticalSlugById, setVerticalSlugById] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [applyingIds, setApplyingIds] = useState<Set<string>>(new Set());
+  const [selectedVertical, setSelectedVertical] = useState(0);
+  const [timeFilter, setTimeFilter] = useState(0);
   const [search, setSearch] = useState('');
 
   const debouncedSearch = useDebounce(search);
 
+  // Time sub-filter only makes sense once a specific vertical is picked
+  const subFilterEnabled = selectedVertical !== 0;
+
   const loadApplications = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     try {
       const result = await api.events.getMyApplications(user.id);
-      if (result.data) {
-        setAppliedEventIds(new Set(result.data.map((a) => a.event_id)));
-      }
-    } catch (e) {
-      console.warn(e);
-    }
-  }, [user]);
-
-  const loadEvents = useCallback(async (category: string) => {
-    try {
-      const cat = category === 'All' ? undefined : category.toLowerCase();
-      const result = await api.events.getApprovedEvents(1, 20, cat);
-      if (result.data) {
-        setEvents(result.data.data ?? result.data as any);
-      }
+      if (result.data) setApplications(result.data);
     } catch (e) {
       console.warn(e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  }, [user]);
+
+  const loadVerticals = useCallback(async () => {
+    try {
+      const verts = await api.verticals.getAllVerticals();
+      const map: Record<string, string> = {};
+      for (const v of verts) map[v.id] = v.slug;
+      setVerticalSlugById(map);
+    } catch (e) {
+      console.warn(e);
+    }
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([loadEvents(selectedCategory), loadApplications()]);
-  }, []);
+    loadVerticals();
+  }, [loadVerticals]);
+
+  // Refresh on focus so a fresh application shows up immediately
+  useFocusEffect(
+    useCallback(() => {
+      loadApplications();
+    }, [loadApplications]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadEvents(selectedCategory), loadApplications()]);
-  }, [selectedCategory, loadEvents, loadApplications]);
+    await Promise.all([loadApplications(), loadVerticals()]);
+  }, [loadApplications, loadVerticals]);
 
-  const handleCategoryChange = useCallback((cat: string) => {
-    setSelectedCategory(cat);
-    setLoading(true);
-    loadEvents(cat);
-  }, [loadEvents]);
+  const now = Date.now();
+  const joined = applications
+    .filter((app) => {
+      if (app.status === 'withdrawn') return false;
 
-  const filteredEvents = events.filter((e) => {
-    // Hide past events
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (e.event_date < todayStr) return false;
+      // 7-day post-event UI window — rows stay in the DB untouched
+      const dateStr = app.event?.event_date;
+      if (dateStr && now > new Date(dateStr).getTime() + JOINED_GRACE_MS) return false;
 
-    const q = debouncedSearch.toLowerCase();
-    if (!q) return true;
-    return e.title.toLowerCase().includes(q) || (e.location ?? '').toLowerCase().includes(q);
-  });
+      const wantedSlug = VERTICAL_FILTERS[selectedVertical].slug;
+      if (wantedSlug) {
+        const slug = app.event?.vertical_id ? verticalSlugById[app.event.vertical_id] : undefined;
+        if (slug !== wantedSlug) return false;
 
-  const renderEvent = ({ item }: { item: Event }) => (
-    <View style={styles.cardWrapper}>
-      <OpportunityCard
-        event={item as any}
-        onPress={() => router.push(`/(people)/apply/${item.id}` as any)}
-        onApply={() => router.push(`/(people)/apply/${item.id}` as any)}
-        hasApplied={appliedEventIds.has(item.id)}
-        isApplying={applyingIds.has(item.id)}
-      />
-    </View>
-  );
+        const isPast = !!dateStr && new Date(dateStr).getTime() < now;
+        if ((timeFilter === 1) !== isPast) return false;
+      }
+
+      const q = debouncedSearch.toLowerCase();
+      if (!q) return true;
+      return (
+        (app.event?.title ?? '').toLowerCase().includes(q) ||
+        (app.event?.location ?? '').toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      // Upcoming first (soonest on top), then past (most recent on top)
+      const da = a.event?.event_date ?? '';
+      const db = b.event?.event_date ?? '';
+      const aPast = !!da && new Date(da).getTime() < now;
+      const bPast = !!db && new Date(db).getTime() < now;
+      if (aPast !== bPast) return aPast ? 1 : -1;
+      return aPast ? db.localeCompare(da) : da.localeCompare(db);
+    });
+
+  const renderJoined = ({ item: app }: { item: EventApplication }) => {
+    const eventDate = app.event?.event_date ? new Date(app.event.event_date) : null;
+    const isPast = !!eventDate && eventDate.getTime() < Date.now();
+    const slug = app.event?.vertical_id ? verticalSlugById[app.event.vertical_id] : undefined;
+    const verticalLabel = slug === 'irise' ? 'iRISE' : slug === 'ibelieve' ? 'iBelieve' : null;
+
+    return (
+      <TouchableOpacity
+        style={styles.joinedCard}
+        onPress={() => router.push(`/(people)/apply/${app.event_id}` as any)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.joinedHeader}>
+          <Text style={styles.joinedTitle} numberOfLines={2}>
+            {app.event?.title ?? 'Workshop'}
+          </Text>
+          <StatusBadge status={app.status} />
+        </View>
+
+        {!!verticalLabel && (
+          <View style={styles.joinedTagRow}>
+            <View style={styles.verticalTag}>
+              <Text style={styles.verticalTagText}>{verticalLabel}</Text>
+            </View>
+          </View>
+        )}
+
+        {!!eventDate && (
+          <View style={styles.joinedMetaRow}>
+            <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.joinedMeta}>
+              {eventDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </Text>
+          </View>
+        )}
+
+        {!!app.event?.location && (
+          <View style={styles.joinedMetaRow}>
+            <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.joinedMeta} numberOfLines={1}>{app.event.location}</Text>
+          </View>
+        )}
+
+        {app.status === 'approved' && !isPast && (
+          <Text style={styles.joinedConfirmed}>You are confirmed!</Text>
+        )}
+        {isPast && (
+          <View style={styles.joinedDoneRow}>
+            <Ionicons name="checkmark-done-outline" size={14} color={colors.textLight} />
+            <Text style={styles.joinedDone}>Workshop completed</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -118,8 +195,8 @@ export default function PeopleOpportunities() {
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.headerTitle}>Opportunities</Text>
-            <Text style={styles.headerSubtitle}>Find your next project</Text>
+            <Text style={styles.headerTitle}>Workshops</Text>
+            <Text style={styles.headerSubtitle}>Your joined workshops</Text>
           </View>
           <TouchableOpacity
             style={styles.hostBtn}
@@ -132,42 +209,66 @@ export default function PeopleOpportunities() {
         </View>
       </View>
 
-      {/* Search + Category pills — single white block */}
+      {/* Search + filters */}
       <View style={styles.filterBlock}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search opportunities..."
+          placeholder="Search your workshops..."
           placeholderTextColor={colors.textLight}
           value={search}
           onChangeText={setSearch}
         />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.pillRow}
-        >
-          {CATEGORIES.map((cat) => {
-            const active = selectedCategory === cat;
+        <View style={styles.pillRow}>
+          {VERTICAL_FILTERS.map((v, i) => {
+            const active = selectedVertical === i;
             return (
               <TouchableOpacity
-                key={cat}
-                onPress={() => handleCategoryChange(cat)}
+                key={v.label}
+                onPress={() => setSelectedVertical(i)}
                 activeOpacity={0.75}
                 style={[styles.pill, active && styles.pillActive]}
               >
                 <Text style={[styles.pillLabel, active && styles.pillLabelActive]}>
-                  {cat}
+                  {v.label}
                 </Text>
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </View>
+        <View style={styles.subPillRow}>
+          {TIME_FILTERS.map((t, i) => {
+            const active = subFilterEnabled && timeFilter === i;
+            return (
+              <TouchableOpacity
+                key={t}
+                onPress={() => subFilterEnabled && setTimeFilter(i)}
+                activeOpacity={subFilterEnabled ? 0.75 : 1}
+                disabled={!subFilterEnabled}
+                style={[
+                  styles.subPill,
+                  active && styles.subPillActive,
+                  !subFilterEnabled && styles.subPillDisabled,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.subPillLabel,
+                    active && styles.subPillLabelActive,
+                    !subFilterEnabled && styles.subPillLabelDisabled,
+                  ]}
+                >
+                  {t}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       <FlatList
-        data={filteredEvents}
+        data={joined}
         keyExtractor={(item) => item.id}
-        renderItem={renderEvent}
+        renderItem={renderJoined}
         style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -176,12 +277,12 @@ export default function PeopleOpportunities() {
         }
         ListEmptyComponent={
           <EmptyState
-            iconName="briefcase-outline"
-            title={debouncedSearch ? 'No results found' : 'No opportunities right now'}
+            iconName="ribbon-outline"
+            title={debouncedSearch ? 'No results found' : 'No joined workshops yet'}
             subtitle={
               debouncedSearch
                 ? 'Try a different search term'
-                : 'New projects are posted regularly.\nCheck back soon.'
+                : 'Apply to a workshop from the iRISE or\niBelieve pages and it will show up here.'
             }
           />
         }
@@ -243,7 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: Gap.base,
     paddingTop: 10,
-    paddingBottom: 0,
+    paddingBottom: Gap.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -258,7 +359,7 @@ const styles = StyleSheet.create({
     height: 40,
   },
   pillRow: {
-    paddingVertical: 10,
+    paddingTop: 10,
     gap: Gap.sm,
     flexDirection: 'row',
     alignItems: 'center',
@@ -284,13 +385,111 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
     fontWeight: Font.bold,
   },
+  subPillRow: {
+    paddingTop: Gap.sm,
+    gap: Gap.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  subPillActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  subPillDisabled: {
+    opacity: 0.35,
+  },
+  subPillLabel: {
+    fontSize: 12,
+    fontWeight: Font.semibold,
+    color: colors.textSecondary,
+  },
+  subPillLabelActive: {
+    color: '#FFFFFF',
+    fontWeight: Font.bold,
+  },
+  subPillLabelDisabled: {
+    color: colors.textLight,
+  },
   listContent: {
     paddingHorizontal: Gap.base,
-    paddingTop: Gap.sm,
+    paddingTop: Gap.md,
     paddingBottom: 100,
     flexGrow: 1,
   },
-  cardWrapper: {
+
+  // ── Joined workshop cards ───────────────────────────────────
+  joinedCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.base,
     marginBottom: Gap.sm,
+    ...shadow.sm,
+  },
+  joinedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Gap.sm,
+  },
+  joinedTitle: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.bold,
+    color: colors.text,
+    flex: 1,
+    lineHeight: 22,
+  },
+  joinedTagRow: {
+    flexDirection: 'row',
+    marginTop: 4,
+    marginBottom: Gap.sm,
+  },
+  joinedMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 3,
+  },
+  joinedMeta: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  joinedConfirmed: {
+    marginTop: Gap.sm,
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
+    color: colors.success,
+  },
+  joinedDoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Gap.sm,
+  },
+  joinedDone: {
+    fontSize: FontSize.small,
+    color: colors.textLight,
+    fontWeight: Font.medium,
+  },
+  verticalTag: {
+    backgroundColor: colors.primaryTint,
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  verticalTagText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
 });

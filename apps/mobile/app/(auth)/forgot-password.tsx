@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +16,7 @@ import { createApiClient } from '@upshot/api-client';
 import { colors, typography, spacing } from '../../src/constants/theme';
 
 const api = createApiClient();
+const LOGO = require('../../assets/logo.png');
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -42,11 +44,9 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.backText}>{'<'} Back</Text>
         </TouchableOpacity>
         <View style={styles.logoContainer}>
-          <View style={styles.logoRow}>
-            <Text style={styles.logoUp}>UP</Text>
-            <Text style={styles.logoShot}>SHOT</Text>
+          <View style={styles.logoBadge}>
+            <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
           </View>
-          <Text style={styles.logoBrand}>BRAND MEDIA</Text>
         </View>
       </SafeAreaView>
 
@@ -139,25 +139,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.lg,
   },
-  logoRow: {
-    flexDirection: 'row',
+  logoBadge: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  logoUp: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  logoShot: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  logoBrand: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(14,14,14,0.6)',
-    letterSpacing: 4,
-    marginTop: 2,
+  logoImage: {
+    width: 150,
+    height: 40,
   },
   formSheet: {
     flex: 1,
