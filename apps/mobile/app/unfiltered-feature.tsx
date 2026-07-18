@@ -14,11 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import { Button, Input } from '../src/components/common';
 import { useAuthStore } from '../src/store/auth.store';
-import { colors, verticalColors, Font, FontSize, Gap, radius, shadow } from '../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../src/constants/theme';
 
 const api = createApiClient();
 
-const UNFILTERED = verticalColors.unfiltered;
+// Unfiltered screens follow the shared editorial theme: ink surfaces, white text.
+const UNFILTERED = colors.ink;
 
 export default function UnfilteredFeatureScreen() {
   const router = useRouter();

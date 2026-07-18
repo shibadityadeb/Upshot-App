@@ -373,9 +373,13 @@ export default function PeopleApplications() {
 
         {/* ── Event Applications Section ── */}
         {!appLoading && applications.length > 0 && (() => {
-          const todayStr = new Date().toISOString().split('T')[0];
+          // Applications stay visible until 7 days after the event (UI only —
+          // rows are kept in the DB), matching the Opportunities "Joined" tab.
+          const graceCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
           const activeApps = applications.filter(
-            (app) => app.status !== 'withdrawn' && (!app.event?.event_date || app.event.event_date >= todayStr)
+            (app) =>
+              app.status !== 'withdrawn' &&
+              (!app.event?.event_date || new Date(app.event.event_date).getTime() >= graceCutoff)
           );
           return activeApps.length > 0 ? (
           <>

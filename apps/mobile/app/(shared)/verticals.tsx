@@ -78,7 +78,7 @@ export default function VerticalsScreen() {
             activeOpacity={0.82}
           >
             {/* Color bar */}
-            <View style={[styles.colorBar, { backgroundColor: v.color }]} />
+            <View style={[styles.colorBar, { backgroundColor: colors.primary }]} />
 
             {/* Content */}
             <View style={styles.cardContent}>

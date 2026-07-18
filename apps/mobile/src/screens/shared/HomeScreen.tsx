@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Alert,
-  Platform,
   ScrollView,
   View,
   Text,
   Image,
-  TextInput,
   TouchableOpacity,
-  Modal,
+  RefreshControl,
   StyleSheet,
   StatusBar,
   Linking,
@@ -17,10 +14,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { Vertical, Event, UnfilteredVideo, Task } from '@upshot/types';
+import type { UnfilteredVideo } from '@upshot/types';
 import {
   colors,
-  verticalColors,
   Font,
   FontSize,
   Gap,
@@ -31,6 +27,11 @@ import {
   SectionHeader,
   LoadingScreen,
 } from '../../components/common';
+import {
+  FeaturedPodcastCard,
+  CommunityBanner,
+  WorkshopCard,
+} from '../../components/home';
 import { useAuthStore } from '../../store/auth.store';
 
 const api = createApiClient();
@@ -38,53 +39,29 @@ const api = createApiClient();
 // ─── Design tokens (single source of truth for this screen) ─────────────────
 const PAGE_H = Gap.base;       // 16 — horizontal padding for all sections
 const SECTION_V = Gap.xl;      // 24 — top/bottom padding for every section
-const CARD_RADIUS = 20;        // border radius applied to every card
-const CARD_PAD = Gap.base;     // 16 — internal padding for every card
-
-const FALLBACK_VERTICALS: Vertical[] = [
-  {
-    id: '1',
-    name: 'Unfiltered',
-    slug: 'unfiltered',
-    tagline: 'Real conversations with leaders',
-    color: verticalColors.unfiltered,
-    is_active: true,
-    sort_order: 1,
-    created_at: '',
-  },
-  {
-    id: '2',
-    name: 'Campus Cartel',
-    slug: 'campus-cartel',
-    tagline: "India's student network",
-    color: verticalColors.campusCartel,
-    is_active: true,
-    sort_order: 2,
-    created_at: '',
-  },
-  {
-    id: '3',
-    name: 'iRISE',
-    slug: 'irise',
-    tagline: "Women's leadership platform",
-    color: verticalColors.irise,
-    is_active: true,
-    sort_order: 3,
-    created_at: '',
-  },
-  {
-    id: '4',
-    name: 'iBelieve',
-    slug: 'ibelieve',
-    tagline: 'Entrepreneurship network',
-    color: verticalColors.ibelieve,
-    is_active: true,
-    sort_order: 4,
-    created_at: '',
-  },
-];
-
 const HERO_TAGS = ['Unfiltered', 'Campus cartel', 'iRISE', 'iBelieve'];
+
+const LOGO = require('../../../assets/logo.png');
+const CAMPUS_CARTEL_IMG = require('../../../assets/campus cartel.png');
+const IRISE_IMG = require('../../../assets/irise.jpg');
+const IBELIEVE_IMG = require('../../../assets/ibelieve.jpg');
+
+// UI-only fallback shown until the admin features a video through the
+// existing unfiltered API — the API result always wins when present.
+const PLACEHOLDER_PODCAST = {
+  youtube_url: 'https://youtu.be/z_JlWC62ZXk?si=uYprPaQ0y5HES4HG',
+  title: 'Unfiltered — real conversations with leaders',
+  description: 'Founders, CXOs and policymakers, unscripted.',
+  thumbnail_url: 'https://img.youtube.com/vi/z_JlWC62ZXk/hqdefault.jpg',
+};
+
+/** An episode counts as "new" for two weeks after the admin adds it. */
+const NEW_EPISODE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
+function youtubeThumb(url: string): string | null {
+  const match = url.match(/(?:youtu\.be\/|[?&]v=|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/);
+  return match ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null;
+}
 
 function getTimeOfDay(): string {
   const hour = new Date().getHours();
@@ -97,36 +74,25 @@ export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
-  const [verticals, setVerticals] = useState<Vertical[]>([]);
-  const [allEvents, setAllEvents] = useState<Event[]>([]);
-  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [featuredVideo, setFeaturedVideo] = useState<UnfilteredVideo | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);
-  const [submitModalTaskId, setSubmitModalTaskId] = useState<string | null>(null);
-  const [submitNote, setSubmitNote] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [isCartelMember, setIsCartelMember] = useState(false);
 
   useEffect(() => {
     load();
   }, [user]);
 
-  async function load() {
-    setLoading(true);
+  async function onRefresh() {
+    setRefreshing(true);
+    await load(false);
+    setRefreshing(false);
+  }
+
+  async function load(showLoader = true) {
+    if (showLoader) setLoading(true);
     try {
-      const [verts, events] = await Promise.allSettled([
-        api.verticals.getAllVerticals(),
-        api.events.getApprovedEvents(1, 10),
-      ]);
-
-      if (verts.status === 'fulfilled' && verts.value.length > 0) {
-        setVerticals(verts.value);
-      } else {
-        setVerticals(FALLBACK_VERTICALS);
-      }
-
-      // Load featured unfiltered video independently
+      // Featured unfiltered video for the podcast hero card
       try {
         const featuredResult = await api.unfiltered.getFeaturedVideo();
         if (featuredResult.data) {
@@ -136,35 +102,11 @@ export default function HomeScreen() {
         console.warn('Failed to load featured video', e);
       }
 
-      if (events.status === 'fulfilled' && events.value.data) {
-        const eventList = events.value.data.data ?? events.value.data;
-        setAllEvents(Array.isArray(eventList) ? eventList : []);
-      }
-
+      // Campus Cartel membership — drives the community banner CTA label
       if (user) {
-        const appsResult = await api.events.getMyApplications(user.id);
-        if (appsResult.data) {
-          setAppliedIds(new Set(appsResult.data.map((a) => a.event_id)));
-        }
-
-        // Check Campus Cartel membership first — tasks are CC-only
         try {
           const member = await api.campusCartel.isMember(user.id);
           setIsCartelMember(member);
-
-          // Only load tasks for CC members — filter to tasks assigned to this user or their group
-          if (member && (user.role === 'student' || user.role === 'people')) {
-            try {
-              const { data: tasksData } = await api.supabase
-                .from('tasks')
-                .select('*')
-                .or(`assigned_to.eq.${user.id},target_group.eq.campus_cartel,target_group.eq.students`)
-                .order('created_at', { ascending: false });
-              setTasks((tasksData ?? []) as Task[]);
-            } catch {
-              // silently fail
-            }
-          }
         } catch {
           // silently fail
         }
@@ -175,32 +117,45 @@ export default function HomeScreen() {
     setLoading(false);
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const futureEvents = allEvents.filter((e) => e.event_date >= todayStr);
-  const upcomingEvents = futureEvents.filter((e) => !appliedIds.has(e.id));
-  const joinedEvents = futureEvents.filter((e) => appliedIds.has(e.id));
-
   if (loading) {
     return <LoadingScreen />;
   }
 
   const timeOfDay = getTimeOfDay();
 
+  const podcastTitle = featuredVideo?.title ?? PLACEHOLDER_PODCAST.title;
+  const podcastSubtitle = featuredVideo
+    ? featuredVideo.description
+    : PLACEHOLDER_PODCAST.description;
+  const podcastThumb = featuredVideo
+    ? featuredVideo.thumbnail_url ?? youtubeThumb(featuredVideo.youtube_url)
+    : PLACEHOLDER_PODCAST.thumbnail_url;
+  const podcastUrl = featuredVideo?.youtube_url ?? PLACEHOLDER_PODCAST.youtube_url;
+  const isNewEpisode =
+    !!featuredVideo &&
+    Date.now() - new Date(featuredVideo.created_at).getTime() < NEW_EPISODE_WINDOW_MS;
+
   return (
     <ScrollView
       style={styles.root}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.ink}
+        />
+      }
     >
       <StatusBar barStyle="dark-content" />
 
       {/* ─── Hero ────────────────────────────────────────────── */}
       <View style={styles.hero}>
         <View style={styles.heroTopRow}>
-          <Text style={styles.heroLogoText}>
-            <Text style={styles.heroLogoGreen}>up</Text>
-            <Text style={styles.heroLogoWhite}>shot</Text>
-          </Text>
+          <View style={styles.heroLogoBadge}>
+            <Image source={LOGO} style={styles.heroLogoImage} resizeMode="contain" />
+          </View>
           <Text style={styles.timeText}>{timeOfDay}</Text>
         </View>
 
@@ -234,230 +189,66 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* ─── Our Verticals ───────────────────────────────────── */}
+      {/* ─── Featured Podcast (Unfiltered) ───────────────────── */}
       <View style={styles.section}>
         <SectionHeader
-          title="Our Verticals"
+          title="Featured Podcast"
+          action
+          actionLabel="See all"
+          onAction={() => router.push('/(shared)/vertical/unfiltered' as any)}
         />
-        <View style={styles.verticalsGrid}>
-          {verticals.map((vertical) => (
-            <TouchableOpacity
-              key={vertical.id}
-              style={[styles.verticalCard, { backgroundColor: vertical.color }]}
-              onPress={() => {
-                if (vertical.slug === 'campus-cartel' && user?.role === 'ambassador') {
-                  router.push('/(ambassador)/dashboard' as any);
-                } else {
-                  router.push(`/(shared)/vertical/${vertical.slug}` as any);
-                }
-              }}
-              activeOpacity={0.82}
-            >
-              <View style={styles.verticalCardCircle} />
-              <Text style={styles.verticalCardName}>{vertical.name}</Text>
-              <Text style={styles.verticalCardTagline}>
-                {vertical.tagline ?? ''}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <FeaturedPodcastCard
+          title={podcastTitle}
+          subtitle={podcastSubtitle}
+          thumbnailUrl={podcastThumb}
+          isNew={isNewEpisode}
+          onPress={() => Linking.openURL(podcastUrl)}
+        />
       </View>
-
-      {/* ─── Unfiltered Featured Video ────────────────────────── */}
-      {featuredVideo && (
-        <>
-          <View style={styles.divider} />
-          <View style={styles.section}>
-            <SectionHeader
-              title="Unfiltered"
-              action
-              actionLabel="Show others"
-              onAction={() => router.push('/(shared)/vertical/unfiltered' as any)}
-            />
-            <TouchableOpacity
-              style={styles.featuredVideoCard}
-              onPress={() => Linking.openURL(featuredVideo.youtube_url)}
-              activeOpacity={0.8}
-            >
-              {!!featuredVideo.thumbnail_url && (
-                <View>
-                  <Image
-                    source={{ uri: featuredVideo.thumbnail_url }}
-                    style={styles.featuredVideoThumb}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.featuredVideoPlayOverlay}>
-                    <Ionicons name="play-circle" size={44} color="rgba(255,255,255,0.9)" />
-                  </View>
-                </View>
-              )}
-              <View style={styles.featuredVideoBody}>
-                <View style={styles.featuredVideoPill}>
-                  <Text style={styles.featuredVideoPillText}>UNFILTERED</Text>
-                </View>
-                <Text style={styles.featuredVideoTitle} numberOfLines={2}>{featuredVideo.title}</Text>
-                {!!featuredVideo.description && (
-                  <Text style={styles.featuredVideoDesc} numberOfLines={2}>{featuredVideo.description}</Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
-
-      {/* ─── Joined Workshops ───────────────────────────────── */}
-      {joinedEvents.length > 0 && (
-        <>
-          <View style={styles.divider} />
-          <View style={styles.section}>
-            <SectionHeader title="Joined Workshops" />
-            {joinedEvents.slice(0, 3).map((event) => {
-              const eventDate = new Date(event.event_date);
-              const day = eventDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-              const time = eventDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-              const venue = (event as any).venue;
-              const city = (event as any).city;
-              const loc = venue ? `${venue}${city ? ', ' + city : ''}` : (event.location ?? '');
-
-              return (
-                <TouchableOpacity
-                  key={event.id}
-                  style={styles.joinedCard}
-                  onPress={() => router.push(`/(people)/apply/${event.id}` as any)}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.joinedIconWrap}>
-                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                  </View>
-                  <View style={styles.joinedInfo}>
-                    <Text style={styles.joinedTitle} numberOfLines={1}>{event.title}</Text>
-                    <Text style={styles.joinedMeta}>{day} · {time}{loc ? ` · ${loc}` : ''}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </>
-      )}
-
-      {/* ─── Tasks for Campus Cartel Members ─────────────────── */}
-      {isCartelMember && tasks.filter((t) => t.status === 'assigned').length > 0 && (
-        <>
-          <View style={styles.divider} />
-          <View style={styles.section}>
-            <SectionHeader title="Your Tasks" />
-            {tasks
-              .filter((t) => t.status === 'assigned')
-              .slice(0, 3)
-              .map((task) => (
-                <View key={task.id} style={styles.taskCard}>
-                  <View style={styles.taskCardHeader}>
-                    <Text style={styles.taskCardTitle} numberOfLines={2}>{task.title}</Text>
-                    <View style={styles.taskCoinPill}>
-                      <Ionicons name="diamond-outline" size={11} color="#92400E" />
-                      <Text style={styles.taskCoinText}>{task.coin_value}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.taskCardDesc} numberOfLines={2}>{task.description}</Text>
-                  {task.due_date && (
-                    <View style={styles.taskMetaRow}>
-                      <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
-                      <Text style={styles.taskMetaText}>Due {task.due_date}</Text>
-                    </View>
-                  )}
-                  <TouchableOpacity
-                    style={styles.taskSubmitBtn}
-                    activeOpacity={0.8}
-                    disabled={submittingTaskId === task.id}
-                    onPress={() => {
-                      if (Platform.OS === 'ios') {
-                        Alert.prompt('Submit Task', 'Add a note or link:', [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Submit',
-                            onPress: async (text) => {
-                              setSubmittingTaskId(task.id);
-                              try {
-                                await api.tasks.submitTask(task.id, { submission_note: text ?? '' }, user?.id);
-                                load();
-                              } finally {
-                                setSubmittingTaskId(null);
-                              }
-                            },
-                          },
-                        ], 'plain-text');
-                      } else {
-                        setSubmitNote('');
-                        setSubmitModalTaskId(task.id);
-                      }
-                    }}
-                  >
-                    <Text style={styles.taskSubmitBtnText}>
-                      {submittingTaskId === task.id ? 'Submitting...' : 'Submit'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-          </View>
-        </>
-      )}
 
       <View style={styles.divider} />
 
-      {/* ─── Upcoming Events (1 latest, not joined) ──────────── */}
-      {upcomingEvents.length > 0 && (
-        <View style={styles.section}>
-          <SectionHeader
-            title="Upcoming Events"
-            action
-            actionLabel="See all"
-            onAction={() => router.push('/(people)/opportunities' as any)}
-          />
-          {(() => {
-            const event = upcomingEvents[0];
-            const eventDate = new Date(event.event_date);
-            const day = eventDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-            const time = eventDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-            const venue = (event as any).venue;
-            const city = (event as any).city;
-            const loc = venue ? `${venue}${city ? ', ' + city : ''}` : (event.location ?? '');
+      {/* ─── Join Our Community (Campus Cartel) ──────────────── */}
+      <View style={styles.section}>
+        <SectionHeader title="Join Our Community" />
+        <CommunityBanner
+          image={CAMPUS_CARTEL_IMG}
+          title="Campus Cartel"
+          subtitle="India's largest student ambassador community."
+          ctaLabel={isCartelMember ? 'Go to Campus Cartel' : 'Join Community'}
+          onPress={() =>
+            router.push(
+              user?.role === 'ambassador'
+                ? ('/(ambassador)/dashboard' as any)
+                : ('/(people)/campus-cartel' as any),
+            )
+          }
+        />
+      </View>
 
-            return (
-              <TouchableOpacity
-                style={styles.upcomingCard}
-                onPress={() => router.push(`/(people)/apply/${event.id}` as any)}
-                activeOpacity={0.75}
-              >
-                {!!event.banner_url && (
-                  <Image source={{ uri: event.banner_url }} style={styles.upcomingBanner} resizeMode="cover" />
-                )}
-                <View style={styles.upcomingBody}>
-                  {!!(event as any).category && (
-                    <View style={styles.upcomingCategoryPill}>
-                      <Text style={styles.upcomingCategoryText}>{(event as any).category}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.upcomingTitle} numberOfLines={1}>{event.title}</Text>
-                  <View style={styles.upcomingMeta}>
-                    <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-                    <Text style={styles.upcomingMetaText}>{day} · {time}</Text>
-                  </View>
-                  {!!loc && (
-                    <View style={styles.upcomingMeta}>
-                      <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-                      <Text style={styles.upcomingMetaText} numberOfLines={1}>{loc}</Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })()}
+      <View style={styles.divider} />
+
+      {/* ─── Upcoming Workshops (iRISE + iBelieve) ───────────── */}
+      <View style={styles.section}>
+        <SectionHeader title="Upcoming Workshops" />
+        <View style={styles.workshopList}>
+          <WorkshopCard
+            image={IRISE_IMG}
+            title="Women Leadership"
+            subtitle="Leadership workshops designed for women."
+            onPress={() => router.push('/(shared)/vertical/irise' as any)}
+          />
+          <WorkshopCard
+            image={IBELIEVE_IMG}
+            title="Entrepreneur Network"
+            subtitle="Workshops and networking for entrepreneurs."
+            onPress={() => router.push('/(shared)/vertical/ibelieve' as any)}
+          />
         </View>
-      )}
+      </View>
 
       {/* ─── Host an Event Banner ──────────────────────────────── */}
-      <View style={[styles.bannerWrapper, { paddingBottom: 0 }]}>
+      <View style={styles.bannerWrapper}>
         <View style={styles.hostBanner}>
           <View style={styles.hostBannerIcon}>
             <Ionicons name="megaphone-outline" size={22} color={colors.ink} />
@@ -480,105 +271,6 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* ─── Campus Cartel Banner ────────────────────────────── */}
-      <View style={styles.bannerWrapper}>
-        <View style={styles.campusCartelBanner}>
-          <Text style={styles.campusCartelEyebrow}>CAMPUS CARTEL</Text>
-          <Text style={styles.campusCartelHeadline}>
-            Join India's fastest growing student network
-          </Text>
-          <Text style={styles.campusCartelStats}>
-            150+ colleges · 2,000+ students
-          </Text>
-          <TouchableOpacity
-            style={styles.campusCartelBtn}
-            onPress={() => router.push(user?.role === 'ambassador' ? '/(ambassador)/dashboard' as any : '/(people)/campus-cartel' as any)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.campusCartelBtnText}>
-              {isCartelMember ? 'Go to Campus Cartel' : 'Join the network'}
-            </Text>
-            <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ─── iRISE + iBelieve ────────────────────────────────── */}
-      <View style={styles.dualRow}>
-        {([
-          {
-            slug: 'irise',
-            name: 'iRISE',
-            tagline: FALLBACK_VERTICALS[2].tagline ?? '',
-            bg: verticalColors.irise,
-            borderColor: 'rgba(180,83,9,0.35)',
-            nameColor: '#F59E0B',
-            exploreColor: 'rgba(245,158,11,0.8)',
-          },
-          {
-            slug: 'ibelieve',
-            name: 'iBelieve',
-            tagline: FALLBACK_VERTICALS[3].tagline ?? '',
-            bg: verticalColors.ibelieve,
-            borderColor: 'rgba(185,28,28,0.35)',
-            nameColor: '#F87171',
-            exploreColor: 'rgba(248,113,113,0.8)',
-          },
-        ] as const).map((item) => (
-          <TouchableOpacity
-            key={item.slug}
-            style={[styles.dualCard, { backgroundColor: item.bg, borderColor: item.borderColor }]}
-            onPress={() => router.push(`/(shared)/vertical/${item.slug}` as any)}
-            activeOpacity={0.85}
-          >
-            <View>
-              <Text style={[styles.dualCardName, { color: item.nameColor }]}>{item.name}</Text>
-              <Text style={styles.dualCardTagline}>{item.tagline}</Text>
-            </View>
-            <Text style={[styles.dualCardExplore, { color: item.exploreColor }]}>Explore →</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      {/* Android submit modal */}
-      <Modal visible={!!submitModalTaskId} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Submit Task</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Add a note or link..."
-              placeholderTextColor={colors.textLight}
-              value={submitNote}
-              onChangeText={setSubmitNote}
-              multiline
-            />
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setSubmitModalTaskId(null)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSubmitBtn}
-                onPress={async () => {
-                  const taskId = submitModalTaskId!;
-                  setSubmitModalTaskId(null);
-                  setSubmittingTaskId(taskId);
-                  try {
-                    await api.tasks.submitTask(taskId, { submission_note: submitNote }, user?.id);
-                    load();
-                  } finally {
-                    setSubmittingTaskId(null);
-                  }
-                }}
-              >
-                <Text style={styles.modalSubmitText}>Submit</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
@@ -617,17 +309,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  heroLogoText: {
-    fontSize: 22,
-    fontWeight: Font.black,
+  heroLogoBadge: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  heroLogoGreen: {
-    color: colors.ink,
-    fontWeight: Font.black,
-  },
-  heroLogoWhite: {
-    color: colors.ink,
-    fontWeight: Font.black,
+  heroLogoImage: {
+    width: 96,
+    height: 26,
   },
   timeText: {
     fontSize: FontSize.small,
@@ -685,116 +375,9 @@ const styles = StyleSheet.create({
     fontWeight: Font.bold,
   },
 
-  // ── Verticals grid ────────────────────────────────────────
-  verticalsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Gap.sm,
-  },
-  verticalCard: {
-    width: '48.5%',
-    minHeight: 96,
-    borderRadius: CARD_RADIUS,
-    padding: CARD_PAD,
-    overflow: 'hidden',
-    justifyContent: 'flex-start',
-  },
-  verticalCardCircle: {
-    position: 'absolute',
-    bottom: -16,
-    right: -16,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-  },
-  verticalCardName: {
-    fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: '#FFFFFF',
-    lineHeight: 20,
-  },
-  verticalCardTagline: {
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.72)',
-    marginTop: 3,
-    lineHeight: 15,
-  },
-
-  // ── Upcoming Events ───────────────────────────────────────
-  upcomingCard: {
-    backgroundColor: colors.surface,
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    marginBottom: Gap.sm,
-  },
-  upcomingBanner: {
-    width: '100%',
-    height: 140,
-  },
-  upcomingBody: {
-    padding: CARD_PAD,
-    gap: 4,
-  },
-  upcomingCategoryPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primaryTint,
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    marginBottom: 2,
-  },
-  upcomingCategoryText: {
-    fontSize: 11,
-    fontWeight: Font.bold,
-    color: colors.ink,
-    letterSpacing: 0.3,
-  },
-  upcomingTitle: {
-    fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: colors.text,
-  },
-  upcomingMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  upcomingMetaText: {
-    fontSize: FontSize.small,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-
-  // ── Joined Workshops ──────────────────────────────────────
-  joinedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: CARD_PAD,
-    marginBottom: Gap.sm,
+  // ── Upcoming Workshops ────────────────────────────────────
+  workshopList: {
     gap: Gap.md,
-  },
-  joinedIconWrap: {
-    flexShrink: 0,
-  },
-  joinedInfo: {
-    flex: 1,
-  },
-  joinedTitle: {
-    fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: colors.text,
-  },
-  joinedMeta: {
-    fontSize: FontSize.xs,
-    color: colors.textSecondary,
-    marginTop: 2,
   },
 
   // ── Host an Event Banner (white card, lime CTA) ───────────
@@ -852,256 +435,10 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 
-  // ── Campus Cartel Banner (lime panel, ink CTA) ────────────
+  // ── Banner wrapper (Host an Event) ────────────────────────
   bannerWrapper: {
     paddingHorizontal: PAGE_H,
     paddingVertical: SECTION_V,
   },
-  campusCartelBanner: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.xxl,
-    padding: Gap.lg,
-  },
-  campusCartelEyebrow: {
-    fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: 'rgba(14,14,14,0.65)',
-    letterSpacing: 2,
-    marginBottom: Gap.sm,
-  },
-  campusCartelHeadline: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.black,
-    color: colors.ink,
-    lineHeight: 28,
-    letterSpacing: -0.5,
-    marginBottom: Gap.xs,
-  },
-  campusCartelStats: {
-    fontSize: FontSize.body,
-    color: 'rgba(14,14,14,0.6)',
-    fontWeight: Font.medium,
-    marginBottom: Gap.base,
-  },
-  campusCartelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Gap.xs,
-    height: 42,
-    backgroundColor: colors.ink,
-    borderRadius: radius.full,
-    paddingHorizontal: Gap.lg,
-    alignSelf: 'flex-start',
-  },
-  campusCartelBtnText: {
-    fontSize: FontSize.body,
-    fontWeight: Font.bold,
-    color: '#FFFFFF',
-  },
 
-  // ── iRISE + iBelieve ──────────────────────────────────────
-  dualRow: {
-    flexDirection: 'row',
-    gap: Gap.sm,
-    paddingHorizontal: PAGE_H,
-    paddingTop: Gap.base,
-  },
-  dualCard: {
-    flex: 1,
-    height: 120,
-    borderRadius: CARD_RADIUS,
-    padding: CARD_PAD,
-    borderWidth: 1,
-    overflow: 'hidden',
-    justifyContent: 'space-between',
-  },
-  dualCardName: {
-    fontSize: FontSize.h2,
-    fontWeight: Font.black,
-    lineHeight: 24,
-  },
-  dualCardTagline: {
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 3,
-    lineHeight: 15,
-  },
-  dualCardExplore: {
-    fontSize: FontSize.small,
-    fontWeight: Font.semibold,
-  },
-
-  // ── Featured Unfiltered Video ─────────────────────────────
-  featuredVideoCard: {
-    backgroundColor: colors.surface,
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  featuredVideoThumb: {
-    width: '100%',
-    height: 190,
-  },
-  featuredVideoPlayOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featuredVideoBody: {
-    padding: CARD_PAD,
-    gap: 4,
-  },
-  featuredVideoPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: verticalColors.unfiltered + '18',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginBottom: 2,
-  },
-  featuredVideoPillText: {
-    fontSize: 10,
-    fontWeight: Font.bold,
-    color: verticalColors.unfiltered,
-    letterSpacing: 1,
-  },
-  featuredVideoTitle: {
-    fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: colors.text,
-    lineHeight: 21,
-  },
-  featuredVideoDesc: {
-    fontSize: FontSize.small,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-
-  // ── Tasks ─────────────────────────────────────────────────
-  taskCard: {
-    backgroundColor: colors.surface,
-    borderRadius: CARD_RADIUS,
-    padding: CARD_PAD,
-    marginBottom: Gap.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.sm,
-  },
-  taskCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Gap.sm,
-  },
-  taskCardTitle: {
-    fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: colors.text,
-    flex: 1,
-  },
-  taskCoinPill: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  taskCoinText: {
-    fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: '#92400E',
-  },
-  taskCardDesc: {
-    fontSize: FontSize.small,
-    color: colors.textSecondary,
-    marginTop: 6,
-    lineHeight: 20,
-  },
-  taskMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
-  },
-  taskMetaText: {
-    fontSize: FontSize.xs,
-    color: colors.textSecondary,
-  },
-  taskSubmitBtn: {
-    marginTop: Gap.md,
-    height: 40,
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: Gap.xl,
-  },
-  taskSubmitBtnText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: colors.onPrimary,
-  },
-
-  // Android submit modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  modalContent: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: Gap.lg,
-  },
-  modalTitle: {
-    fontSize: FontSize.h2,
-    fontWeight: Font.bold,
-    color: colors.text,
-    marginBottom: Gap.md,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: Gap.md,
-    fontSize: FontSize.body,
-    color: colors.text,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    marginBottom: Gap.md,
-  },
-  modalBtnRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: Gap.sm,
-  },
-  modalCancelBtn: {
-    paddingHorizontal: Gap.base,
-    paddingVertical: Gap.sm,
-  },
-  modalCancelText: {
-    fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: colors.textSecondary,
-  },
-  modalSubmitBtn: {
-    backgroundColor: colors.ink,
-    borderRadius: radius.full,
-    paddingHorizontal: Gap.lg,
-    paddingVertical: Gap.sm,
-  },
-  modalSubmitText: {
-    fontSize: FontSize.body,
-    fontWeight: Font.bold,
-    color: '#FFFFFF',
-  },
 });
