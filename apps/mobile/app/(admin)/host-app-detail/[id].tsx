@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { HostingApplication } from '@upshot/types';
-import { colors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
 import { Button, StatusBadge } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
 import { TouchableOpacity } from 'react-native';
@@ -144,7 +144,7 @@ export default function HostAppDetail() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
+          <Ionicons name="arrow-back" size={20} color={colors.ink} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerEyebrow}>HOSTING APPLICATION</Text>
@@ -268,29 +268,31 @@ export default function HostAppDetail() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: DarkBg },
+  safeArea: { flex: 1, backgroundColor: colors.primary },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
 
   header: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
     paddingTop: Gap.md,
     paddingBottom: Gap.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
   headerEyebrow: {
     fontSize: FontSize.xs, fontWeight: Font.bold,
-    color: 'rgba(255,255,255,0.5)', letterSpacing: 1.5, marginBottom: 2,
+    color: 'rgba(14,14,14,0.6)', letterSpacing: 1.5, marginBottom: 2,
   },
   headerTitle: {
-    fontSize: FontSize.h2, fontWeight: Font.bold, color: '#fff',
+    fontSize: FontSize.h2, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.3,
   },
 
   scroll: { flex: 1, backgroundColor: colors.background },

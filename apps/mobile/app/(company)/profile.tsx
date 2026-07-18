@@ -13,7 +13,6 @@ import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  DarkBg,
   spacing,
   radius,
   shadow,
@@ -138,15 +137,15 @@ export default function CompanyProfile() {
             {company?.is_verified ? (
               <Badge
                 label="✓ Verified Partner"
-                color={'#FFFFFF'}
-                bgColor={colors.success + '33'}
+                color={colors.ink}
+                bgColor={'rgba(14,14,14,0.12)'}
                 size="sm"
               />
             ) : (
               <Badge
                 label="Verification pending"
-                color={'rgba(255,255,255,0.5)'}
-                bgColor={colors.warning + '33'}
+                color={colors.ink}
+                bgColor={'rgba(14,14,14,0.12)'}
                 size="sm"
               />
             )}
@@ -235,22 +234,26 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   header: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingTop: 52,
     paddingHorizontal: spacing.lg,
-    paddingBottom: 32,
+    paddingBottom: 40,
     alignItems: 'flex-start',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   companyName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.ink,
     marginTop: 12,
+    letterSpacing: -0.5,
   },
   industryText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(14,14,14,0.65)',
     marginTop: 2,
+    fontWeight: '500',
   },
   badgeRow: {
     marginTop: 8,

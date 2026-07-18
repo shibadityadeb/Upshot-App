@@ -357,7 +357,7 @@ export default function PeopleTasksScreen() {
                             <Text style={styles.submitBtnText}>Uploading...</Text>
                           ) : (
                             <>
-                              <Ionicons name="send" size={14} color="#FFFFFF" />
+                              <Ionicons name="send" size={14} color={colors.onPrimary} />
                               <Text style={styles.submitBtnText}>Submit Task</Text>
                             </>
                           )}
@@ -599,8 +599,8 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: FontSize.xs,
-    fontWeight: Font.semibold,
-    color: colors.primary,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
   expandedArea: {
     paddingHorizontal: Gap.base,
@@ -658,8 +658,8 @@ const styles = StyleSheet.create({
   },
   imagePickerText: {
     fontSize: FontSize.small,
-    color: colors.primary,
-    fontWeight: Font.semibold,
+    color: colors.ink,
+    fontWeight: Font.bold,
   },
   imagePreviewContainer: {
     position: 'relative',
@@ -683,16 +683,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 40,
+    height: 42,
     backgroundColor: colors.primary,
-    borderRadius: 10,
+    borderRadius: radius.full,
     paddingHorizontal: Gap.xl,
     ...shadow.sm,
   },
   submitBtnText: {
     fontSize: FontSize.small,
     fontWeight: Font.bold,
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
 
   // Celebration modal
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
   },
   celebrationBtn: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: radius.full,
     paddingVertical: 14,
     paddingHorizontal: 48,
     ...shadow.sm,
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
   celebrationBtnText: {
     fontSize: FontSize.h3,
     fontWeight: Font.bold,
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
 
   // Membership gate
@@ -767,9 +767,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    height: 44,
+    height: 46,
     backgroundColor: colors.campusCartelGreen,
-    borderRadius: 10,
+    borderRadius: radius.full,
     paddingHorizontal: Gap.xl,
   },
   joinBtnText: {

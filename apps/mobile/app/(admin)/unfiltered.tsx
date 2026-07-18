@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { UnfilteredVideo } from '@upshot/types';
-import { colors, verticalColors, Font, FontSize, Gap, DarkBg, radius, shadow } from '../../src/constants/theme';
+import { colors, verticalColors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 

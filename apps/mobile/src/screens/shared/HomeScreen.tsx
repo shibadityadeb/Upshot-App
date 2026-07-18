@@ -38,7 +38,7 @@ const api = createApiClient();
 // ─── Design tokens (single source of truth for this screen) ─────────────────
 const PAGE_H = Gap.base;       // 16 — horizontal padding for all sections
 const SECTION_V = Gap.xl;      // 24 — top/bottom padding for every section
-const CARD_RADIUS = 14;        // border radius applied to every card
+const CARD_RADIUS = 20;        // border radius applied to every card
 const CARD_PAD = Gap.base;     // 16 — internal padding for every card
 
 const FALLBACK_VERTICALS: Vertical[] = [
@@ -192,7 +192,7 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}
     >
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
 
       {/* ─── Hero ────────────────────────────────────────────── */}
       <View style={styles.hero}>
@@ -215,13 +215,13 @@ export default function HomeScreen() {
           India's media and community network, told in four parts.
         </Text>
 
-        {/* Gradient bar */}
+        {/* Accent bar */}
         <View style={styles.heroGradientBar}>
-          <View style={[styles.heroGradientSegment, { backgroundColor: '#4A90D9', flex: 1 }]} />
-          <View style={[styles.heroGradientSegment, { backgroundColor: '#5BB8A0', flex: 1 }]} />
-          <View style={[styles.heroGradientSegment, { backgroundColor: '#7BC55A', flex: 1 }]} />
-          <View style={[styles.heroGradientSegment, { backgroundColor: '#C4D94A', flex: 1 }]} />
-          <View style={[styles.heroGradientSegment, { backgroundColor: '#E8D44D', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.9)', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.65)', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.45)', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.28)', flex: 1 }]} />
+          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.15)', flex: 1 }]} />
         </View>
 
         <View style={styles.heroTagsRow}>
@@ -460,7 +460,7 @@ export default function HomeScreen() {
       <View style={[styles.bannerWrapper, { paddingBottom: 0 }]}>
         <View style={styles.hostBanner}>
           <View style={styles.hostBannerIcon}>
-            <Ionicons name="megaphone-outline" size={22} color="#818CF8" />
+            <Ionicons name="megaphone-outline" size={22} color={colors.ink} />
           </View>
           <Text style={styles.hostBannerEyebrow}>HOST AN EVENT</Text>
           <Text style={styles.hostBannerHeadline}>
@@ -472,10 +472,10 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.hostBannerBtn}
             onPress={() => router.push('/(people)/host-event' as any)}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             <Text style={styles.hostBannerBtnText}>Get started</Text>
-            <Ionicons name="arrow-forward" size={13} color="#A5B4FC" />
+            <Ionicons name="arrow-forward" size={14} color={colors.onPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -498,7 +498,7 @@ export default function HomeScreen() {
             <Text style={styles.campusCartelBtnText}>
               {isCartelMember ? 'Go to Campus Cartel' : 'Join the network'}
             </Text>
-            <Ionicons name="arrow-forward" size={13} color="#7BC55A" />
+            <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -586,7 +586,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F0F0F5',
+    backgroundColor: colors.background,
   },
   contentContainer: {
     paddingBottom: 24,
@@ -600,59 +600,61 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E4E4E7',
+    backgroundColor: colors.border,
     marginHorizontal: PAGE_H,
   },
   // ── Hero ──────────────────────────────────────────────────
   hero: {
-    paddingBottom: SECTION_V,
-    backgroundColor: '#1A1D23',
+    paddingBottom: Gap.xxl,
+    backgroundColor: colors.primary,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   heroTopRow: {
-    paddingTop: 52,
+    paddingTop: 56,
     paddingHorizontal: PAGE_H,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   heroLogoText: {
-    fontSize: 20,
-    fontWeight: Font.bold,
+    fontSize: 22,
+    fontWeight: Font.black,
   },
   heroLogoGreen: {
-    color: '#7BC55A',
-    fontWeight: Font.bold,
+    color: colors.ink,
+    fontWeight: Font.black,
   },
   heroLogoWhite: {
-    color: '#FFFFFF',
-    fontWeight: Font.bold,
+    color: colors.ink,
+    fontWeight: Font.black,
   },
   timeText: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: Font.regular,
+    color: 'rgba(14,14,14,0.55)',
+    fontWeight: Font.medium,
   },
   heroHeadlineBlock: {
     paddingHorizontal: PAGE_H,
     marginTop: Gap.xl,
   },
   heroHeadlineLine: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: Font.black,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     lineHeight: 40,
-    color: '#FFFFFF',
+    color: colors.ink,
   },
   heroHeadlineAccent: {
-    color: '#7BC55A',
+    color: colors.ink,
     fontStyle: 'italic',
   },
   heroSubtitle: {
     paddingHorizontal: PAGE_H,
     marginTop: Gap.md,
     fontSize: FontSize.body,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: Font.regular,
+    color: 'rgba(14,14,14,0.6)',
+    fontWeight: Font.medium,
     lineHeight: 22,
   },
   heroGradientBar: {
@@ -674,13 +676,13 @@ const styles = StyleSheet.create({
   },
   heroTagDot: {
     fontSize: FontSize.body,
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(14,14,14,0.35)',
     marginHorizontal: 8,
   },
   heroTagText: {
     fontSize: FontSize.small,
-    color: '#7BC55A',
-    fontWeight: Font.medium,
+    color: colors.ink,
+    fontWeight: Font.bold,
   },
 
   // ── Verticals grid ────────────────────────────────────────
@@ -738,16 +740,17 @@ const styles = StyleSheet.create({
   },
   upcomingCategoryPill: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.primary + '14',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    backgroundColor: colors.primaryTint,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     marginBottom: 2,
   },
   upcomingCategoryText: {
     fontSize: 11,
-    fontWeight: Font.semibold,
-    color: colors.primary,
+    fontWeight: Font.bold,
+    color: colors.ink,
+    letterSpacing: 0.3,
   },
   upcomingTitle: {
     fontSize: FontSize.h3,
@@ -794,19 +797,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Host an Event Banner ──────────────────────────────────
+  // ── Host an Event Banner (white card, lime CTA) ───────────
   hostBanner: {
-    backgroundColor: '#141829',
-    borderRadius: CARD_RADIUS,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
     padding: Gap.lg,
     borderWidth: 1,
-    borderColor: 'rgba(129,140,248,0.12)',
+    borderColor: colors.border,
+    ...shadow.sm,
   },
   hostBannerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(129,140,248,0.10)',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Gap.md,
@@ -814,21 +818,21 @@ const styles = StyleSheet.create({
   hostBannerEyebrow: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(129,140,248,0.7)',
-    letterSpacing: 2.5,
+    color: colors.textSecondary,
+    letterSpacing: 2,
     marginBottom: Gap.sm,
   },
   hostBannerHeadline: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
     lineHeight: 28,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
     marginBottom: Gap.xs,
   },
   hostBannerBody: {
     fontSize: FontSize.body,
-    color: 'rgba(255,255,255,0.45)',
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: Gap.base,
   },
@@ -836,68 +840,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    height: 38,
-    backgroundColor: 'rgba(129,140,248,0.10)',
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: 'rgba(129,140,248,0.25)',
-    paddingHorizontal: Gap.base,
+    height: 42,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    paddingHorizontal: Gap.lg,
     alignSelf: 'flex-start',
   },
   hostBannerBtnText: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: '#A5B4FC',
+    fontWeight: Font.bold,
+    color: colors.onPrimary,
   },
 
-  // ── Campus Cartel Banner ──────────────────────────────────
+  // ── Campus Cartel Banner (lime panel, ink CTA) ────────────
   bannerWrapper: {
     paddingHorizontal: PAGE_H,
     paddingVertical: SECTION_V,
   },
   campusCartelBanner: {
-    backgroundColor: '#111F16',
-    borderRadius: CARD_RADIUS,
+    backgroundColor: colors.primary,
+    borderRadius: radius.xxl,
     padding: Gap.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(123,197,90,0.12)',
   },
   campusCartelEyebrow: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(123,197,90,0.7)',
-    letterSpacing: 2.5,
+    color: 'rgba(14,14,14,0.65)',
+    letterSpacing: 2,
     marginBottom: Gap.sm,
   },
   campusCartelHeadline: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
     lineHeight: 28,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
     marginBottom: Gap.xs,
   },
   campusCartelStats: {
     fontSize: FontSize.body,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(14,14,14,0.6)',
+    fontWeight: Font.medium,
     marginBottom: Gap.base,
   },
   campusCartelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    height: 38,
-    backgroundColor: 'rgba(123,197,90,0.10)',
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: 'rgba(123,197,90,0.25)',
-    paddingHorizontal: Gap.base,
+    height: 42,
+    backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: Gap.lg,
     alignSelf: 'flex-start',
   },
   campusCartelBtnText: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: '#7BC55A',
+    fontWeight: Font.bold,
+    color: '#FFFFFF',
   },
 
   // ── iRISE + iBelieve ──────────────────────────────────────
@@ -1037,9 +1036,9 @@ const styles = StyleSheet.create({
   },
   taskSubmitBtn: {
     marginTop: Gap.md,
-    height: 36,
+    height: 40,
     backgroundColor: colors.primary,
-    borderRadius: 10,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-start',
@@ -1048,7 +1047,7 @@ const styles = StyleSheet.create({
   taskSubmitBtnText: {
     fontSize: FontSize.small,
     fontWeight: Font.bold,
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
 
   // Android submit modal
@@ -1095,14 +1094,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   modalSubmitBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: Gap.base,
+    backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: Gap.lg,
     paddingVertical: Gap.sm,
   },
   modalSubmitText: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: '#FFFFFF',
   },
 });

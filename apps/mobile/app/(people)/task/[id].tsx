@@ -146,7 +146,7 @@ export default function TaskDetailScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </TouchableOpacity>
           <Text style={styles.headerLabel}>ASSIGNMENT</Text>
         </View>
@@ -274,26 +274,28 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingTop: Gap.sm,
     paddingBottom: Gap.lg,
     paddingHorizontal: Gap.base,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerLabel: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(14,14,14,0.7)',
     letterSpacing: 2,
   },
 
@@ -344,8 +346,8 @@ const styles = StyleSheet.create({
   },
   eventLinkText: {
     fontSize: FontSize.body,
-    color: colors.primary,
-    fontWeight: Font.semibold,
+    color: colors.ink,
+    fontWeight: Font.bold,
   },
 
   // Success card

@@ -179,7 +179,7 @@ export default function CampusCartelScreen() {
   if (screenState === 'loading') {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.campusCartelGreen} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   }
@@ -190,13 +190,13 @@ export default function CampusCartelScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.campusCartelGreen} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
         }
       >
-        {/* ── Dark emerald header ── */}
+        {/* ── Lime header ── */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </TouchableOpacity>
           <Text style={styles.headerEyebrow}>CAMPUS CARTEL</Text>
           <Text style={styles.headerTitle}>
@@ -205,15 +205,15 @@ export default function CampusCartelScreen() {
           {stats && (
             <View style={styles.statsRow}>
               <View style={styles.statPill}>
-                <Ionicons name="people-outline" size={14} color={colors.campusCartelTint} />
+                <Ionicons name="people-outline" size={14} color={colors.ink} />
                 <Text style={styles.statText}>{stats.memberCount} members</Text>
               </View>
               <View style={styles.statPill}>
-                <Ionicons name="school-outline" size={14} color={colors.campusCartelTint} />
+                <Ionicons name="school-outline" size={14} color={colors.ink} />
                 <Text style={styles.statText}>{stats.uniqueColleges} colleges</Text>
               </View>
               <View style={styles.statPill}>
-                <Ionicons name="diamond-outline" size={14} color={colors.campusCartelTint} />
+                <Ionicons name="diamond-outline" size={14} color={colors.ink} />
                 <Text style={styles.statText}>{stats.totalCoins} coins</Text>
               </View>
             </View>
@@ -271,7 +271,6 @@ export default function CampusCartelScreen() {
                 onPress={handleApply}
                 loading={submitting}
                 disabled={submitting || codeValid === false}
-                style={{ backgroundColor: colors.campusCartelGreen }}
               />
             </View>
           )}
@@ -281,13 +280,13 @@ export default function CampusCartelScreen() {
             <View style={styles.card}>
               {justApplied && (
                 <View style={styles.successBanner}>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.campusCartelGreen} />
+                  <Ionicons name="checkmark-circle" size={20} color={colors.ink} />
                   <Text style={styles.successText}>Application submitted!</Text>
                 </View>
               )}
 
               <View style={styles.pendingIconWrap}>
-                <Ionicons name="hourglass-outline" size={48} color={colors.campusCartelGreen} />
+                <Ionicons name="hourglass-outline" size={48} color={colors.ink} />
               </View>
               <Text style={styles.pendingTitle}>Application Under Review</Text>
               <Text style={styles.pendingSubtitle}>
@@ -307,7 +306,7 @@ export default function CampusCartelScreen() {
                   onPress={() => router.push('/campus-cartel-apply' as any)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="create-outline" size={16} color={colors.campusCartelGreen} />
+                  <Ionicons name="create-outline" size={16} color={colors.ink} />
                   <Text style={styles.editAppBtnText}>Edit Application</Text>
                 </TouchableOpacity>
 
@@ -347,7 +346,7 @@ export default function CampusCartelScreen() {
                   onPress={() => router.push('/campus-cartel-apply' as any)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="create-outline" size={16} color={colors.campusCartelGreen} />
+                  <Ionicons name="create-outline" size={16} color={colors.ink} />
                   <Text style={styles.editAppBtnText}>Re-apply</Text>
                 </TouchableOpacity>
               </View>
@@ -359,7 +358,7 @@ export default function CampusCartelScreen() {
             <View style={styles.card}>
               <View style={styles.memberBadgeRow}>
                 <View style={styles.memberBadge}>
-                  <Ionicons name="shield-checkmark" size={14} color={colors.campusCartelGreen} />
+                  <Ionicons name="shield-checkmark" size={14} color={colors.ink} />
                   <Text style={styles.memberBadgeText}>MEMBER</Text>
                 </View>
               </View>
@@ -403,8 +402,8 @@ export default function CampusCartelScreen() {
                 title="View Leaderboard"
                 onPress={() => router.push('/(people)/leaderboard' as any)}
                 variant="outline"
-                style={{ borderColor: colors.campusCartelGreen, marginTop: Gap.base }}
-                icon={<Ionicons name="trophy-outline" size={16} color={colors.campusCartelGreen} />}
+                style={{ marginTop: Gap.base }}
+                icon={<Ionicons name="trophy-outline" size={16} color={colors.ink} />}
               />
             </View>
           )}
@@ -421,7 +420,7 @@ export default function CampusCartelScreen() {
           ].map((item) => (
             <View key={item.step} style={styles.howRow}>
               <View style={styles.howIconCircle}>
-                <Ionicons name={item.icon} size={18} color={colors.campusCartelGreen} />
+                <Ionicons name={item.icon} size={18} color={colors.ink} />
               </View>
               <View style={styles.howInfo}>
                 <Text style={styles.howStepTitle}>{item.title}</Text>
@@ -452,33 +451,35 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: colors.campusCartelGreen,
+    backgroundColor: colors.primary,
     paddingTop: Gap.sm,
-    paddingBottom: Gap.xl,
+    paddingBottom: Gap.xxl,
     paddingHorizontal: Gap.base,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   backBtn: {
     marginBottom: Gap.md,
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerEyebrow: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(14,14,14,0.6)',
     letterSpacing: 2.5,
     marginBottom: Gap.sm,
   },
   headerTitle: {
     fontSize: FontSize.display,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
     lineHeight: 34,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   statsRow: {
     flexDirection: 'row',
@@ -490,21 +491,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   statText: {
     fontSize: FontSize.xs,
-    fontWeight: Font.semibold,
-    color: colors.campusCartelTint,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
 
   // Card section
   cardSection: {
     paddingHorizontal: Gap.base,
-    marginTop: -Gap.md,
+    marginTop: Gap.base,
   },
   card: {
     backgroundColor: colors.surface,
@@ -580,15 +581,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Gap.xs,
     paddingVertical: 12,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.campusCartelGreen + '44',
-    backgroundColor: colors.campusCartelGreen + '0A',
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    backgroundColor: 'transparent',
   },
   editAppBtnText: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: colors.campusCartelGreen,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
   withdrawBtn: {
     flexDirection: 'row',
@@ -611,8 +612,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    backgroundColor: colors.campusCartelTint,
-    borderRadius: radius.sm,
+    backgroundColor: colors.primaryTint,
+    borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
     alignSelf: 'flex-start',
@@ -620,7 +621,7 @@ const styles = StyleSheet.create({
   memberBadgeText: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: colors.campusCartelGreen,
+    color: colors.ink,
     letterSpacing: 1.5,
   },
   memberStatsRow: {
@@ -703,7 +704,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.campusCartelTint,
+    backgroundColor: colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
   },

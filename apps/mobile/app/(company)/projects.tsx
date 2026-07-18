@@ -13,7 +13,6 @@ import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  DarkBg,
   spacing,
   radius,
   shadow,
@@ -247,20 +246,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingTop: 52,
     paddingHorizontal: spacing.lg,
-    paddingBottom: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   headerTitle: {
     fontSize: 26,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: '900',
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: colors.accent,
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 4,
+    fontWeight: '500',
   },
   filtersScroll: {
     maxHeight: 52,
@@ -290,7 +293,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterPillTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
+    fontWeight: '700',
   },
   filterPillTextInactive: {
     color: colors.textSecondary,
@@ -346,8 +350,9 @@ const styles = StyleSheet.create({
   },
   viewTeamLink: {
     fontSize: 13,
-    color: colors.primary,
+    color: colors.ink,
     marginTop: 4,
+    fontWeight: '700',
   },
   rejectedBox: {
     backgroundColor: colors.error + '15',

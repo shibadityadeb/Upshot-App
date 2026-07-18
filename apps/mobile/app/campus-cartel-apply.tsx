@@ -245,7 +245,7 @@ export default function CampusCartelApply() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color={colors.ink} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.eyebrow}>CAMPUS CARTEL</Text>
@@ -253,7 +253,7 @@ export default function CampusCartelApply() {
             <Text style={styles.subheadline}>{isEditing ? 'Edit your details below' : "India's fastest growing student community"}</Text>
           </View>
           <View style={styles.badge}>
-            <Ionicons name="people" size={22} color={GREEN} />
+            <Ionicons name="people" size={22} color="#FFFFFF" />
           </View>
         </View>
 
@@ -444,27 +444,28 @@ const styles = StyleSheet.create({
 
   // ── Header ──────────────────────────────────────────────────
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
     paddingTop: Gap.md,
     paddingBottom: Gap.xl,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Gap.md,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center', justifyContent: 'center', marginTop: 2,
   },
   headerText: { flex: 1 },
-  eyebrow: { fontSize: FontSize.xs, fontWeight: Font.bold, color: GREEN, letterSpacing: 1.5, marginBottom: 4 },
-  headline: { fontSize: FontSize.h1, fontWeight: Font.black, color: colors.surface, lineHeight: 28 },
-  subheadline: { fontSize: FontSize.small, color: 'rgba(255,255,255,0.5)', marginTop: 3 },
+  eyebrow: { fontSize: FontSize.xs, fontWeight: Font.bold, color: 'rgba(14,14,14,0.6)', letterSpacing: 1.5, marginBottom: 4 },
+  headline: { fontSize: FontSize.h1, fontWeight: Font.black, color: colors.ink, lineHeight: 28, letterSpacing: -0.5 },
+  subheadline: { fontSize: FontSize.small, color: 'rgba(14,14,14,0.6)', marginTop: 3, fontWeight: Font.medium },
   badge: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: 'rgba(4,120,87,0.15)',
-    borderWidth: 1, borderColor: 'rgba(4,120,87,0.3)',
+    backgroundColor: colors.ink,
     alignItems: 'center', justifyContent: 'center', marginTop: 2,
   },
 

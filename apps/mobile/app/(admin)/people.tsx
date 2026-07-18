@@ -15,7 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador } from '@upshot/types';
-import { colors, DarkBg, Font, FontSize, Gap, radius } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import {
   AvatarCircle,
   Badge,
@@ -325,10 +325,10 @@ export default function AdminPeople() {
         {/* Search — hidden on Codes tab */}
         {activeTab !== 'codes' && (
           <View style={styles.searchWrap}>
-            <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.5)" />
+            <Ionicons name="search-outline" size={16} color="rgba(14,14,14,0.5)" />
             <TextInput
               placeholder="Search by name or email..."
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor="rgba(14,14,14,0.4)"
               value={search}
               onChangeText={setSearch}
               style={styles.searchInput}
@@ -418,7 +418,7 @@ export default function AdminPeople() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
   },
   contentArea: {
     flex: 1,
@@ -432,10 +432,12 @@ const styles = StyleSheet.create({
   },
   // Hero
   hero: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
     paddingTop: 32,
-    paddingBottom: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   heroRow: {
     flexDirection: 'row',
@@ -446,25 +448,27 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
+    fontWeight: Font.medium,
   },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: radius.lg,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(14,14,14,0.08)',
+    borderRadius: radius.full,
+    paddingHorizontal: 14,
     gap: 8,
-    height: 42,
+    height: 44,
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: FontSize.body,
     height: 42,
   },

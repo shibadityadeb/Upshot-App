@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   labelActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
+    fontWeight: Font.bold,
   },
 });

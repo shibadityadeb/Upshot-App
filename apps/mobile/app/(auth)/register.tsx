@@ -304,15 +304,15 @@ const dotStyles = StyleSheet.create({
   },
   active: {
     width: 28,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
   },
   past: {
     width: 28,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: 'rgba(14,14,14,0.5)',
   },
   inactive: {
     width: 8,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(14,14,14,0.22)',
   },
 });
 
@@ -335,9 +335,9 @@ const styles = StyleSheet.create({
     paddingRight: Gap.base,
   },
   backText: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: FontSize.body,
-    fontWeight: Font.medium,
+    fontWeight: Font.semibold,
   },
   logoContainer: {
     alignItems: 'center',
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   },
   logoBadge: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
@@ -356,18 +356,19 @@ const styles = StyleSheet.create({
   formSheet: {
     flex: 1,
     backgroundColor: colors.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
   },
   formContent: {
     padding: Gap.xl,
     paddingTop: Gap.xxl,
   },
   formTitle: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.bold,
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
     color: colors.text,
     marginBottom: 4,
+    letterSpacing: -0.6,
   },
   formSubtitle: {
     fontSize: FontSize.body,
@@ -395,8 +396,8 @@ const styles = StyleSheet.create({
     marginLeft: Gap.sm,
   },
   toggleText: {
-    color: colors.primary,
-    fontWeight: Font.semibold,
+    color: colors.ink,
+    fontWeight: Font.bold,
     fontSize: FontSize.small,
   },
   divider: {
@@ -427,9 +428,9 @@ const styles = StyleSheet.create({
     fontSize: FontSize.body,
   },
   footerLink: {
-    color: colors.primary,
+    color: colors.ink,
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
   },
   codeStatusChecking: {
     fontSize: FontSize.xs,

@@ -15,7 +15,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Task } from '@upshot/types';
-import { colors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import {
   AvatarCircle,
   Button,
@@ -342,10 +342,12 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
     paddingTop: 32,
-    paddingBottom: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   heroRow: {
     flexDirection: 'row',
@@ -355,18 +357,20 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
+    fontWeight: Font.medium,
   },
   addBtn: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
