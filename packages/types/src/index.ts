@@ -335,6 +335,45 @@ export interface CreateUnfilteredVideoPayload {
   channel_url?: string;
 }
 
+// ─── Unfiltered Feature Requests (guest / podcast applications) ───────────────
+
+export type UnfilteredFeatureRequestStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'contacted';
+
+export interface UnfilteredFeatureRequest {
+  id: string;
+  user_id: string;
+  user?: User;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  expertise: string | null;
+  organisation: string | null;
+  topic: string;
+  bio: string | null;
+  social_url: string | null;
+  status: UnfilteredFeatureRequestStatus;
+  admin_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateUnfilteredFeatureRequestPayload {
+  full_name: string;
+  email: string;
+  phone?: string;
+  expertise?: string;
+  organisation?: string;
+  topic: string;
+  bio?: string;
+  social_url?: string;
+}
+
 // ─── Hosting Applications ───────────────────────────────
 
 export type HostingApplicationStatus = 'pending' | 'approved' | 'rejected';

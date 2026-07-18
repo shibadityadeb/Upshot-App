@@ -3,6 +3,9 @@ import type {
   ApiResponse,
   UnfilteredVideo,
   CreateUnfilteredVideoPayload,
+  UnfilteredFeatureRequest,
+  CreateUnfilteredFeatureRequestPayload,
+  UnfilteredFeatureRequestStatus,
 } from '@upshot/types';
 
 export class UnfilteredService {
@@ -90,5 +93,75 @@ export class UnfilteredService {
       .single();
     if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
     return { data: data as unknown as UnfilteredVideo, error: null };
+  }
+
+  // ─── Feature requests (guest / podcast applications) ───────────────────────
+
+  /** Someone requests to be featured as a guest on Unfiltered. */
+  async submitFeatureRequest(
+    userId: string,
+    payload: CreateUnfilteredFeatureRequestPayload,
+  ): Promise<ApiResponse<UnfilteredFeatureRequest>> {
+    const { data, error } = await this.supabase
+      .from('unfiltered_feature_requests')
+      .insert({
+        user_id: userId,
+        full_name: payload.full_name,
+        email: payload.email,
+        phone: payload.phone ?? null,
+        expertise: payload.expertise ?? null,
+        organisation: payload.organisation ?? null,
+        topic: payload.topic,
+        bio: payload.bio ?? null,
+        social_url: payload.social_url ?? null,
+        status: 'pending',
+      })
+      .select()
+      .single();
+    if (error) return { data: null, error: { code: 'CREATE_FAILED', message: error.message } };
+    return { data: data as unknown as UnfilteredFeatureRequest, error: null };
+  }
+
+  /** The submitter's own feature requests. */
+  async getMyFeatureRequests(userId: string): Promise<ApiResponse<UnfilteredFeatureRequest[]>> {
+    const { data, error } = await this.supabase
+      .from('unfiltered_feature_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as UnfilteredFeatureRequest[], error: null };
+  }
+
+  /** Admin: all feature requests with submitter profile. */
+  async getAllFeatureRequestsAdmin(): Promise<ApiResponse<UnfilteredFeatureRequest[]>> {
+    const { data, error } = await this.supabase
+      .from('unfiltered_feature_requests')
+      .select('*, user:profiles!user_id(id, full_name, email, avatar_url)')
+      .order('created_at', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as UnfilteredFeatureRequest[], error: null };
+  }
+
+  /** Admin: update the review status of a feature request. */
+  async updateFeatureRequestStatus(
+    requestId: string,
+    adminId: string,
+    status: UnfilteredFeatureRequestStatus,
+    adminNote?: string,
+  ): Promise<ApiResponse<UnfilteredFeatureRequest>> {
+    const { data, error } = await this.supabase
+      .from('unfiltered_feature_requests')
+      .update({
+        status,
+        admin_note: adminNote ?? null,
+        reviewed_by: adminId,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', requestId)
+      .select()
+      .single();
+    if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
+    return { data: data as unknown as UnfilteredFeatureRequest, error: null };
   }
 }
