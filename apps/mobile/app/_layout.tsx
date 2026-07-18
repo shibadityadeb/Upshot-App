@@ -50,6 +50,7 @@ export default function RootLayout() {
           <Stack.Screen name="(ambassador)" options={{ headerShown: false }} />
           <Stack.Screen name="(shared)" options={{ headerShown: false }} />
           <Stack.Screen name="campus-cartel-apply" options={{ headerShown: false }} />
+          <Stack.Screen name="unfiltered-feature" options={{ headerShown: false }} />
         </Stack>
         <ErrorPopup />
         <AppLoader visible={!isInitialized} />

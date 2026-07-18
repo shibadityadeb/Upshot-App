@@ -13,10 +13,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
-import type { UnfilteredVideo } from '@upshot/types';
+import type { UnfilteredVideo, UnfilteredFeatureRequest, UnfilteredFeatureRequestStatus } from '@upshot/types';
 import { colors, verticalColors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
+
+const REQUEST_STATUS_STYLE: Record<UnfilteredFeatureRequestStatus, { bg: string; fg: string; label: string }> = {
+  pending: { bg: '#FEF3C7', fg: '#92400E', label: 'Pending' },
+  approved: { bg: '#DCF5E1', fg: '#2C6E38', label: 'Approved' },
+  contacted: { bg: '#EEF6D6', fg: '#0E0E0E', label: 'Contacted' },
+  rejected: { bg: '#FEE2E2', fg: '#991B1B', label: 'Rejected' },
+};
 
 const api = createApiClient();
 
@@ -45,8 +52,13 @@ function getThumbnailUrl(youtubeUrl: string): string {
 export default function AdminUnfilteredScreen() {
   const user = useAuthStore((s) => s.user);
 
+  const [tab, setTab] = useState(0); // 0 = Videos, 1 = Requests
   const [videos, setVideos] = useState<UnfilteredVideo[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Feature requests
+  const [requests, setRequests] = useState<UnfilteredFeatureRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
 
   // Add form
   const [showForm, setShowForm] = useState(false);
@@ -63,7 +75,38 @@ export default function AdminUnfilteredScreen() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadVideos(); }, [loadVideos]);
+  const loadRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    const { data } = await api.unfiltered.getAllFeatureRequestsAdmin();
+    setRequests(data ?? []);
+    setRequestsLoading(false);
+  }, []);
+
+  useEffect(() => { loadVideos(); loadRequests(); }, [loadVideos, loadRequests]);
+
+  const pendingRequestCount = requests.filter((r) => r.status === 'pending').length;
+  // Rejected requests are hidden from the admin list
+  const visibleRequests = requests.filter((r) => r.status !== 'rejected');
+
+  const handleSetRequestStatus = useCallback(
+    (request: UnfilteredFeatureRequest, status: UnfilteredFeatureRequestStatus) => {
+      if (!user?.id) return;
+      const verb = status === 'approved' ? 'Approve' : status === 'contacted' ? 'Mark as contacted' : 'Reject';
+      Alert.alert(`${verb}?`, `${request.full_name}'s request`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: verb,
+          style: status === 'rejected' ? 'destructive' : 'default',
+          onPress: async () => {
+            const { error } = await api.unfiltered.updateFeatureRequestStatus(request.id, user.id, status);
+            if (error) { showError(error); return; }
+            loadRequests();
+          },
+        },
+      ]);
+    },
+    [user?.id, loadRequests],
+  );
 
   const handleAdd = useCallback(async () => {
     if (!newUrl.trim()) {
@@ -126,17 +169,43 @@ export default function AdminUnfilteredScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Unfiltered Videos</Text>
-          <Text style={styles.headerSubtitle}>{videos.length} video{videos.length !== 1 ? 's' : ''} · Top 10 shown on app</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Unfiltered</Text>
+          <Text style={styles.headerSubtitle}>
+            {tab === 0
+              ? `${videos.length} video${videos.length !== 1 ? 's' : ''} · Top 10 shown on app`
+              : `${visibleRequests.length} feature request${visibleRequests.length !== 1 ? 's' : ''}`}
+          </Text>
         </View>
+        {tab === 0 && (
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => setShowForm(!showForm)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={showForm ? 'close' : 'add'} size={20} color="#fff" />
+            <Text style={styles.addBtnText}>{showForm ? 'Cancel' : 'Add Video'}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabRow}>
         <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => setShowForm(!showForm)}
-          activeOpacity={0.8}
+          style={[styles.tabBtn, tab === 0 && styles.tabBtnActive]}
+          onPress={() => setTab(0)}
+          activeOpacity={0.85}
         >
-          <Ionicons name={showForm ? 'close' : 'add'} size={20} color="#fff" />
-          <Text style={styles.addBtnText}>{showForm ? 'Cancel' : 'Add Video'}</Text>
+          <Text style={[styles.tabText, tab === 0 && styles.tabTextActive]}>Videos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === 1 && styles.tabBtnActive]}
+          onPress={() => setTab(1)}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.tabText, tab === 1 && styles.tabTextActive]}>
+            Requests{pendingRequestCount > 0 ? ` (${pendingRequestCount})` : ''}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -145,6 +214,99 @@ export default function AdminUnfilteredScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {tab === 1 ? (
+          /* ── Feature requests ── */
+          requestsLoading ? (
+            <ActivityIndicator size="large" color={UNFILTERED_COLOR} style={{ marginTop: 40 }} />
+          ) : visibleRequests.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="mic-outline" size={48} color={colors.textLight} />
+              <Text style={styles.emptyTitle}>No requests yet</Text>
+              <Text style={styles.emptySubtitle}>Guest feature requests will appear here</Text>
+            </View>
+          ) : (
+            visibleRequests.map((req) => {
+              const s = REQUEST_STATUS_STYLE[req.status];
+              const isApproved = req.status === 'approved';
+              return (
+                <View key={req.id} style={styles.requestCard}>
+                  <View style={styles.requestTop}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.requestName}>{req.full_name}</Text>
+                      {!!(req.expertise || req.organisation) && (
+                        <Text style={styles.requestRole} numberOfLines={1}>
+                          {[req.expertise, req.organisation].filter(Boolean).join(' · ')}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={[styles.statusPill, { backgroundColor: s.bg }]}>
+                      <Text style={[styles.statusPillText, { color: s.fg }]}>{s.label}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.requestField}>
+                    <Text style={styles.requestFieldLabel}>TOPIC</Text>
+                    <Text style={styles.requestFieldValue}>{req.topic}</Text>
+                  </View>
+                  {!!req.bio && (
+                    <View style={styles.requestField}>
+                      <Text style={styles.requestFieldLabel}>ABOUT</Text>
+                      <Text style={styles.requestFieldValue}>{req.bio}</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.requestContactRow}>
+                    <Ionicons name="mail-outline" size={13} color={colors.textSecondary} />
+                    <Text style={styles.requestContact} selectable>{req.email}</Text>
+                  </View>
+                  {!!req.phone && (
+                    <View style={styles.requestContactRow}>
+                      <Ionicons name="call-outline" size={13} color={colors.textSecondary} />
+                      <Text style={styles.requestContact} selectable>{req.phone}</Text>
+                    </View>
+                  )}
+                  {!!req.social_url && (
+                    <View style={styles.requestContactRow}>
+                      <Ionicons name="link-outline" size={13} color={colors.textSecondary} />
+                      <Text style={styles.requestContact} selectable numberOfLines={1}>{req.social_url}</Text>
+                    </View>
+                  )}
+
+                  <Text style={styles.requestDate}>
+                    {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Text>
+
+                  {isApproved ? (
+                    <View style={styles.approvedRow}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                      <Text style={styles.approvedRowText}>Approved — reach out to the guest</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.requestActions}>
+                      <TouchableOpacity
+                        style={[styles.reqActionBtn, styles.reqActionApprove]}
+                        onPress={() => handleSetRequestStatus(req, 'approved')}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="checkmark" size={15} color={colors.onPrimary} />
+                        <Text style={styles.reqActionApproveText}>Approve</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.reqActionBtn, styles.reqActionReject]}
+                        onPress={() => handleSetRequestStatus(req, 'rejected')}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="close" size={15} color={colors.error} />
+                        <Text style={styles.reqActionRejectText}>Reject</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )
+        ) : (
+        <>
         {/* Add form */}
         {showForm && (
           <View style={styles.formCard}>
@@ -280,6 +442,8 @@ export default function AdminUnfilteredScreen() {
               </View>
             );
           })
+        )}
+        </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -478,5 +642,146 @@ const styles = StyleSheet.create({
     fontSize: FontSize.small,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+
+  // Feature request card
+  requestCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.base,
+    marginBottom: Gap.sm,
+    ...shadow.sm,
+  },
+  requestTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Gap.sm,
+    marginBottom: Gap.md,
+  },
+  requestName: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.black,
+    color: colors.text,
+    letterSpacing: -0.3,
+  },
+  requestRole: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  statusPill: {
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statusPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    letterSpacing: 0.3,
+  },
+  requestField: {
+    marginBottom: Gap.sm,
+  },
+  requestFieldLabel: {
+    fontSize: FontSize.micro,
+    fontWeight: Font.bold,
+    color: colors.textLight,
+    letterSpacing: 1.5,
+    marginBottom: 2,
+  },
+  requestFieldValue: {
+    fontSize: FontSize.body,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  requestContactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  requestContact: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  requestDate: {
+    fontSize: FontSize.xs,
+    color: colors.textLight,
+    marginTop: Gap.sm,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: Gap.sm,
+    marginTop: Gap.md,
+  },
+  reqActionBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: radius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  reqActionApprove: {
+    backgroundColor: colors.primary,
+  },
+  reqActionApproveText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.onPrimary,
+  },
+  reqActionReject: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  reqActionRejectText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.error,
+  },
+  approvedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Gap.md,
+    backgroundColor: '#DCF5E1',
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: Gap.md,
+  },
+  approvedRowText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: '#2C6E38',
+  },
+
+  // Tabs
+  tabRow: {
+    flexDirection: 'row',
+    gap: Gap.sm,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.md,
+  },
+  tabBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceAlt,
+  },
+  tabBtnActive: {
+    backgroundColor: colors.ink,
+  },
+  tabText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
   },
 });

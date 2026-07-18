@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-
   Alert,
   ActivityIndicator,
   Image,
   Linking,
   Modal,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +30,11 @@ import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 const SEEN_APPROVALS_KEY = 'seen_approved_task_ids';
+
+// Enable smooth expand/collapse animations on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const VERTICAL_FALLBACKS: Record<string, Vertical> = {
   'unfiltered': {
@@ -101,6 +108,27 @@ export default function VerticalDetailScreen() {
   // ─── Celebration modal state ────────────────────────────
   const [celebrationTask, setCelebrationTask] = useState<Task | null>(null);
   const [celebrationScale] = useState(new Animated.Value(0));
+
+  // Floating "Get featured" launcher: tap the mic to open/close the bubble,
+  // tap the bubble to open the form.
+  const [featExpanded, setFeatExpanded] = useState(false);
+  const [fabPulse] = useState(new Animated.Value(0));
+  const toggleFeat = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setFeatExpanded((v) => !v);
+  }, []);
+
+  useEffect(() => {
+    // Radar-style pulse on the collapsed launcher
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(fabPulse, { toValue: 1, duration: 1400, useNativeDriver: true }),
+        Animated.timing(fabPulse, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [fabPulse]);
 
   useEffect(() => {
     async function load() {
@@ -632,6 +660,46 @@ export default function VerticalDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* ─── Floating "Get featured" launcher (Unfiltered only) ─── */}
+      {slug === 'unfiltered' && (
+        <View style={styles.fabWrap} pointerEvents="box-none">
+          {featExpanded && (
+            <TouchableOpacity
+              style={[styles.fabBubble, { backgroundColor: verticalColor }]}
+              onPress={() => router.push('/unfiltered-feature' as any)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.fabBubbleTitle}>Want to be featured?</Text>
+              <Text style={styles.fabBubbleSub}>Pitch yourself as a guest on the show</Text>
+              <View style={styles.fabBubbleCta}>
+                <Text style={styles.fabBubbleCtaText}>Open form</Text>
+                <Ionicons name="arrow-forward" size={13} color={colors.ink} />
+              </View>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: verticalColor }]}
+            onPress={toggleFeat}
+            activeOpacity={0.85}
+          >
+            {!featExpanded && (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.fabPulse,
+                  {
+                    backgroundColor: verticalColor,
+                    opacity: fabPulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
+                    transform: [{ scale: fabPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] }) }],
+                  },
+                ]}
+              />
+            )}
+            <Ionicons name={featExpanded ? 'close' : 'mic'} size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* ─── Celebration Modal ─────────────────────────────── */}
       <Modal
         visible={!!celebrationTask}
@@ -680,12 +748,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Hero
+  // Hero — compact
   hero: {
-    height: 268,
     paddingTop: 52,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingBottom: Gap.lg,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backButton: {
     width: 36,
@@ -695,29 +763,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Gap.base,
-    marginBottom: Gap.sm,
+    marginBottom: 2,
   },
   heroContent: {
     paddingHorizontal: Gap.lg,
+    paddingTop: Gap.xs,
   },
   heroLabel: {
     fontSize: 11,
-    letterSpacing: 4,
+    letterSpacing: 3,
     color: 'rgba(255,255,255,0.75)',
     fontWeight: '700',
   },
   heroName: {
-    fontSize: 36,
+    fontSize: 30,
     fontWeight: '900',
     color: 'white',
-    marginTop: 8,
-    letterSpacing: -0.8,
+    marginTop: 4,
+    letterSpacing: -0.6,
   },
   heroTagline: {
-    fontSize: 15,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.85)',
-    marginTop: 8,
-    lineHeight: 22,
+    marginTop: 6,
+    lineHeight: 20,
   },
 
   // Content area
@@ -1026,6 +1095,63 @@ const styles = StyleSheet.create({
   },
 
   // Unfiltered videos
+  // Floating "Get featured" launcher (chatbot-style)
+  fabWrap: {
+    position: 'absolute',
+    right: Gap.base,
+    bottom: Gap.xxl,
+    alignItems: 'flex-end',
+  },
+  fab: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.lg,
+  },
+  fabPulse: {
+    position: 'absolute',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+  },
+  fabBubble: {
+    maxWidth: 260,
+    borderRadius: radius.xl,
+    paddingVertical: Gap.md,
+    paddingHorizontal: Gap.base,
+    marginBottom: Gap.md,
+    ...shadow.lg,
+  },
+  fabBubbleTitle: {
+    fontSize: FontSize.body,
+    fontWeight: Font.black,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  fabBubbleSub: {
+    fontSize: FontSize.small,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  fabBubbleCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: Gap.md,
+  },
+  fabBubbleCtaText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.ink,
+  },
   unfilteredHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

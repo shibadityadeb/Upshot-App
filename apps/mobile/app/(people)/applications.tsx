@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { EventApplication, HostingApplication } from '@upshot/types';
+import type { EventApplication, HostingApplication, UnfilteredFeatureRequest } from '@upshot/types';
 import type { CampusCartelMember } from '@upshot/api-client';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../src/constants/theme';
@@ -34,6 +34,10 @@ export default function PeopleApplications() {
   // ─── Hosting applications ────────────────────────────────────
   const [hostingApps, setHostingApps] = useState<HostingApplication[]>([]);
   const [hostingLoading, setHostingLoading] = useState(true);
+
+  // ─── Unfiltered feature requests ─────────────────────────────
+  const [unfReqs, setUnfReqs] = useState<UnfilteredFeatureRequest[]>([]);
+  const [unfLoading, setUnfLoading] = useState(true);
 
   // ─── Event applications ──────────────────────────────────────
   const [applications, setApplications] = useState<EventApplication[]>([]);
@@ -72,19 +76,32 @@ export default function PeopleApplications() {
     }
   }, [user]);
 
+  const loadUnfReqs = useCallback(async () => {
+    if (!user?.id) { setUnfLoading(false); return; }
+    try {
+      const result = await api.unfiltered.getMyFeatureRequests(user.id);
+      if (result.data) setUnfReqs(result.data);
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setUnfLoading(false);
+    }
+  }, [user?.id]);
+
   useFocusEffect(
     useCallback(() => {
       loadCcApp();
       loadApplications();
       loadHostingApps();
-    }, [loadCcApp, loadApplications, loadHostingApps]),
+      loadUnfReqs();
+    }, [loadCcApp, loadApplications, loadHostingApps, loadUnfReqs]),
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadCcApp(), loadApplications(), loadHostingApps()]);
+    await Promise.all([loadCcApp(), loadApplications(), loadHostingApps(), loadUnfReqs()]);
     setRefreshing(false);
-  }, [loadCcApp, loadApplications, loadHostingApps]);
+  }, [loadCcApp, loadApplications, loadHostingApps, loadUnfReqs]);
 
   const handleWithdraw = useCallback(async (appId: string) => {
     if (!user) return;
@@ -304,6 +321,56 @@ export default function PeopleApplications() {
           ))
         )}
 
+        {/* ── Unfiltered Feature Requests Section ── */}
+        <Text style={[styles.sectionTitle, { marginTop: Gap.xl }]}>Unfiltered</Text>
+
+        {unfLoading ? (
+          <View style={styles.miniLoader}>
+            <ActivityIndicator size="small" color={verticalColors.unfiltered} />
+          </View>
+        ) : unfReqs.length === 0 ? (
+          <TouchableOpacity
+            style={styles.ccEmptyCard}
+            onPress={() => router.push('/unfiltered-feature' as any)}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.ccIconBadge, { backgroundColor: verticalColors.unfiltered }]}>
+              <Ionicons name="mic" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.ccEmptyTitle}>Get featured on Unfiltered</Text>
+              <Text style={styles.ccEmptySub}>Pitch yourself as a guest on the show</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+        ) : (
+          unfReqs.map((req) => (
+            <Card key={req.id} style={styles.appCard}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.eventTitle} numberOfLines={1}>Unfiltered · Guest feature</Text>
+                <View style={styles.submittedBadge}>
+                  <Ionicons name="checkmark-circle" size={12} color={verticalColors.unfiltered} />
+                  <Text style={styles.submittedText}>Submitted</Text>
+                </View>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Ionicons name="chatbubble-ellipses-outline" size={13} color={colors.textSecondary} />
+                <Text style={styles.eventMeta} numberOfLines={2}>{req.topic}</Text>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Ionicons name="time-outline" size={13} color={colors.textLight} />
+                <Text style={styles.appliedDate}>
+                  Submitted {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </Text>
+              </View>
+
+              <Text style={styles.unfNote}>The team will reach out if you're a fit.</Text>
+            </Card>
+          ))
+        )}
+
         {/* ── Event Applications Section ── */}
         {!appLoading && applications.length > 0 && (() => {
           const todayStr = new Date().toISOString().split('T')[0];
@@ -454,4 +521,26 @@ const styles = StyleSheet.create({
   actionRow: { marginTop: Gap.sm, flexDirection: 'row' },
   approvedText: { marginTop: Gap.sm, fontSize: FontSize.body, fontWeight: Font.semibold, color: colors.success },
   rejectedNote: { marginTop: Gap.sm, fontSize: FontSize.small, color: colors.error, fontStyle: 'italic' },
+
+  // ── Unfiltered request ──────────────────────────────────────
+  submittedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: verticalColors.unfiltered + '15',
+    borderRadius: radius.full,
+    paddingHorizontal: Gap.sm,
+    paddingVertical: 4,
+  },
+  submittedText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: verticalColors.unfiltered,
+  },
+  unfNote: {
+    marginTop: Gap.sm,
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
 });
