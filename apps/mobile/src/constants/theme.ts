@@ -1,46 +1,67 @@
 // ─── Colors ──────────────────────────────────────────────────────────────────
+//
+// UPSHOT / UBM brand — light editorial theme with lime-green accent.
+// Sourced from the website: bright lime accent, near-black ink, clean
+// off-white surfaces, generous rounding. No full-black backgrounds.
 
 export const colors = {
-  primary: '#1B2CC1',
-  accent: '#7BC55A',
-  background: '#F0F0F5',
+  /** Brand accent — lime green. Use black text on top of it. */
+  primary: '#A6CE39',
+  primaryDark: '#8FB82E',
+  primaryTint: '#EEF6D6',
+  /** Text/ink color to place ON the lime primary. */
+  onPrimary: '#0E0E0E',
+
+  /** Editorial ink — the near-black used for headlines & dark chips. */
+  ink: '#0E0E0E',
+  inkSoft: '#1A1D1E',
+
+  /** Secondary accent kept for backward-compat (was a muted green). */
+  accent: '#0E0E0E',
+
+  background: '#F6F6F1',
   surface: '#FFFFFF',
-  text: '#0D0D0D',
-  textSecondary: '#6B7280',
-  textLight: '#9CA3AF',
-  border: '#E4E4E7',
-  error: '#EF4444',
-  success: '#22C55E',
-  warning: '#F59E0B',
+  surfaceAlt: '#F1F1EC',
+  text: '#0E0E0E',
+  textSecondary: '#5F6660',
+  textLight: '#9AA09A',
+  border: '#E7E7E0',
+  borderStrong: '#D8D8CF',
+
+  error: '#E5484D',
+  success: '#3E9B4F',
+  warning: '#E5941B',
   info: '#3B82F6',
-  // Dark editorial surfaces
-  dark: '#0D0F1C',
-  darkMid: '#151929',
-  darkAccent: '#1E2340',
+
+  // Dark editorial surfaces (used sparingly for contrast chips/overlays)
+  dark: '#0E0E0E',
+  darkMid: '#1A1D1E',
+  darkAccent: '#26292A',
+
   // Campus Cartel brand
-  campusCartelGreen: '#047857',
-  campusCartelTint: '#D1FAE5',
-  campusCartelText: '#065F46',
+  campusCartelGreen: '#3E9B4F',
+  campusCartelTint: '#E4F3E5',
+  campusCartelText: '#2C6E38',
 } as const;
 
 // ─── Vertical brand colors ────────────────────────────────────────────────────
 
 export const verticalColors = {
   unfiltered: '#5B21B6',
-  campusCartel: '#047857',
-  campus_cartel: '#047857', // backward-compat alias
+  campusCartel: '#3E9B4F',
+  campus_cartel: '#3E9B4F', // backward-compat alias
   irise: '#92400E',
   ibelieve: '#991B1B',
   // Campus Cartel brand
-  campusCartelGreen: '#047857',
-  campusCartelTint: '#D1FAE5',
-  campusCartelText: '#065F46',
+  campusCartelGreen: '#3E9B4F',
+  campusCartelTint: '#E4F3E5',
+  campusCartelText: '#2C6E38',
 } as const;
 
 // ─── Legacy dark bg exports (kept for backward compat) ───────────────────────
 
-export const DarkBg = '#0D0F1C';
-export const DarkBgSecondary = '#151929';
+export const DarkBg = '#0E0E0E';
+export const DarkBgSecondary = '#1A1D1E';
 
 // ─── Typography scale ─────────────────────────────────────────────────────────
 
@@ -56,10 +77,10 @@ export const typography = {
 
 /** New semantic font-size scale */
 export const FontSize = {
-  hero: 36,
-  display: 28,
-  h1: 22,
-  h2: 18,
+  hero: 40,
+  display: 30,
+  h1: 24,
+  h2: 19,
   h3: 16,
   body: 14,
   small: 13,
@@ -75,6 +96,14 @@ export const Font = {
   medium: '500' as const,
   regular: '400' as const,
 };
+
+/** Letter-spacing tokens — editorial uppercase eyebrows use `eyebrow`. */
+export const Tracking = {
+  tight: -0.6,
+  normal: 0,
+  wide: 0.3,
+  eyebrow: 1.8,
+} as const;
 
 // ─── Spacing ──────────────────────────────────────────────────────────────────
 
@@ -101,12 +130,15 @@ export const Gap = {
 } as const;
 
 // ─── Border radius ────────────────────────────────────────────────────────────
+//
+// Website uses generous rounding on cards/panels and full pills on buttons.
 
 export const radius = {
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 22,
+  xxl: 28,
   full: 9999,
 } as const;
 
@@ -114,24 +146,24 @@ export const radius = {
 
 export const shadow = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#1A1D1E',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowColor: '#1A1D1E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 3,
   },
   lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#1A1D1E',
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 24,
+    elevation: 6,
   },
 } as const;

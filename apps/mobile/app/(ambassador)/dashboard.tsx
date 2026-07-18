@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador, Student, Task } from '@upshot/types';
-import { colors, DarkBg, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import {
   AvatarCircle,
   LoadingScreen,
@@ -171,14 +171,14 @@ export default function AmbassadorDashboard() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
         }
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero ── */}
         <View style={styles.hero}>
           <TouchableOpacity onPress={() => router.replace('/(people)/events' as any)} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={20} color={colors.ink} />
           </TouchableOpacity>
 
           <Text style={styles.heroEyebrow}>AMBASSADOR</Text>
@@ -204,7 +204,7 @@ export default function AmbassadorDashboard() {
           </View>
 
           <TouchableOpacity onPress={handleShare} activeOpacity={0.7} style={styles.shareBtn}>
-            <Ionicons name="share-social-outline" size={15} color={colors.accent} />
+            <Ionicons name="share-social-outline" size={15} color="#FFFFFF" />
             <Text style={styles.shareBtnText}>Share your code</Text>
           </TouchableOpacity>
         </View>
@@ -212,8 +212,8 @@ export default function AmbassadorDashboard() {
         {/* ── Stats ── */}
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
-            <View style={[styles.statIconWrap, { backgroundColor: colors.primary + '12' }]}>
-              <Ionicons name="people-outline" size={18} color={colors.primary} />
+            <View style={[styles.statIconWrap, { backgroundColor: colors.primaryTint }]}>
+              <Ionicons name="people-outline" size={18} color={colors.ink} />
             </View>
             <Text style={styles.statValue}>{ambassador?.referral_count ?? 0}</Text>
             <Text style={styles.statLabel}>Referrals</Text>
@@ -336,7 +336,7 @@ export default function AmbassadorDashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
   },
   scroll: {
     flex: 1,
@@ -348,16 +348,18 @@ const styles = StyleSheet.create({
 
   // ── Hero ──
   hero: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingTop: Gap.sm,
     paddingHorizontal: Gap.base,
-    paddingBottom: Gap.xl,
+    paddingBottom: Gap.xxl,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Gap.md,
@@ -365,15 +367,15 @@ const styles = StyleSheet.create({
   heroEyebrow: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(14,14,14,0.6)',
     letterSpacing: 2.5,
     marginBottom: Gap.xs,
   },
   heroName: {
     fontSize: FontSize.display,
     fontWeight: Font.black,
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   tierChip: {
     flexDirection: 'row',
@@ -396,7 +398,7 @@ const styles = StyleSheet.create({
   },
   codeLabel: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(14,14,14,0.5)',
     fontWeight: Font.bold,
     letterSpacing: 2,
   },
@@ -409,22 +411,22 @@ const styles = StyleSheet.create({
   codeValue: {
     fontSize: FontSize.display,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
     letterSpacing: 3,
   },
   codeAction: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: radius.md,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   codeActionText: {
     fontSize: FontSize.small,
     color: '#FFFFFF',
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
   },
   shareBtn: {
     flexDirection: 'row',
@@ -432,17 +434,15 @@ const styles = StyleSheet.create({
     gap: Gap.xs,
     marginTop: Gap.base,
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(123,197,90,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(123,197,90,0.25)',
-    borderRadius: radius.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
   },
   shareBtnText: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: colors.accent,
+    fontWeight: Font.bold,
+    color: '#FFFFFF',
   },
 
   // ── Stats Grid ──

@@ -19,7 +19,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event, HostingApplication, Vertical } from '@upshot/types';
-import { colors, DarkBg, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../src/constants/theme';
 import {
   Button,
   Card,
@@ -508,10 +508,10 @@ export default function AdminEvents() {
 
         {/* Search inside hero */}
         <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.5)" />
+          <Ionicons name="search-outline" size={16} color="rgba(14,14,14,0.5)" />
           <TextInput
             placeholder="Search events..."
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor="rgba(14,14,14,0.4)"
             value={search}
             onChangeText={setSearch}
             style={styles.searchInput}
@@ -712,7 +712,7 @@ export default function AdminEvents() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
   },
   centered: {
     flex: 1,
@@ -723,10 +723,12 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
     paddingTop: Gap.md,
-    paddingBottom: Gap.base,
+    paddingBottom: Gap.lg,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   heroRow: {
     flexDirection: 'row',
@@ -737,35 +739,37 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
+    fontWeight: Font.medium,
   },
   addBtn: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: radius.lg,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(14,14,14,0.08)',
+    borderRadius: radius.full,
+    paddingHorizontal: 14,
     gap: 8,
-    height: 42,
+    height: 44,
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: FontSize.body,
-    height: 42,
+    height: 44,
   },
 
   // Tabs
@@ -794,7 +798,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   tabTextActive: {
-    color: colors.primary,
+    color: colors.ink,
+    fontWeight: Font.bold,
   },
   tabBadge: {
     backgroundColor: colors.error,
@@ -907,8 +912,8 @@ const styles = StyleSheet.create({
   },
   changeVerticalLinkText: {
     fontSize: FontSize.small,
-    color: colors.primary,
-    fontWeight: Font.semibold,
+    color: colors.ink,
+    fontWeight: Font.bold,
     textDecorationLine: 'underline',
   },
   // Modals

@@ -589,7 +589,7 @@ export default function HostEvent() {
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color={colors.ink} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.headerEyebrow}>HOST AN EVENT</Text>
@@ -646,7 +646,7 @@ export default function HostEvent() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color={colors.ink} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.headerEyebrow}>HOST AN EVENT</Text>
@@ -892,9 +892,9 @@ export default function HostEvent() {
         {/* Bottom button */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
           {!showEventDetails ? (
-            <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.85}>
               <Text style={styles.nextBtnText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={16} color="#fff" />
+              <Ionicons name="arrow-forward" size={16} color={colors.onPrimary} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -904,11 +904,11 @@ export default function HostEvent() {
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
                 <>
                   <Text style={styles.nextBtnText}>Submit for Review</Text>
-                  <Ionicons name="checkmark" size={16} color="#fff" />
+                  <Ionicons name="checkmark" size={16} color={colors.onPrimary} />
                 </>
               )}
             </TouchableOpacity>
@@ -926,27 +926,29 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
 
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
     paddingBottom: Gap.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
   headerText: { flex: 1 },
   headerEyebrow: {
     fontSize: FontSize.xs, fontWeight: Font.bold,
-    color: colors.accent, letterSpacing: 1.5, marginBottom: 2,
+    color: 'rgba(14,14,14,0.6)', letterSpacing: 1.5, marginBottom: 2,
   },
-  headerTitle: { fontSize: FontSize.h1, fontWeight: Font.bold, color: '#fff' },
+  headerTitle: { fontSize: FontSize.h1, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.5 },
   stepIndicator: {
     fontSize: FontSize.small, fontWeight: Font.semibold,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(14,14,14,0.6)',
   },
 
   progressBar: { height: 3, backgroundColor: colors.border },
@@ -975,7 +977,7 @@ const styles = StyleSheet.create({
   },
   pillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   pillText: { fontSize: 13, fontWeight: Font.semibold, color: colors.textSecondary },
-  pillTextActive: { color: '#fff' },
+  pillTextActive: { color: colors.onPrimary, fontWeight: Font.bold },
 
   typePill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -984,7 +986,7 @@ const styles = StyleSheet.create({
   },
   typePillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   typePillText: { fontSize: 14, fontWeight: Font.semibold, color: colors.textSecondary },
-  typePillTextActive: { color: '#fff' },
+  typePillTextActive: { color: colors.onPrimary, fontWeight: Font.bold },
 
   selectorBtn: {
     backgroundColor: colors.surface, borderRadius: radius.lg,
@@ -1018,9 +1020,9 @@ const styles = StyleSheet.create({
   nextBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: Gap.sm, backgroundColor: colors.primary,
-    borderRadius: radius.lg, height: 52,
+    borderRadius: radius.full, height: 54,
   },
-  nextBtnText: { fontSize: FontSize.h3, fontWeight: Font.bold, color: '#fff' },
+  nextBtnText: { fontSize: FontSize.h3, fontWeight: Font.bold, color: colors.onPrimary },
 });
 
 const listStyles = StyleSheet.create({
@@ -1035,7 +1037,7 @@ const listStyles = StyleSheet.create({
   },
   newBtnIcon: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.ink,
     alignItems: 'center', justifyContent: 'center',
   },
   newBtnTitle: { fontSize: FontSize.body, fontWeight: Font.bold, color: colors.text },
@@ -1091,9 +1093,9 @@ const pickerStyles = StyleSheet.create({
     justifyContent: 'space-between', alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
-  optionActive: { backgroundColor: 'rgba(27,44,193,0.05)' },
+  optionActive: { backgroundColor: colors.primaryTint },
   optionText: { fontSize: FontSize.body, color: colors.text },
-  optionTextActive: { color: colors.primary, fontWeight: Font.semibold },
+  optionTextActive: { color: colors.ink, fontWeight: Font.bold },
 });
 
 const dateStyles = StyleSheet.create({
@@ -1146,11 +1148,11 @@ const timeStyles = StyleSheet.create({
   },
   periodBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   periodText: { fontSize: FontSize.body, fontWeight: Font.semibold, color: colors.textSecondary },
-  periodTextActive: { color: '#fff' },
+  periodTextActive: { color: colors.onPrimary, fontWeight: Font.bold },
   confirmBtn: {
     marginHorizontal: Gap.base, marginBottom: Gap.base,
-    backgroundColor: colors.primary, borderRadius: radius.lg, height: 48,
+    backgroundColor: colors.primary, borderRadius: radius.full, height: 50,
     alignItems: 'center', justifyContent: 'center',
   },
-  confirmText: { fontSize: FontSize.h3, fontWeight: Font.bold, color: '#fff' },
+  confirmText: { fontSize: FontSize.h3, fontWeight: Font.bold, color: colors.onPrimary },
 });

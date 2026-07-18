@@ -134,7 +134,7 @@ export default function MyTasksScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={22} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Assignments</Text>
       </View>
@@ -186,26 +186,29 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingTop: Gap.sm,
     paddingBottom: Gap.lg,
     paddingHorizontal: Gap.base,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
 
   // List

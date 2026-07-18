@@ -271,7 +271,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   pickerOptionTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
+    fontWeight: Font.bold,
   },
   dateBtn: {
     flexDirection: 'row',

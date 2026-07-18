@@ -248,10 +248,12 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingTop: Gap.lg,
     paddingHorizontal: Gap.base,
     paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   headerRow: {
     flexDirection: 'row',
@@ -261,25 +263,25 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
+    fontWeight: Font.medium,
   },
   countPill: {
-    backgroundColor: 'rgba(123,197,90,0.15)',
+    backgroundColor: colors.ink,
     borderRadius: radius.full,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(123,197,90,0.3)',
   },
   countText: {
     fontSize: FontSize.small,
-    fontWeight: Font.semibold,
-    color: colors.accent,
+    fontWeight: Font.bold,
+    color: '#FFFFFF',
   },
 
   // Stats row
@@ -329,8 +331,8 @@ const styles = StyleSheet.create({
   },
   codeBtnText: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: colors.primary,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
 
   // Search

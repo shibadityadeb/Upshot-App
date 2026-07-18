@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
-import { colors, Font, FontSize, Gap } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import { EmptyState, OpportunityCard } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useDebounce } from '../../src/hooks/useDebounce';
@@ -114,7 +114,7 @@ export default function PeopleOpportunities() {
 
   return (
     <View style={styles.container}>
-      {/* Dark header */}
+      {/* Lime header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
           <View>
@@ -124,9 +124,9 @@ export default function PeopleOpportunities() {
           <TouchableOpacity
             style={styles.hostBtn}
             onPress={() => router.push('/(people)/host-event' as any)}
-            activeOpacity={0.75}
+            activeOpacity={0.85}
           >
-            <Ionicons name="add" size={16} color={colors.primary} />
+            <Ionicons name="add" size={16} color="#FFFFFF" />
             <Text style={styles.hostBtnText}>Host</Text>
           </TouchableOpacity>
         </View>
@@ -202,9 +202,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingBottom: Gap.lg,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   headerRow: {
     flexDirection: 'row',
@@ -214,27 +216,27 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
-    color: colors.surface,
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
+    fontWeight: Font.medium,
   },
   hostBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
   hostBtnText: {
     fontSize: FontSize.small,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: '#fff',
   },
   filterBlock: {
@@ -279,7 +281,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   pillLabelActive: {
-    color: colors.surface,
+    color: colors.onPrimary,
+    fontWeight: Font.bold,
   },
   listContent: {
     paddingHorizontal: Gap.base,

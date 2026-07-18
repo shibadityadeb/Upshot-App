@@ -206,36 +206,38 @@ const styles = StyleSheet.create({
 
   // Balance header
   balanceHeader: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingTop: Gap.lg,
     paddingBottom: Gap.xl,
     paddingHorizontal: Gap.base,
     alignItems: 'center',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   balanceLabel: {
     fontSize: FontSize.micro,
     fontWeight: Font.bold,
-    color: colors.accent,
+    color: 'rgba(14,14,14,0.6)',
     letterSpacing: 2,
   },
   balanceAmount: {
     fontSize: 52,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
     marginTop: Gap.sm,
     letterSpacing: -1,
   },
   balanceUnit: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: Gap.xl,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(14,14,14,0.08)',
+    borderRadius: 14,
     paddingVertical: Gap.md,
     paddingHorizontal: Gap.xl,
   },
@@ -246,17 +248,17 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: FontSize.h2,
     fontWeight: Font.bold,
-    color: '#FFFFFF',
+    color: colors.ink,
   },
   statLabel: {
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
   },
   statDivider: {
     width: 1,
     height: 28,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(14,14,14,0.15)',
   },
 
   // Section header
@@ -329,8 +331,8 @@ const styles = StyleSheet.create({
   },
   loadMoreText: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: colors.primary,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
 
   // Empty

@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
-import { colors, Font, FontSize, Gap } from '../../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius } from '../../../src/constants/theme';
 import { AvatarCircle, Input } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
 import { showError } from '../../../src/store/error.store';
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   heroPlaceholderTitle: {
     fontSize: 22,
     fontWeight: Font.bold,
-    color: colors.primary,
+    color: colors.ink,
     textAlign: 'center',
   },
   heroPlaceholderWatermark: {
@@ -473,25 +473,25 @@ const styles = StyleSheet.create({
   },
   applyButton: {
     width: '100%',
-    height: 52,
-    backgroundColor: '#1B2CC1',
-    borderRadius: 12,
+    height: 54,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   applyButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   applyButtonText: {
     fontSize: 16,
     fontWeight: Font.bold,
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   appliedButton: {
     width: '100%',
-    height: 52,
+    height: 54,
     backgroundColor: '#D1FAE5',
-    borderRadius: 12,
+    borderRadius: radius.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

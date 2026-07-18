@@ -212,8 +212,8 @@ export function AmbassadorCodesPanel({ adminId }: Props) {
         </View>
 
         <View style={styles.badgeRow}>
-          <View style={[styles.typeBadge, { backgroundColor: colors.primary + '15' }]}>
-            <Text style={[styles.typeBadgeText, { color: colors.primary }]}>
+          <View style={[styles.typeBadge, { backgroundColor: colors.primaryTint }]}>
+            <Text style={[styles.typeBadgeText, { color: colors.ink }]}>
               {item.code_type === 'custom' ? 'Custom' : 'Random'}
             </Text>
           </View>
@@ -501,7 +501,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   filterPillTextActive: {
-    color: colors.surface,
+    color: colors.onPrimary,
+    fontWeight: Font.bold,
   },
   listContent: {
     paddingHorizontal: Gap.base,
@@ -597,12 +598,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radius.full,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: colors.primaryTint,
   },
   copyBtnText: {
     fontSize: FontSize.xs,
-    color: colors.primary,
-    fontWeight: Font.semibold,
+    color: colors.ink,
+    fontWeight: Font.bold,
   },
   deactivateBtn: {
     paddingHorizontal: 10,
@@ -669,7 +670,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   typeOptionTextActive: {
-    color: colors.surface,
+    color: colors.onPrimary,
+    fontWeight: Font.bold,
   },
   verticalPicker: {
     flexDirection: 'row',

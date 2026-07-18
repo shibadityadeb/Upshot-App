@@ -55,6 +55,7 @@ export default function LoginScreen() {
           </View>
           <Text style={styles.logoTagline}>India's leading Media & Community Network</Text>
         </View>
+        <Text style={styles.headerHeadline}>Where campus{'\n'}culture compounds.</Text>
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -135,16 +136,17 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: colors.primary,
     paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 280,
+    minHeight: 300,
   },
   logoContainer: {
     alignItems: 'center',
   },
   logoBadge: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
@@ -154,25 +156,37 @@ const styles = StyleSheet.create({
   },
   logoTagline: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 14,
     textAlign: 'center',
+    fontWeight: Font.medium,
+  },
+  headerHeadline: {
+    fontSize: 26,
+    fontWeight: Font.black,
+    color: colors.ink,
+    textAlign: 'center',
+    marginTop: 20,
+    lineHeight: 30,
+    letterSpacing: -0.6,
   },
   formSheet: {
     flex: 1,
     backgroundColor: colors.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -20,
   },
   formContent: {
     padding: spacing.lg,
     paddingTop: spacing.xl,
   },
   formTitle: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.bold,
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
     color: colors.text,
     marginBottom: 4,
+    letterSpacing: -0.6,
   },
   formSubtitle: {
     fontSize: FontSize.body,
@@ -200,8 +214,8 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   toggleText: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.ink,
+    fontWeight: '700',
     fontSize: 13,
   },
   forgotLink: {
@@ -210,9 +224,9 @@ const styles = StyleSheet.create({
     marginTop: -spacing.sm,
   },
   forgotText: {
-    color: colors.primary,
+    color: colors.ink,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   signInBtn: {
     marginBottom: spacing.lg,
@@ -227,8 +241,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   footerLink: {
-    color: colors.primary,
+    color: colors.ink,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

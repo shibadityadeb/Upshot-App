@@ -254,7 +254,7 @@ export default function PeopleApplications() {
             onPress={() => router.push('/(people)/host-event' as any)}
             activeOpacity={0.85}
           >
-            <View style={[styles.ccIconBadge, { backgroundColor: colors.primary }]}>
+            <View style={[styles.ccIconBadge, { backgroundColor: colors.ink }]}>
               <Ionicons name="megaphone-outline" size={20} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
@@ -375,12 +375,14 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: Gap.base, paddingTop: Gap.md, paddingBottom: Gap.xl },
 
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
     paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  headerTitle: { fontSize: FontSize.h1, fontWeight: Font.black, color: colors.surface },
-  headerSubtitle: { fontSize: FontSize.small, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  headerTitle: { fontSize: FontSize.h1, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: FontSize.small, color: 'rgba(14,14,14,0.6)', marginTop: 2, fontWeight: Font.medium },
 
   sectionTitle: {
     fontSize: FontSize.small,

@@ -16,7 +16,6 @@ import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  DarkBg,
   spacing,
   radius,
 } from '../../src/constants/theme';
@@ -321,10 +320,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingTop: 52,
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backRow: {
     flexDirection: 'row',
@@ -332,19 +333,22 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 14,
-    color: colors.accent,
+    color: colors.ink,
     marginLeft: 2,
+    fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.ink,
     marginTop: 12,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: colors.accent,
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 4,
+    fontWeight: '500',
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
@@ -384,7 +388,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   pillTextSelected: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
+    fontWeight: '700',
   },
   pillTextUnselected: {
     color: colors.textSecondary,

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import { colors, Font, FontSize, Gap } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
 import { AvatarCircle, Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
@@ -158,36 +158,39 @@ const styles = StyleSheet.create({
 
   // Identity header
   identitySection: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     paddingTop: Gap.xl,
     paddingBottom: Gap.xxl,
     paddingHorizontal: Gap.base,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   identityName: {
     fontSize: FontSize.h1,
-    fontWeight: Font.bold,
-    color: '#FFFFFF',
+    fontWeight: Font.black,
+    color: colors.ink,
     marginTop: Gap.md,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   identityEmail: {
     fontSize: FontSize.body,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 3,
     textAlign: 'center',
   },
   ambassadorChip: {
     marginTop: Gap.md,
-    borderWidth: 1,
-    borderColor: '#7BC55A',
-    borderRadius: 4,
-    paddingHorizontal: 10,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
     paddingVertical: 5,
   },
   ambassadorChipText: {
     fontSize: FontSize.xs,
-    color: '#7BC55A',
+    color: colors.ink,
     fontWeight: Font.bold,
     letterSpacing: 2,
   },

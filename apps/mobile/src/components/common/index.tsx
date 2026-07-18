@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Vertical, ContentPost, Event } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, Tracking } from '../../constants/theme';
 
 export { SegmentedControl } from './SegmentedControl';
 export { FilterPills } from './FilterPills';
@@ -22,6 +22,13 @@ export { AppLoader } from './AppLoader';
 export { ErrorPopup } from './ErrorPopup';
 
 // ─── Button ──────────────────────────────────────────────────────────────────
+//
+// Pill-shaped buttons matching the website "Partner with UBM" CTA.
+//  · primary   → lime fill, black label
+//  · secondary → ink (near-black) fill, white label
+//  · outline   → ink outline, ink label
+//  · ghost     → transparent, muted label
+//  · danger    → red fill, white label
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -39,21 +46,21 @@ interface ButtonProps {
 
 const buttonBg: Record<ButtonVariant, string> = {
   primary: colors.primary,
-  secondary: colors.accent,
+  secondary: colors.ink,
   outline: 'transparent',
   ghost: 'transparent',
   danger: colors.error,
 };
 
 const buttonTextColor: Record<ButtonVariant, string> = {
-  primary: '#FFFFFF',
+  primary: colors.onPrimary,
   secondary: '#FFFFFF',
-  outline: colors.primary,
+  outline: colors.ink,
   ghost: colors.textSecondary,
   danger: '#FFFFFF',
 };
 
-const buttonHeight: Record<ButtonSize, number> = { sm: 36, md: 48, lg: 56 };
+const buttonHeight: Record<ButtonSize, number> = { sm: 40, md: 50, lg: 56 };
 const buttonFontSize: Record<ButtonSize, number> = { sm: 13, md: 15, lg: 16 };
 
 export function Button({
@@ -72,16 +79,16 @@ export function Button({
     <TouchableOpacity
       onPress={onPress}
       disabled={isInactive}
-      activeOpacity={0.75}
+      activeOpacity={0.85}
       style={[
         btnStyles.base,
         {
           backgroundColor: buttonBg[variant],
           height: buttonHeight[size],
-          borderRadius: 10,
-          opacity: isInactive ? 0.5 : 1,
+          borderRadius: radius.full,
+          opacity: isInactive ? 0.45 : 1,
         },
-        isOutline && { borderWidth: 1.5, borderColor: colors.primary },
+        isOutline && { borderWidth: 1.5, borderColor: colors.ink },
         style,
       ]}
     >
@@ -96,7 +103,7 @@ export function Button({
               {
                 color: buttonTextColor[variant],
                 fontSize: buttonFontSize[size],
-                letterSpacing: 0.3,
+                letterSpacing: Tracking.wide,
               },
             ]}
           >
@@ -112,7 +119,7 @@ const btnStyles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Gap.xl,
+    paddingHorizontal: Gap.xxl,
   },
   content: {
     flexDirection: 'row',
@@ -121,6 +128,46 @@ const btnStyles = StyleSheet.create({
   },
   text: {
     fontWeight: Font.bold,
+  },
+});
+
+// ─── Eyebrow ─────────────────────────────────────────────────────────────────
+//
+// Small uppercase letter-spaced label — the website's "04 — IRISE · IBELIEVE",
+// "FLAGSHIP GROWTH PLATFORMS", "IMPACT" pattern. Optional leading lime dot.
+
+interface EyebrowProps {
+  label: string;
+  dot?: boolean;
+  color?: string;
+  style?: StyleProp<TextStyle>;
+}
+
+export function Eyebrow({ label, dot = false, color = colors.textSecondary, style }: EyebrowProps) {
+  return (
+    <View style={eyebrowStyles.row}>
+      {dot ? <View style={eyebrowStyles.dot} /> : null}
+      <Text style={[eyebrowStyles.text, { color }, style]}>{label.toUpperCase()}</Text>
+    </View>
+  );
+}
+
+const eyebrowStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
+  text: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    letterSpacing: Tracking.eyebrow,
   },
 });
 
@@ -188,33 +235,36 @@ const inputStyles = StyleSheet.create({
     marginBottom: Gap.base,
   },
   label: {
-    fontSize: FontSize.small,
-    fontWeight: Font.medium,
-    color: colors.text,
-    marginBottom: 6,
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    letterSpacing: Tracking.eyebrow,
+    textTransform: 'uppercase',
+    color: colors.textSecondary,
+    marginBottom: 8,
   },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radius.md,
   },
   input: {
     flex: 1,
     fontSize: FontSize.body,
     color: colors.text,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
   },
   right: {
-    paddingRight: 12,
+    paddingRight: 14,
   },
   error: {
     fontSize: FontSize.xs,
     color: colors.error,
-    marginTop: 4,
+    marginTop: 5,
+    fontWeight: Font.medium,
   },
 });
 
@@ -243,10 +293,10 @@ export function Card({ children, style, onPress }: CardProps) {
 const cardStyles = StyleSheet.create({
   base: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 0.5,
+    borderRadius: radius.xl,
+    borderWidth: 1,
     borderColor: colors.border,
-    ...shadow.md,
+    ...shadow.sm,
   },
 });
 
@@ -261,11 +311,11 @@ interface BadgeProps {
 
 export function Badge({
   label,
-  color = colors.primary,
+  color = colors.ink,
   bgColor,
   size = 'sm',
 }: BadgeProps) {
-  const bg = bgColor ?? color + '18';
+  const bg = bgColor ?? color + '16';
   const isMd = size === 'md';
   return (
     <View
@@ -307,10 +357,10 @@ const statusColorMap: Record<string, string> = {
   approved: colors.success,
   rejected: colors.error,
   draft: colors.textSecondary,
-  completed: colors.primary,
+  completed: colors.success,
   cancelled: colors.error,
   assigned: colors.info,
-  submitted: colors.primary,
+  submitted: colors.ink,
   in_progress: colors.warning,
   withdrawn: colors.textSecondary,
 };
@@ -370,20 +420,21 @@ const shStyles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: FontSize.h2,
-    fontWeight: Font.bold,
+    fontSize: FontSize.h1,
+    fontWeight: Font.black,
     color: colors.text,
+    letterSpacing: Tracking.tight,
   },
   subtitle: {
     fontSize: FontSize.small,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: 3,
   },
   action: {
     fontSize: FontSize.small,
-    color: colors.primary,
-    fontWeight: Font.semibold,
-    marginTop: 2,
+    color: colors.ink,
+    fontWeight: Font.bold,
+    marginTop: 4,
   },
 });
 
@@ -505,12 +556,12 @@ export function ContentCard({ post, verticalColor = colors.primary, onPress }: C
 const ccStyles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.xl,
     borderLeftWidth: 3,
     overflow: 'hidden',
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: colors.border,
-    ...shadow.md,
+    ...shadow.sm,
   },
   cover: {
     width: '100%',
@@ -554,8 +605,8 @@ const ccStyles = StyleSheet.create({
   },
   readMore: {
     fontSize: 12,
-    color: colors.primary,
-    fontWeight: Font.semibold,
+    color: colors.ink,
+    fontWeight: Font.bold,
   },
 });
 
@@ -688,11 +739,11 @@ export function OpportunityCard({
 const ocStyles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.xl,
     overflow: 'hidden',
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: colors.border,
-    ...shadow.md,
+    ...shadow.sm,
   },
   cardBody: {
     paddingTop: 14,
@@ -828,16 +879,16 @@ const ocStyles = StyleSheet.create({
     color: colors.textLight,
   },
   applyBtn: {
-    height: 34,
-    paddingHorizontal: 18,
-    borderRadius: 8,
+    height: 36,
+    paddingHorizontal: 20,
+    borderRadius: radius.full,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   applyBtnText: {
     fontSize: FontSize.small,
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontWeight: Font.bold,
   },
   appliedBtn: {
@@ -870,20 +921,20 @@ interface StatCardProps {
 export function StatCard({
   label,
   value,
-  color = colors.primary,
+  color = colors.ink,
   icon,
   onPress,
 }: StatCardProps) {
   const inner = (
-    <View style={[scStyles.card, { borderLeftColor: color }]}>
+    <View style={scStyles.card}>
       {icon ? <Text style={scStyles.icon}>{icon}</Text> : null}
       <Text style={[scStyles.value, { color }]}>{value}</Text>
-      <Text style={scStyles.label}>{label}</Text>
+      <Text style={scStyles.label}>{label.toUpperCase()}</Text>
     </View>
   );
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ flex: 1 }}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ flex: 1 }}>
         {inner}
       </TouchableOpacity>
     );
@@ -894,32 +945,31 @@ export function StatCard({
 const scStyles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderLeftWidth: 3.5,
-    paddingTop: 14,
-    paddingRight: 14,
-    paddingBottom: 14,
-    paddingLeft: 16,
-    borderWidth: 0.5,
+    borderRadius: radius.xl,
+    padding: 18,
+    borderWidth: 1,
     borderColor: colors.border,
     flex: 1,
+    ...shadow.sm,
   },
   icon: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 14,
+    right: 14,
     fontSize: 20,
   },
   value: {
-    fontSize: 26,
+    fontSize: 34,
     fontWeight: Font.black,
-    lineHeight: 30,
+    lineHeight: 38,
+    letterSpacing: Tracking.tight,
   },
   label: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.micro,
     color: colors.textSecondary,
-    fontWeight: Font.medium,
-    marginTop: 2,
+    fontWeight: Font.bold,
+    letterSpacing: Tracking.eyebrow,
+    marginTop: 6,
   },
 });
 
@@ -1092,9 +1142,9 @@ const coinBadgeStyle = StyleSheet.create({
 const ROLE_COLORS: Record<string, string> = {
   admin: '#8B5CF6',
   company: '#0D9488',
-  people: '#1B2CC1',
-  student: '#22C55E',
-  ambassador: '#F59E0B',
+  people: colors.ink,
+  student: '#3E9B4F',
+  ambassador: '#E5941B',
 };
 
 export function RoleTag({ role }: { role: string }) {
@@ -1111,7 +1161,7 @@ export function LoadingScreen() {
   return (
     <View style={loadingStyle.container}>
       <Image source={LOGO} style={loadingStyle.logo} resizeMode="contain" />
-      <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+      <ActivityIndicator size="large" color={colors.ink} style={{ marginTop: 20 }} />
     </View>
   );
 }

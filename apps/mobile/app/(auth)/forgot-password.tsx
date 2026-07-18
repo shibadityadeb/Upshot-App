@@ -131,9 +131,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   backText: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   logoContainer: {
     alignItems: 'center',
@@ -144,36 +144,37 @@ const styles = StyleSheet.create({
   },
   logoUp: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: '900',
+    color: colors.ink,
   },
   logoShot: {
     fontSize: 28,
-    fontWeight: '800',
-    color: colors.accent,
+    fontWeight: '900',
+    color: colors.ink,
   },
   logoBrand: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    color: 'rgba(14,14,14,0.6)',
     letterSpacing: 4,
     marginTop: 2,
   },
   formSheet: {
     flex: 1,
     backgroundColor: colors.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
   },
   formContent: {
     padding: spacing.lg,
     paddingTop: spacing.xl,
   },
   formTitle: {
-    fontSize: typography.heading2,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '900',
     color: colors.text,
     marginBottom: 4,
+    letterSpacing: -0.6,
   },
   formSubtitle: {
     fontSize: typography.body,
@@ -218,8 +219,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   backToLoginText: {
-    color: colors.primary,
+    color: colors.ink,
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });

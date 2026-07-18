@@ -334,8 +334,8 @@ export default function VerticalDetailScreen() {
                   <Text style={styles.statLabel}>Completed</Text>
                 </View>
                 <View style={styles.statCard}>
-                  <View style={[styles.statIconWrap, { backgroundColor: colors.primary + '15' }]}>
-                    <Ionicons name="time-outline" size={18} color={colors.primary} />
+                  <View style={[styles.statIconWrap, { backgroundColor: colors.primaryTint }]}>
+                    <Ionicons name="time-outline" size={18} color={colors.ink} />
                   </View>
                   <Text style={styles.statValue}>{tasks.filter(t => t.status === 'assigned' || t.status === 'in_progress').length}</Text>
                   <Text style={styles.statLabel}>Pending</Text>
@@ -355,9 +355,9 @@ export default function VerticalDetailScreen() {
               {/* Member badge for non-ambassadors */}
               {!isAmbassador && (
                 <View style={styles.ambassadorSection}>
-                  <View style={[styles.ambassadorBadge, { borderColor: colors.primary + '30', backgroundColor: colors.primary + '08' }]}>
-                    <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-                    <Text style={[styles.ambassadorBadgeText, { color: colors.primary }]}>Campus Cartel Member</Text>
+                  <View style={[styles.ambassadorBadge, { borderColor: colors.borderStrong, backgroundColor: colors.primaryTint }]}>
+                    <Ionicons name="checkmark-circle" size={16} color={colors.ink} />
+                    <Text style={[styles.ambassadorBadgeText, { color: colors.ink }]}>Campus Cartel Member</Text>
                   </View>
                 </View>
               )}
@@ -419,7 +419,7 @@ export default function VerticalDetailScreen() {
 
                           {task.status === 'submitted' && (
                             <View style={styles.taskSubmittedNote}>
-                              <Ionicons name="time-outline" size={16} color={colors.primary} />
+                              <Ionicons name="time-outline" size={16} color={colors.ink} />
                               <Text style={styles.taskSubmittedText}>
                                 Submission under review by admin.
                               </Text>
@@ -682,14 +682,16 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    height: 260,
+    height: 268,
     paddingTop: 52,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Gap.base,
@@ -701,18 +703,19 @@ const styles = StyleSheet.create({
   heroLabel: {
     fontSize: 11,
     letterSpacing: 4,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.75)',
     fontWeight: '700',
   },
   heroName: {
-    fontSize: 34,
-    fontWeight: '800',
+    fontSize: 36,
+    fontWeight: '900',
     color: 'white',
     marginTop: 8,
+    letterSpacing: -0.8,
   },
   heroTagline: {
     fontSize: 15,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.85)',
     marginTop: 8,
     lineHeight: 22,
   },
@@ -727,7 +730,7 @@ const styles = StyleSheet.create({
   // Campus Cartel CTA
   campusCartelCard: {
     marginBottom: 16,
-    borderRadius: 12,
+    borderRadius: radius.xl,
     padding: 20,
     borderLeftWidth: 4,
   },
@@ -879,14 +882,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: colors.primaryTint,
     borderRadius: radius.md,
     padding: 10,
     marginTop: 4,
   },
   taskSubmittedText: {
     fontSize: FontSize.small,
-    color: colors.primary,
+    color: colors.ink,
     fontWeight: Font.semibold,
   },
   taskRejectedNote: {
@@ -1128,7 +1131,7 @@ const styles = StyleSheet.create({
   },
   celebrationBtn: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: radius.full,
     paddingVertical: 14,
     paddingHorizontal: 48,
     ...shadow.sm,
@@ -1136,6 +1139,6 @@ const styles = StyleSheet.create({
   celebrationBtnText: {
     fontSize: FontSize.h3,
     fontWeight: Font.bold,
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
 });

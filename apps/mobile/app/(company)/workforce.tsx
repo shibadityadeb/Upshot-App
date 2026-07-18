@@ -15,7 +15,6 @@ import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  DarkBg,
   spacing,
   radius,
   shadow,
@@ -223,20 +222,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingTop: 52,
     paddingHorizontal: spacing.lg,
-    paddingBottom: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   headerTitle: {
     fontSize: 26,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: '900',
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: colors.accent,
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 4,
+    fontWeight: '500',
   },
   // Locked state
   lockedContainer: {
@@ -294,7 +297,7 @@ const styles = StyleSheet.create({
   },
   contactEmail: {
     fontSize: 14,
-    color: colors.primary,
+    color: colors.ink,
     textDecorationLine: 'underline',
   },
   // Discover state
@@ -365,7 +368,7 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   skillChip: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: colors.primaryTint,
     borderRadius: radius.full,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -373,7 +376,7 @@ const styles = StyleSheet.create({
   },
   skillText: {
     fontSize: 11,
-    color: colors.primary,
+    color: colors.ink,
     fontWeight: '600',
   },
   workerBio: {

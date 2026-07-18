@@ -58,7 +58,7 @@ export default function VerticalsScreen() {
           style={styles.backBtn}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={22} color={colors.ink} />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Our Verticals</Text>
@@ -115,19 +115,21 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     paddingTop: Gap.md,
     paddingHorizontal: Gap.base,
     paddingBottom: Gap.xl,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Gap.md,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -138,12 +140,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
+    fontWeight: Font.medium,
   },
 
   // Scroll

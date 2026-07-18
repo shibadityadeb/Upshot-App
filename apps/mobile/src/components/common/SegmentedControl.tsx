@@ -36,13 +36,13 @@ const styles = StyleSheet.create({
     gap: Gap.sm,
   },
   pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: radius.full,
-    backgroundColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
   },
   pillActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.ink,
   },
   label: {
     fontSize: FontSize.small,
@@ -50,6 +50,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   labelActive: {
-    color: colors.surface,
+    color: '#FFFFFF',
   },
 });

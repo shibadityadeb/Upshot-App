@@ -344,36 +344,40 @@ const styles = StyleSheet.create({
   },
   scrollContent: { paddingBottom: 100 },
 
-  // ── Dark header ──
+  // ── Lime header ──
   header: {
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 36,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   mainAvatar: {
     width: 88,
     height: 88,
     borderRadius: 44,
     borderWidth: 3,
-    borderColor: '#7BC55A',
+    borderColor: colors.ink,
     overflow: 'hidden',
     marginBottom: 14,
-    backgroundColor: '#1E2340',
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
   mainAvatarImg: { width: 82, height: 82, borderRadius: 41 },
   headerName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.ink,
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
   headerEmail: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(14,14,14,0.6)',
     marginBottom: 16,
+    fontWeight: '500',
   },
   badgeRow: {
     flexDirection: 'row',
@@ -430,8 +434,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarOptionSelected: {
-    borderColor: '#7BC55A',
-    backgroundColor: '#F0FAF0',
+    borderColor: colors.ink,
+    backgroundColor: colors.primaryTint,
   },
   avatarOptionImg: { width: 52, height: 52, borderRadius: 26 },
 
@@ -465,8 +469,8 @@ const styles = StyleSheet.create({
   },
   editToggle: {
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
+    fontWeight: '700',
+    color: colors.ink,
   },
   editSection: {
     padding: 16,

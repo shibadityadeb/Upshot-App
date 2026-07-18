@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
-import { colors, DarkBg, DarkBgSecondary, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { LoadingScreen } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
@@ -69,7 +69,7 @@ interface QuickAction {
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { label: 'New Task', iconName: 'add-circle-outline', route: '/(admin)/create-task', description: 'Assign to team', color: colors.primary },
+  { label: 'New Task', iconName: 'add-circle-outline', route: '/(admin)/create-task', description: 'Assign to team', color: colors.ink },
   { label: 'Campus Cartel', iconName: 'shield-checkmark-outline', route: '/(admin)/campus-cartel', description: 'Review applications', color: colors.campusCartelGreen },
   { label: 'Manage Codes', iconName: 'key-outline', route: '/(admin)/people', description: 'Ambassador codes', color: colors.warning, params: { tab: 'codes' } },
   { label: 'Ambassadors', iconName: 'star-outline', route: '/(admin)/people', description: 'View all', color: '#8B5CF6', params: { tab: 'ambassadors' } },
@@ -293,12 +293,12 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   heroTop: {
     flexDirection: 'row',
@@ -308,20 +308,21 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: FontSize.small,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(14,14,14,0.6)',
     fontWeight: Font.medium,
   },
   userName: {
     fontSize: 28,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
     marginTop: 2,
+    letterSpacing: -0.5,
   },
   avatarWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -338,14 +339,14 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: DarkBgSecondary,
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(14,14,14,0.06)',
   },
   statCardAccent: {
-    borderColor: 'rgba(252,211,77,0.2)',
+    borderColor: 'rgba(229,148,27,0.35)',
   },
   statTop: {
     flexDirection: 'row',
@@ -360,13 +361,14 @@ const styles = StyleSheet.create({
   },
   statLabelLight: {
     fontSize: 11,
-    fontWeight: Font.semibold,
-    color: 'rgba(255,255,255,0.7)',
+    fontWeight: Font.bold,
+    color: colors.textSecondary,
+    letterSpacing: 0.3,
   },
   statValueLight: {
     fontSize: 26,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
     letterSpacing: -0.5,
   },
 
@@ -391,8 +393,8 @@ const styles = StyleSheet.create({
   },
   seeAll: {
     fontSize: FontSize.xs,
-    fontWeight: Font.semibold,
-    color: colors.primary,
+    fontWeight: Font.bold,
+    color: colors.ink,
     marginBottom: 14,
   },
 
@@ -409,8 +411,8 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   eventDateBadge: {
-    backgroundColor: colors.primary + '12',
-    borderRadius: 10,
+    backgroundColor: colors.primaryTint,
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 6,
     marginRight: 12,
@@ -423,7 +425,7 @@ const styles = StyleSheet.create({
   eventDateText: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: colors.primary,
+    color: colors.ink,
   },
   eventDateTextPending: {
     color: colors.warning,

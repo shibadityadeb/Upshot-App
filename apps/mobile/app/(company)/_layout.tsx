@@ -5,18 +5,18 @@ import { colors } from '../../src/constants/theme';
 
 const TAB_BAR_STYLE = {
   backgroundColor: '#FFFFFF',
-  borderTopWidth: 0.5,
+  borderTopWidth: 1,
   borderTopColor: colors.border,
-  height: 60,
-  paddingBottom: 8,
-  paddingTop: 6,
+  height: 66,
+  paddingBottom: 10,
+  paddingTop: 8,
 };
 
 const LABEL_STYLE = {
   fontSize: 10,
-  fontWeight: '600' as const,
-  letterSpacing: 0.2,
-  marginTop: 2,
+  fontWeight: '700' as const,
+  letterSpacing: 0.3,
+  marginTop: 3,
 };
 
 export default function CompanyLayout() {
@@ -28,7 +28,7 @@ export default function CompanyLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.ink,
         tabBarInactiveTintColor: colors.textLight,
         tabBarStyle: TAB_BAR_STYLE,
         tabBarLabelStyle: LABEL_STYLE,

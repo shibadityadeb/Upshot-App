@@ -13,7 +13,6 @@ import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  DarkBg,
   spacing,
   shadow,
 } from '../../src/constants/theme';
@@ -261,10 +260,12 @@ const styles = StyleSheet.create({
 
   // ── Header ────────────────────────────────────────────────
   header: {
-    backgroundColor: DarkBg,
+    backgroundColor: colors.primary,
     paddingTop: 52,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   headerRow: {
     flexDirection: 'row',
@@ -276,14 +277,15 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 13,
-    color: colors.accent,
-    fontWeight: '600',
+    color: 'rgba(14,14,14,0.6)',
+    fontWeight: '700',
   },
   companyName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.ink,
     marginTop: 2,
+    letterSpacing: -0.5,
   },
   verifiedPill: {
     backgroundColor: 'rgba(34,197,94,0.15)',
@@ -313,7 +315,7 @@ const styles = StyleSheet.create({
     bottom: 16,
     fontSize: 48,
     fontWeight: '900',
-    color: 'rgba(255,255,255,0.04)',
+    color: 'rgba(14,14,14,0.06)',
   },
 
   // ── Scroll ────────────────────────────────────────────────
@@ -389,9 +391,9 @@ const styles = StyleSheet.create({
   },
   viewTeamLink: {
     fontSize: 13,
-    color: colors.primary,
+    color: colors.ink,
     marginTop: 6,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   // ── Post requirement CTA ──────────────────────────────────
@@ -403,33 +405,35 @@ const styles = StyleSheet.create({
   },
   ctaCard: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
+    borderRadius: 24,
     padding: 20,
   },
   ctaTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.ink,
+    letterSpacing: -0.3,
   },
   ctaSubtitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(14,14,14,0.65)',
     marginTop: 4,
+    fontWeight: '500',
   },
   ctaButton: {
     alignSelf: 'flex-start',
     marginTop: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    height: 40,
-    paddingHorizontal: 20,
+    backgroundColor: colors.ink,
+    borderRadius: 9999,
+    height: 42,
+    paddingHorizontal: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ctaButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
+    color: '#FFFFFF',
   },
 
   // ── No company onboarding ─────────────────────────────────

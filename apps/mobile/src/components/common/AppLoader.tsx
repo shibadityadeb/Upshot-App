@@ -93,7 +93,7 @@ export function AppLoader({ visible = true }: { visible?: boolean }) {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.dark,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,
@@ -109,25 +109,25 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: RING_SIZE / 2,
     borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderTopColor: colors.accent,
+    borderColor: 'rgba(14,14,14,0.15)',
+    borderTopColor: colors.ink,
   },
   monogram: {
     fontSize: 30,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
   },
   wordmark: {
     fontSize: 22,
     fontWeight: Font.black,
-    color: '#FFFFFF',
+    color: colors.ink,
     letterSpacing: 8,
   },
   tagline: {
     marginTop: 8,
     fontSize: 10,
     fontWeight: Font.semibold,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(14,14,14,0.55)',
     letterSpacing: 4,
   },
 });
