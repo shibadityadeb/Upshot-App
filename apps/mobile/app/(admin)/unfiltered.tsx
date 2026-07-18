@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { UnfilteredVideo, UnfilteredFeatureRequest, UnfilteredFeatureRequestStatus } from '@upshot/types';
 import { colors, verticalColors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { FilterPills } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
@@ -52,7 +53,7 @@ function getThumbnailUrl(youtubeUrl: string): string {
 export default function AdminUnfilteredScreen() {
   const user = useAuthStore((s) => s.user);
 
-  const [tab, setTab] = useState(0); // 0 = Videos, 1 = Requests
+  const [tab, setTab] = useState<'videos' | 'requests'>('videos');
   const [videos, setVideos] = useState<UnfilteredVideo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -167,54 +168,45 @@ export default function AdminUnfilteredScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Unfiltered</Text>
-          <Text style={styles.headerSubtitle}>
-            {tab === 0
-              ? `${videos.length} video${videos.length !== 1 ? 's' : ''} · Top 10 shown on app`
-              : `${visibleRequests.length} feature request${visibleRequests.length !== 1 ? 's' : ''}`}
-          </Text>
+      {/* Lime hero header */}
+      <View style={styles.hero}>
+        <View style={styles.heroRow}>
+          <View>
+            <Text style={styles.heroTitle}>Unfiltered</Text>
+            <Text style={styles.heroSub}>
+              {tab === 'videos'
+                ? `${videos.length} video${videos.length !== 1 ? 's' : ''} · Top 10 shown`
+                : `${visibleRequests.length} feature request${visibleRequests.length !== 1 ? 's' : ''}`}
+            </Text>
+          </View>
+          {tab === 'videos' && (
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setShowForm(!showForm)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name={showForm ? 'close' : 'add'} size={22} color="#fff" />
+            </TouchableOpacity>
+          )}
         </View>
-        {tab === 0 && (
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowForm(!showForm)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name={showForm ? 'close' : 'add'} size={20} color="#fff" />
-            <Text style={styles.addBtnText}>{showForm ? 'Cancel' : 'Add Video'}</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 0 && styles.tabBtnActive]}
-          onPress={() => setTab(0)}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.tabText, tab === 0 && styles.tabTextActive]}>Videos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 1 && styles.tabBtnActive]}
-          onPress={() => setTab(1)}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.tabText, tab === 1 && styles.tabTextActive]}>
-            Requests{pendingRequestCount > 0 ? ` (${pendingRequestCount})` : ''}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Filter pills */}
+      <FilterPills
+        options={[
+          { label: 'Videos', value: 'videos' },
+          { label: pendingRequestCount > 0 ? `Requests (${pendingRequestCount})` : 'Requests', value: 'requests' },
+        ]}
+        activeValue={tab}
+        onChange={(v) => setTab(v as 'videos' | 'requests')}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {tab === 1 ? (
+        {tab === 'requests' ? (
           /* ── Feature requests ── */
           requestsLoading ? (
             <ActivityIndicator size="large" color={UNFILTERED_COLOR} style={{ marginTop: 40 }} />
@@ -455,40 +447,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  hero: {
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: 24,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
+    paddingTop: 32,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  headerTitle: {
-    fontSize: FontSize.h1,
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  heroTitle: {
+    fontSize: 28,
     fontWeight: Font.black,
-    color: colors.text,
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    fontSize: FontSize.xs,
-    color: colors.textSecondary,
+  heroSub: {
+    fontSize: FontSize.small,
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
-    letterSpacing: 0.5,
+    fontWeight: Font.medium,
   },
   addBtn: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: colors.ink,
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: UNFILTERED_COLOR,
-    borderRadius: radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    ...shadow.sm,
-  },
-  addBtnText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: '#fff',
+    justifyContent: 'center',
   },
   scrollContent: {
     padding: Gap.base,
@@ -758,30 +748,5 @@ const styles = StyleSheet.create({
     fontSize: FontSize.small,
     fontWeight: Font.bold,
     color: '#2C6E38',
-  },
-
-  // Tabs
-  tabRow: {
-    flexDirection: 'row',
-    gap: Gap.sm,
-    paddingHorizontal: Gap.base,
-    paddingBottom: Gap.md,
-  },
-  tabBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceAlt,
-  },
-  tabBtnActive: {
-    backgroundColor: colors.ink,
-  },
-  tabText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: colors.textSecondary,
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
   },
 });
