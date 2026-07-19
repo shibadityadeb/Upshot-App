@@ -12,6 +12,7 @@
     "db:generate": "yarn workspace @upshot/database db:generate",
     "db:push": "yarn workspace @upshot/database db:push",
     "db:migrate": "yarn workspace @upshot/database db:migrate",
+    "db:clear": "yarn workspace @upshot/database db:clear",
     "db:studio": "yarn workspace @upshot/database db:studio",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
   },

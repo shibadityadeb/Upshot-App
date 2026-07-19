@@ -282,10 +282,11 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary,
   },
   scroll: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     paddingBottom: 100,
@@ -294,11 +295,11 @@ const styles = StyleSheet.create({
   // Hero
   hero: {
     backgroundColor: colors.primary,
-    paddingTop: 24,
-    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingHorizontal: Gap.base,
     paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   heroTop: {
     flexDirection: 'row',

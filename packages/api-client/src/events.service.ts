@@ -67,14 +67,20 @@ export class EventsService {
   async getAllEventsAdmin(status?: string): Promise<ApiResponse<Event[]>> {
     let query = this.supabase
       .from('events')
-      .select('*, company:companies(*), vertical:verticals(id, name, slug, color)')
+      .select('*, company:companies(*), vertical:verticals(id, name, slug, color), applications:event_applications(count)')
       .order('created_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
 
     const { data, error } = await query;
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
-    return { data: (data ?? []) as unknown as Event[], error: null };
+
+    // Flatten the PostgREST count embed ([{ count: n }]) into application_count
+    const events = (data ?? []).map((e: any) => ({
+      ...e,
+      application_count: e.applications?.[0]?.count ?? 0,
+    }));
+    return { data: events as unknown as Event[], error: null };
   }
 
   async createEvent(
@@ -173,9 +179,11 @@ export class EventsService {
   }
 
   async getEventApplications(eventId: string): Promise<ApiResponse<EventApplication[]>> {
+    // profiles is referenced by both user_id and reviewed_by — the embed must
+    // name the FK or PostgREST rejects it as ambiguous and returns no rows.
     const { data, error } = await this.supabase
       .from('event_applications')
-      .select('*, user:profiles(*)')
+      .select('*, user:profiles!user_id(*)')
       .eq('event_id', eventId)
       .order('applied_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };

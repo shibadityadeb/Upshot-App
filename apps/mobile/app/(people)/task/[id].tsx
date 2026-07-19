@@ -38,9 +38,9 @@ export default function TaskDetailScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [linkError, setLinkError] = useState('');
 
-  // Gate: CC membership check
+  // Gate: CC membership check — ambassadors get tasks without cartel membership
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || user.role === 'ambassador') return;
     api.campusCartel.isMember(user.id).then((m) => {
       if (!m) {
         Alert.alert('Members only', 'Join Campus Cartel to access assignments');

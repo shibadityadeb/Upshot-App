@@ -308,6 +308,7 @@ export default function AdminTasks() {
 
       {/* List */}
       <FlatList
+        style={styles.listArea}
         data={filteredTasks}
         keyExtractor={(item) => item.id}
         renderItem={renderTask}
@@ -330,6 +331,10 @@ export default function AdminTasks() {
 
 const styles = StyleSheet.create({
   safeArea: {
+    flex: 1,
+    backgroundColor: colors.primary,
+  },
+  listArea: {
     flex: 1,
     backgroundColor: colors.background,
   },

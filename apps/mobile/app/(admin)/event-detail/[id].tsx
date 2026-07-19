@@ -31,6 +31,21 @@ import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 
+// Rejected and withdrawn applications live in the Archived bucket.
+type AppFilter = 'pending' | 'approved' | 'archived';
+
+const APP_FILTERS: { key: AppFilter; label: string }[] = [
+  { key: 'pending', label: 'Pending' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'archived', label: 'Archived' },
+];
+
+function bucketOf(status: string): AppFilter {
+  if (status === 'pending') return 'pending';
+  if (status === 'approved') return 'approved';
+  return 'archived';
+}
+
 export default function AdminEventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -38,6 +53,7 @@ export default function AdminEventDetail() {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [applications, setApplications] = useState<EventApplication[]>([]);
+  const [appFilter, setAppFilter] = useState<AppFilter>('pending');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +161,8 @@ export default function AdminEventDetail() {
     [user, load],
   );
 
+  const filteredApplications = applications.filter((a) => bucketOf(a.status) === appFilter);
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -247,16 +265,60 @@ export default function AdminEventDetail() {
         {/* Applicants */}
         <View style={styles.section}>
           <SectionHeader
-            title="Applicants"
-            subtitle={`${applications.length} total`}
+            title="Applications"
+            subtitle={`${applications.length} total for this event`}
           />
 
-          {applications.length === 0 ? null : (
-            applications.map((app) => {
+          {/* Bucket filter */}
+          <View style={styles.appFilterRow}>
+            {APP_FILTERS.map((f) => {
+              const count = applications.filter((a) => bucketOf(a.status) === f.key).length;
+              const active = appFilter === f.key;
+              return (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[styles.appFilterPill, active && styles.appFilterPillActive]}
+                  onPress={() => setAppFilter(f.key)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.appFilterLabel, active && styles.appFilterLabelActive]}>
+                    {f.label}
+                  </Text>
+                  <View style={[styles.appFilterCount, active && styles.appFilterCountActive]}>
+                    <Text style={[styles.appFilterCountText, active && styles.appFilterCountTextActive]}>
+                      {count}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {filteredApplications.length === 0 ? (
+            <EmptyState
+              iconName={
+                appFilter === 'pending' ? 'hourglass-outline'
+                : appFilter === 'approved' ? 'checkmark-done-outline'
+                : 'archive-outline'
+              }
+              title={
+                appFilter === 'pending' ? 'No pending applications'
+                : appFilter === 'approved' ? 'No approved attendees yet'
+                : 'No archived applications'
+              }
+              subtitle={
+                appFilter === 'pending' ? 'New applications for this event will appear here.'
+                : appFilter === 'approved' ? 'Approve pending applications to build the attendee list.'
+                : 'Rejected and withdrawn applications end up here.'
+              }
+            />
+          ) : (
+            filteredApplications.map((app) => {
               const applicantName =
                 (app as any).user?.full_name ??
                 (app as any).profile?.full_name ??
                 'Unknown';
+              const applicantEmail = (app as any).user?.email ?? null;
               const isPending = app.status === 'pending';
               const approvingThis = actionLoading === app.id + 'approved';
               const rejectingThis = actionLoading === app.id + 'rejected';
@@ -267,6 +329,9 @@ export default function AdminEventDetail() {
                     <Text style={styles.appName}>{applicantName}</Text>
                     <StatusBadge status={app.status} />
                   </View>
+                  {!!applicantEmail && (
+                    <Text style={styles.appEmail} numberOfLines={1}>{applicantEmail}</Text>
+                  )}
                   <Text style={styles.appDate}>
                     Applied {new Date(app.applied_at).toLocaleDateString('en-IN', {
                       day: 'numeric',
@@ -398,9 +463,61 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: Gap.base,
   },
+  appFilterRow: {
+    flexDirection: 'row',
+    gap: Gap.sm,
+    marginBottom: Gap.md,
+  },
+  appFilterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  appFilterPillActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  appFilterLabel: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.textSecondary,
+  },
+  appFilterLabelActive: {
+    color: '#FFFFFF',
+  },
+  appFilterCount: {
+    minWidth: 20,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: radius.full,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  appFilterCountActive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  appFilterCountText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: colors.textSecondary,
+  },
+  appFilterCountTextActive: {
+    color: '#FFFFFF',
+  },
   appCard: {
     padding: Gap.base,
     marginBottom: Gap.sm,
+  },
+  appEmail: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    marginBottom: 2,
   },
   appHeader: {
     flexDirection: 'row',
