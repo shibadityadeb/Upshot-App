@@ -17,9 +17,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { CampusCartelMember } from '@upshot/api-client';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../src/constants/theme';
+import { SelectField } from '../src/components/common';
 import { useAuthStore } from '../src/store/auth.store';
 import { useDebounce } from '../src/hooks/useDebounce';
 import { showError } from '../src/store/error.store';
+import { INDIAN_STATES } from '../src/constants/india';
 
 const api = createApiClient();
 // Campus Cartel screens follow the shared editorial theme: ink accents.
@@ -40,6 +42,7 @@ export default function CampusCartelApply() {
   const [course, setCourse] = useState('');
   const [ambassadorCode, setAmbassadorCode] = useState('');
   const [city, setCity] = useState('');
+  const [state, setState] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
   // ─── Check if already applied — pre-fill form for editing ─────
@@ -61,6 +64,7 @@ export default function CampusCartelApply() {
           setCollege(data.college ?? '');
           setCourse(data.course ?? '');
           setCity(data.city ?? '');
+          setState(data.state ?? '');
           setAmbassadorCode(data.ambassador_code ?? '');
         }
         setScreen('form');
@@ -88,6 +92,8 @@ export default function CampusCartelApply() {
 
   const validate = () => {
     if (!college.trim()) return 'Please enter your college name.';
+    if (!city.trim()) return 'Please enter your city.';
+    if (!state) return 'Please select your state.';
     if (ambassadorCode.trim() && codeState === 'invalid') return 'The ambassador code you entered is invalid.';
     return null;
   };
@@ -119,6 +125,7 @@ export default function CampusCartelApply() {
           college: college.trim() || undefined,
           course: course.trim() || undefined,
           city: city.trim() || undefined,
+          state: state || undefined,
           ambassador_code: ambassadorCode.trim() || null,
         });
       } else {
@@ -129,6 +136,7 @@ export default function CampusCartelApply() {
           course.trim() || undefined,
           undefined,
           city.trim() || undefined,
+          state || undefined,
         );
       }
       if (result.error) {
@@ -141,7 +149,7 @@ export default function CampusCartelApply() {
     } finally {
       setSubmitting(false);
     }
-  }, [college, course, ambassadorCode, city, codeState, user]);
+  }, [college, course, ambassadorCode, city, state, codeState, user]);
 
   // ─── Code status indicator ────────────────────────────────────
   const codeIcon = () => {
@@ -179,6 +187,7 @@ export default function CampusCartelApply() {
               setCollege('');
               setCourse('');
               setCity('');
+              setState('');
               setAmbassadorCode('');
             } catch (e) {
               showError(e, { context: 'Failed to withdraw.' });
@@ -305,12 +314,21 @@ export default function CampusCartelApply() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>City <Text style={styles.optional}>(optional)</Text></Text>
+            <Text style={styles.fieldLabel}>City</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="location-outline" size={16} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput style={styles.input} placeholder="e.g. Mumbai" placeholderTextColor={colors.textLight} value={city} onChangeText={setCity} autoCapitalize="words" returnKeyType="done" />
             </View>
           </View>
+
+          <SelectField
+            label="State"
+            placeholder="Select your state"
+            value={state}
+            options={INDIAN_STATES}
+            onSelect={setState}
+            style={styles.fieldGroup}
+          />
 
           <TouchableOpacity style={[styles.submitBtn, submitting && styles.submitBtnDisabled]} onPress={handleSubmit} activeOpacity={0.8} disabled={submitting}>
             {submitting ? <ActivityIndicator size="small" color="#fff" /> : (

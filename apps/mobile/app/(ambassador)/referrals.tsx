@@ -6,7 +6,6 @@ import {
   Share,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador, Student } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
-import { AvatarCircle, LoadingScreen, EmptyState, StatCard } from '../../src/components/common';
+import { LoadingScreen, StatCard } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
@@ -27,7 +26,6 @@ export default function AmbassadorReferrals() {
 
   const [ambassador, setAmbassador] = useState<Ambassador | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -91,37 +89,17 @@ export default function AmbassadorReferrals() {
 
   if (loading) return <LoadingScreen />;
 
-  // Combine students + cartel referrals for display
-  const allReferrals = [
-    ...students.map((s) => ({
-      id: s.id,
-      name: s.user?.full_name ?? 'Student',
-      avatarUrl: s.user?.avatar_url,
-      college: s.profession ?? s.college ?? 'Member',
-      date: s.created_at,
-      coins: 0,
-    })),
+  // Only counts are shown — the referred people themselves stay private.
+  const referralDates = [
+    ...students.map((s) => s.created_at),
     ...cartelReferrals
       .filter((cr) => !students.some((s) => s.user_id === cr.user_id))
-      .map((cr) => ({
-        id: cr.id,
-        name: cr.profile?.full_name ?? 'Member',
-        avatarUrl: cr.profile?.avatar_url,
-        college: cr.college ?? 'Member',
-        date: cr.joined_at,
-        coins: 0,
-      })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .map((cr) => cr.joined_at),
+  ];
 
-  const filtered = search.trim()
-    ? allReferrals.filter((r) =>
-        r.name.toLowerCase().includes(search.trim().toLowerCase())
-      )
-    : allReferrals;
-
-  // Stats
-  const thisMonth = allReferrals.filter((r) => {
-    const d = new Date(r.date);
+  const totalReferrals = referralDates.length;
+  const thisMonth = referralDates.filter((dateStr) => {
+    const d = new Date(dateStr);
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
@@ -132,60 +110,17 @@ export default function AmbassadorReferrals() {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Referrals</Text>
-          {allReferrals.length > 0 && (
+          {totalReferrals > 0 && (
             <View style={styles.countPill}>
-              <Text style={styles.countText}>{allReferrals.length} total</Text>
+              <Text style={styles.countText}>{totalReferrals} total</Text>
             </View>
           )}
         </View>
-        <Text style={styles.headerSubtitle}>People who joined using your code</Text>
-      </View>
-
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        <StatCard label="Total Referred" value={allReferrals.length} color={colors.primary} />
-        <StatCard label="This Month" value={thisMonth} color={colors.success} />
-        <StatCard label="Network Coins" value={ambassador?.total_coins_earned ?? 0} color={colors.warning} />
-      </View>
-
-      {/* Referral code card */}
-      {ambassador && (
-        <View style={styles.codeCard}>
-          <Text style={styles.codeLabel}>YOUR REFERRAL CODE</Text>
-          <Text style={styles.codeValue}>{ambassador.referral_code}</Text>
-          <View style={styles.codeActions}>
-            <TouchableOpacity style={styles.codeBtn} onPress={handleCopy} activeOpacity={0.7}>
-              <Ionicons name="copy-outline" size={16} color={colors.primary} />
-              <Text style={styles.codeBtnText}>Copy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.codeBtn} onPress={handleShare} activeOpacity={0.7}>
-              <Ionicons name="share-outline" size={16} color={colors.primary} />
-              <Text style={styles.codeBtnText}>Share</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Search bar */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchWrapper}>
-          <Ionicons name="search-outline" size={16} color={colors.textLight} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name..."
-            placeholderTextColor={colors.textLight}
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            clearButtonMode="while-editing"
-          />
-        </View>
+        <Text style={styles.headerSubtitle}>How many people joined using your code</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={
-          filtered.length === 0 ? styles.emptyContainer : styles.listContainer
-        }
+        contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -194,45 +129,29 @@ export default function AmbassadorReferrals() {
           />
         }
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
-        {filtered.length === 0 ? (
-          <EmptyState
-            iconName="people-outline"
-            title={search.trim() ? 'No results found' : 'No referrals yet'}
-            subtitle={
-              search.trim()
-                ? 'Try a different name'
-                : 'Share your referral code to bring people in'
-            }
-          />
-        ) : (
-          <View style={styles.listCard}>
-            {filtered.map((ref, idx) => (
-              <View key={ref.id}>
-                <View style={styles.studentRow}>
-                  <AvatarCircle
-                    name={ref.name}
-                    size={44}
-                    avatarUrl={ref.avatarUrl}
-                  />
-                  <View style={styles.studentInfo}>
-                    <Text style={styles.studentName} numberOfLines={1}>
-                      {ref.name}
-                    </Text>
-                    <Text style={styles.studentSub} numberOfLines={1}>
-                      {ref.college}
-                    </Text>
-                  </View>
-                  <Text style={styles.studentDate}>
-                    {new Date(ref.date).toLocaleDateString('en-IN', {
-                      day: 'numeric', month: 'short',
-                    })}
-                  </Text>
-                </View>
-                {idx < filtered.length - 1 && <View style={styles.separator} />}
-              </View>
-            ))}
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <StatCard label="Total Referred" value={totalReferrals} color={colors.primary} />
+          <StatCard label="This Month" value={thisMonth} color={colors.success} />
+          <StatCard label="Network Coins" value={ambassador?.total_coins_earned ?? 0} color={colors.warning} />
+        </View>
+
+        {/* Referral code card */}
+        {ambassador && (
+          <View style={styles.codeCard}>
+            <Text style={styles.codeLabel}>YOUR REFERRAL CODE</Text>
+            <Text style={styles.codeValue}>{ambassador.referral_code}</Text>
+            <View style={styles.codeActions}>
+              <TouchableOpacity style={styles.codeBtn} onPress={handleCopy} activeOpacity={0.7}>
+                <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                <Text style={styles.codeBtnText}>Copy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.codeBtn} onPress={handleShare} activeOpacity={0.7}>
+                <Ionicons name="share-outline" size={16} color={colors.primary} />
+                <Text style={styles.codeBtnText}>Share</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </ScrollView>

@@ -53,9 +53,9 @@ export default function LoginScreen() {
           <View style={styles.logoBadge}>
             <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
           </View>
-          <Text style={styles.logoTagline}>India's leading Media & Community Network</Text>
+          <Text style={styles.logoTagline}>India's Community for Students & Companies</Text>
         </View>
-        <Text style={styles.headerHeadline}>Where campus{'\n'}culture compounds.</Text>
+        <Text style={styles.headerHeadline}>The network that{'\n'}gets you noticed.</Text>
       </SafeAreaView>
 
       <KeyboardAvoidingView

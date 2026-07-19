@@ -26,20 +26,11 @@ import { StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { uploadEventImage } from '../../src/utils/uploadEventImage';
 import { showError } from '../../src/store/error.store';
+import { INDIAN_STATES } from '../../src/constants/india';
 
 const api = createApiClient();
 
 const CATEGORIES = ['Social', 'BFSI', 'Corporate', 'Other'];
-
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
-  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
-  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
-  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
-  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
-];
 
 const SECTORS = [
   'Technology', 'Education', 'Finance', 'Healthcare', 'Media', 'Entertainment',
@@ -122,7 +113,13 @@ function DatePickerModal({
   for (let i = 0; i < firstDayOfWeek; i++) days.push(null);
   for (let d = 1; d <= daysInMonth; d++) days.push(d);
 
+  // Past dates can't be picked for an upcoming event
+  const atCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+  const isPastDay = (day: number) =>
+    new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
   const prevMonth = () => {
+    if (atCurrentMonth) return;
     if (month === 0) { setMonth(11); setYear(year - 1); }
     else setMonth(month - 1);
   };
@@ -132,6 +129,7 @@ function DatePickerModal({
   };
 
   const handleSelect = (day: number) => {
+    if (isPastDay(day)) return;
     const m = String(month + 1).padStart(2, '0');
     const d = String(day).padStart(2, '0');
     onSelect(`${year}-${m}-${d}`);
@@ -149,8 +147,8 @@ function DatePickerModal({
             </TouchableOpacity>
           </View>
           <View style={dateStyles.nav}>
-            <TouchableOpacity onPress={prevMonth} activeOpacity={0.7}>
-              <Ionicons name="chevron-back" size={22} color={colors.text} />
+            <TouchableOpacity onPress={prevMonth} activeOpacity={0.7} disabled={atCurrentMonth}>
+              <Ionicons name="chevron-back" size={22} color={atCurrentMonth ? colors.border : colors.text} />
             </TouchableOpacity>
             <Text style={dateStyles.navTitle}>{MONTHS[month]} {year}</Text>
             <TouchableOpacity onPress={nextMonth} activeOpacity={0.7}>
@@ -163,15 +161,23 @@ function DatePickerModal({
             ))}
           </View>
           <View style={dateStyles.grid}>
-            {days.map((day, i) => (
-              <View key={i} style={dateStyles.dayCell}>
-                {day ? (
-                  <TouchableOpacity style={dateStyles.dayBtn} onPress={() => handleSelect(day)} activeOpacity={0.7}>
-                    <Text style={dateStyles.dayText}>{day}</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            ))}
+            {days.map((day, i) => {
+              const disabled = day ? isPastDay(day) : false;
+              return (
+                <View key={i} style={dateStyles.dayCell}>
+                  {day ? (
+                    <TouchableOpacity
+                      style={dateStyles.dayBtn}
+                      onPress={() => handleSelect(day)}
+                      activeOpacity={0.7}
+                      disabled={disabled}
+                    >
+                      <Text style={[dateStyles.dayText, disabled && dateStyles.dayTextDisabled]}>{day}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              );
+            })}
           </View>
         </View>
       </View>
@@ -951,8 +957,8 @@ const styles = StyleSheet.create({
     color: 'rgba(14,14,14,0.6)',
   },
 
-  progressBar: { height: 3, backgroundColor: colors.border },
-  progressFill: { height: 3, backgroundColor: colors.primary },
+  progressBar: { height: 4, backgroundColor: colors.border },
+  progressFill: { height: 4, backgroundColor: colors.ink },
 
   scrollContent: { padding: Gap.base, paddingBottom: 40 },
 
@@ -1123,6 +1129,7 @@ const dateStyles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   dayText: { fontSize: FontSize.body, color: colors.text },
+  dayTextDisabled: { color: colors.border },
 });
 
 const timeStyles = StyleSheet.create({

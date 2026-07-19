@@ -166,7 +166,7 @@ export default function AdminCampusCartel() {
           {item.city && (
             <View style={styles.detailItem}>
               <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-              <Text style={styles.detailText}>{item.city}</Text>
+              <Text style={styles.detailText}>{item.city}{item.state ? `, ${item.state}` : ''}</Text>
             </View>
           )}
           {item.ambassador_code && (
@@ -225,7 +225,7 @@ export default function AdminCampusCartel() {
       <View style={styles.hero}>
         <View style={styles.heroRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.text} />
+            <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.heroTitle}>Campus Cartel</Text>
@@ -250,6 +250,7 @@ export default function AdminCampusCartel() {
 
       {/* List */}
       <FlatList
+        style={styles.listArea}
         data={applications}
         keyExtractor={(item) => item.id}
         renderItem={renderApplication}
@@ -273,6 +274,10 @@ export default function AdminCampusCartel() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: colors.primary,
+  },
+  listArea: {
+    flex: 1,
     backgroundColor: colors.background,
   },
   centered: {
@@ -284,10 +289,12 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 32,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   heroRow: {
     flexDirection: 'row',
@@ -298,21 +305,21 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(14,14,14,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   heroTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: Font.black,
-    color: colors.text,
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: colors.textSecondary,
+    color: 'rgba(14,14,14,0.6)',
     marginTop: 2,
+    fontWeight: Font.medium,
   },
 
   // List

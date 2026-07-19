@@ -30,6 +30,7 @@ export interface CampusCartelMember {
   course: string | null;
   year_of_study: number | null;
   city: string | null;
+  state: string | null;
   joined_at: string;
   is_active: boolean;
   status: CampusCartelStatus;
@@ -106,6 +107,7 @@ export class CampusCartelService {
     course?: string,
     yearOfStudy?: number,
     city?: string,
+    state?: string,
   ): Promise<ApiResponse<CampusCartelMember>> {
     if (!userId) return { data: null, error: { code: 'AUTH_REQUIRED', message: 'Not logged in' } };
 
@@ -149,6 +151,7 @@ export class CampusCartelService {
         course: course ?? null,
         year_of_study: yearOfStudy ?? null,
         city: city ?? null,
+        state: state ?? null,
         status: 'pending',
         is_active: false,
       })
@@ -167,14 +170,15 @@ export class CampusCartelService {
     course?: string,
     yearOfStudy?: number,
     city?: string,
+    state?: string,
   ): Promise<ApiResponse<CampusCartelMember>> {
-    return this.applyForCampusCartel(userId, code, college, course, yearOfStudy, city);
+    return this.applyForCampusCartel(userId, code, college, course, yearOfStudy, city, state);
   }
 
   /** Update an existing pending/rejected application */
   async updateApplication(
     memberId: string,
-    updates: { college?: string; course?: string; city?: string; ambassador_code?: string | null },
+    updates: { college?: string; course?: string; city?: string; state?: string; ambassador_code?: string | null },
   ): Promise<ApiResponse<CampusCartelMember>> {
     // Only allow updates on pending/rejected applications
     const { data: existing } = await this.supabase
@@ -214,6 +218,7 @@ export class CampusCartelService {
     if ('college' in updates) payload.college = updates.college ?? null;
     if ('course' in updates) payload.course = updates.course ?? null;
     if ('city' in updates) payload.city = updates.city ?? null;
+    if ('state' in updates) payload.state = updates.state ?? null;
     if ('ambassador_code' in updates) payload.ambassador_code = updates.ambassador_code ?? null;
 
     const { data, error } = await this.supabase

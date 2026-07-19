@@ -74,7 +74,11 @@ export default function VerticalsScreen() {
           <TouchableOpacity
             key={v.slug}
             style={styles.card}
-            onPress={() => router.push(`/(shared)/vertical/${v.slug}` as any)}
+            onPress={() =>
+              v.slug === 'irise' || v.slug === 'ibelieve'
+                ? router.push(`/(people)/opportunities?vertical=${v.slug}` as any)
+                : router.push(`/(shared)/vertical/${v.slug}` as any)
+            }
             activeOpacity={0.82}
           >
             {/* Color bar */}

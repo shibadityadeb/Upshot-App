@@ -16,13 +16,21 @@ import { createApiClient } from '@upshot/api-client';
 import type { LeaderboardEntry, CampusCartelStats, CampusCartelStatus, CampusCartelMember } from '@upshot/api-client';
 import type { Task } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
-import { Button, Input, CoinBadge } from '../../src/components/common';
+import { Button, Input, SelectField, CoinBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
+import { INDIAN_STATES } from '../../src/constants/india';
 
 const api = createApiClient();
 
 type ScreenState = 'loading' | 'not_applied' | 'pending' | 'rejected' | 'approved';
+
+const HOW_IT_WORKS = [
+  { step: '1', title: 'Apply with a code', desc: 'Get an ambassador code and submit your application' },
+  { step: '2', title: 'Get approved', desc: 'An admin will review and approve your application' },
+  { step: '3', title: 'Complete assignments', desc: 'Do tasks assigned by admins to earn coins' },
+  { step: '4', title: 'Climb the leaderboard', desc: 'Earn more coins to rise in the rankings' },
+];
 
 export default function CampusCartelScreen() {
   const router = useRouter();
@@ -43,7 +51,9 @@ export default function CampusCartelScreen() {
   const [college, setCollege] = useState('');
   const [course, setCourse] = useState('');
   const [city, setCity] = useState('');
+  const [state, setState] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [justApplied, setJustApplied] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,6 +124,19 @@ export default function CampusCartelScreen() {
 
   const handleApply = async () => {
     if (!user) return;
+    setFormError(null);
+    if (!college.trim()) {
+      setFormError('College is required.');
+      return;
+    }
+    if (!city.trim()) {
+      setFormError('City is required.');
+      return;
+    }
+    if (!state) {
+      setFormError('Please select your state.');
+      return;
+    }
     const trimmed = code.trim();
     if (trimmed && codeValid === false) {
       Alert.alert('Invalid Code', 'The ambassador code you entered is invalid.');
@@ -124,10 +147,11 @@ export default function CampusCartelScreen() {
       const result = await api.campusCartel.applyForCampusCartel(
         user.id,
         trimmed || undefined,
-        college || undefined,
+        college,
         course || undefined,
         undefined,
-        city || undefined,
+        city,
+        state,
       );
       if (result.error) {
         showError(result.error);
@@ -164,6 +188,7 @@ export default function CampusCartelScreen() {
               setCollege('');
               setCourse('');
               setCity('');
+              setState('');
               setCodeValid(null);
               setJustApplied(false);
             } catch {
@@ -248,7 +273,7 @@ export default function CampusCartelScreen() {
                 error={codeValid === false ? 'Invalid code' : undefined}
               />
               <Input
-                label="College (optional)"
+                label="College"
                 placeholder="Your college name"
                 value={college}
                 onChangeText={setCollege}
@@ -260,11 +285,20 @@ export default function CampusCartelScreen() {
                 onChangeText={setCourse}
               />
               <Input
-                label="City (optional)"
+                label="City"
                 placeholder="Your city"
                 value={city}
                 onChangeText={setCity}
               />
+              <SelectField
+                label="State"
+                placeholder="Select your state"
+                value={state}
+                options={INDIAN_STATES}
+                onSelect={setState}
+              />
+
+              {formError && <Text style={styles.formError}>{formError}</Text>}
 
               <Button
                 title={submitting ? 'Submitting...' : 'Submit Application'}
@@ -412,22 +446,25 @@ export default function CampusCartelScreen() {
         {/* ── How it works ── */}
         <View style={styles.howSection}>
           <Text style={styles.howTitle}>How it works</Text>
-          {[
-            { step: '1', icon: 'document-text-outline' as const, title: 'Apply with a code', desc: 'Get an ambassador code and submit your application' },
-            { step: '2', icon: 'checkmark-done-outline' as const, title: 'Get approved', desc: 'An admin will review and approve your application' },
-            { step: '3', icon: 'checkbox-outline' as const, title: 'Complete assignments', desc: 'Do tasks assigned by admins to earn coins' },
-            { step: '4', icon: 'trophy-outline' as const, title: 'Climb the leaderboard', desc: 'Earn more coins to rise in the rankings' },
-          ].map((item) => (
-            <View key={item.step} style={styles.howRow}>
-              <View style={styles.howIconCircle}>
-                <Ionicons name={item.icon} size={18} color={colors.ink} />
-              </View>
-              <View style={styles.howInfo}>
-                <Text style={styles.howStepTitle}>{item.title}</Text>
-                <Text style={styles.howStepDesc}>{item.desc}</Text>
-              </View>
-            </View>
-          ))}
+          <View style={styles.howCard}>
+            {HOW_IT_WORKS.map((item, idx) => {
+              const isLast = idx === HOW_IT_WORKS.length - 1;
+              return (
+                <View key={item.step} style={[styles.howRow, !isLast && styles.howRowSpacing]}>
+                  <View style={styles.howStepCol}>
+                    <View style={styles.howIconCircle}>
+                      <Text style={styles.howStepNumber}>{item.step}</Text>
+                    </View>
+                    {!isLast && <View style={styles.howConnector} />}
+                  </View>
+                  <View style={styles.howInfo}>
+                    <Text style={styles.howStepTitle}>{item.title}</Text>
+                    <Text style={styles.howStepDesc}>{item.desc}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -523,6 +560,12 @@ const styles = StyleSheet.create({
     fontSize: FontSize.body,
     color: colors.textSecondary,
     marginBottom: Gap.lg,
+  },
+  formError: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.error,
+    marginBottom: Gap.md,
   },
 
   // Success banner
@@ -695,21 +738,47 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: Gap.base,
   },
+  howCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: Gap.lg,
+    ...shadow.sm,
+  },
   howRow: {
     flexDirection: 'row',
     gap: Gap.md,
-    marginBottom: Gap.lg,
+  },
+  howRowSpacing: {
+    marginBottom: Gap.md,
+  },
+  howStepCol: {
+    width: 36,
+    alignItems: 'center',
   },
   howIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  howStepNumber: {
+    fontSize: FontSize.body,
+    fontWeight: Font.black,
+    color: colors.ink,
+  },
+  howConnector: {
+    flex: 1,
+    width: 2,
+    minHeight: 16,
+    backgroundColor: colors.border,
+    borderRadius: 1,
+    marginVertical: 4,
+  },
   howInfo: {
     flex: 1,
+    paddingTop: 4,
   },
   howStepTitle: {
     fontSize: FontSize.body,

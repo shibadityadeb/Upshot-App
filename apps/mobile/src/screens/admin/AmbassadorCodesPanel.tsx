@@ -64,9 +64,11 @@ export function AmbassadorCodesPanel({ adminId }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [codeType, setCodeType] = useState<'random' | 'custom'>('random');
   const [customCode, setCustomCode] = useState('');
-  const [selectedVertical, setSelectedVertical] = useState<VerticalOption>(STATIC_VERTICAL_OPTIONS[0]);
   const [notes, setNotes] = useState('');
   const [generating, setGenerating] = useState(false);
+
+  // Ambassador codes belong to Campus Cartel only
+  const campusCartelVertical = verticalOptions.find((v) => v.slug === 'campus-cartel');
 
   // Success state
   const [generatedCode, setGeneratedCode] = useState<AmbassadorCode | null>(null);
@@ -122,10 +124,12 @@ export function AmbassadorCodesPanel({ adminId }: Props) {
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     try {
+      // Only pass the vertical once real UUIDs have loaded from the DB
+      const ccId = campusCartelVertical?.id;
       const payload: CreateAmbassadorCodePayload = {
         code_type: codeType,
         custom_code: codeType === 'custom' ? customCode : undefined,
-        vertical_id: selectedVertical.id ?? undefined,
+        vertical_id: ccId && ccId.length >= 36 ? ccId : undefined,
         notes: notes.trim() || undefined,
       };
       const result = await api.ambassadors.generateCode(adminId, payload);
@@ -136,7 +140,7 @@ export function AmbassadorCodesPanel({ adminId }: Props) {
     } finally {
       setGenerating(false);
     }
-  }, [adminId, codeType, customCode, selectedVertical, notes, loadCodes]);
+  }, [adminId, codeType, customCode, campusCartelVertical, notes, loadCodes]);
 
   const handleCopy = useCallback(async (code: string) => {
     try {
@@ -173,9 +177,8 @@ export function AmbassadorCodesPanel({ adminId }: Props) {
     setGeneratedCode(null);
     setCodeType('random');
     setCustomCode('');
-    setSelectedVertical(verticalOptions[0]);
     setNotes('');
-  }, [verticalOptions]);
+  }, []);
 
   const getVerticalAccent = (code: AmbassadorCode): string => {
     if (!code.vertical) return colors.textSecondary;
@@ -406,23 +409,17 @@ export function AmbassadorCodesPanel({ adminId }: Props) {
                   />
                 )}
 
-                {/* Vertical picker */}
-                <Text style={styles.sectionLabel}>Link to Vertical (optional)</Text>
+                {/* Codes are always for Campus Cartel */}
+                <Text style={styles.sectionLabel}>Vertical</Text>
                 <View style={styles.verticalPicker}>
-                  {verticalOptions.map((v) => (
-                    <TouchableOpacity
-                      key={v.name}
-                      style={[
-                        styles.verticalChip,
-                        { backgroundColor: v.color },
-                        selectedVertical.name === v.name && { borderWidth: 2, borderColor: v.accent },
-                      ]}
-                      onPress={() => setSelectedVertical(v)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[styles.verticalChipText, { color: v.accent }]}>{v.name}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <View
+                    style={[
+                      styles.verticalChip,
+                      { backgroundColor: verticalColors.campusCartel + '20', borderWidth: 2, borderColor: verticalColors.campusCartel },
+                    ]}
+                  >
+                    <Text style={[styles.verticalChipText, { color: verticalColors.campusCartel }]}>Campus Cartel</Text>
+                  </View>
                 </View>
 
                 <Input

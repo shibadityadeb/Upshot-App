@@ -36,6 +36,8 @@ function getGroupsForRole(role: string | undefined): TaskTargetGroup[] {
       return ['campus_cartel', 'students'];
     case 'people':
       return ['campus_cartel', 'students'];
+    case 'ambassador':
+      return ['campus_cartel', 'ambassadors'];
     default:
       return ['students'];
   }
@@ -206,8 +208,9 @@ export default function PeopleTasksScreen() {
 
   if (loading || isMember === null) return <LoadingScreen />;
 
-  // Non-members see a join prompt instead of tasks
-  if (!isMember) {
+  // Non-members see a join prompt instead of tasks.
+  // Ambassadors get their tasks without needing cartel membership.
+  if (!isMember && user?.role !== 'ambassador') {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
@@ -242,6 +245,11 @@ export default function PeopleTasksScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Tasks</Text>
+        <Text style={styles.headerSub}>
+          {activeTasks.length > 0
+            ? `${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
+            : 'Complete tasks to earn coins'}
+        </Text>
       </View>
       <ScrollView
         style={styles.scroll}
@@ -487,23 +495,32 @@ export default function PeopleTasksScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary,
   },
   header: {
+    backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingVertical: Gap.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingTop: 32,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   headerTitle: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontSize: 28,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.5,
   },
-  scroll: { flex: 1 },
+  headerSub: {
+    fontSize: FontSize.small,
+    color: 'rgba(14,14,14,0.6)',
+    marginTop: 2,
+    fontWeight: Font.medium,
+  },
+  scroll: { flex: 1, backgroundColor: colors.background },
   scrollContent: {
     paddingBottom: 100,
+    paddingTop: Gap.md,
   },
   section: {
     paddingHorizontal: Gap.base,
@@ -762,6 +779,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: Gap.base,
+    backgroundColor: colors.background,
   },
   joinBtn: {
     flexDirection: 'row',

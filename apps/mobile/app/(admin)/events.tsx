@@ -41,10 +41,8 @@ interface VerticalOption {
   accent: string;
 }
 
+// Events must belong to a workshop vertical — iRISE or iBelieve.
 const STATIC_VERTICAL_OPTIONS: VerticalOption[] = [
-  { id: null, name: 'None', color: colors.border, accent: colors.textSecondary },
-  { id: 'unfiltered', slug: 'unfiltered', name: 'Unfiltered', color: verticalColors.unfiltered + '20', accent: verticalColors.unfiltered },
-  { id: 'campus-cartel', slug: 'campus-cartel', name: 'Campus Cartel', color: verticalColors.campusCartel + '20', accent: verticalColors.campusCartel },
   { id: 'irise', slug: 'irise', name: 'iRISE', color: verticalColors.irise + '20', accent: verticalColors.irise },
   { id: 'ibelieve', slug: 'ibelieve', name: 'iBelieve', color: verticalColors.ibelieve + '20', accent: verticalColors.ibelieve },
 ];
@@ -74,7 +72,6 @@ export default function AdminEvents() {
 
   // Host Applications
   const [hostApps, setHostApps] = useState<HostingApplication[]>([]);
-  const [hostFilter, setHostFilter] = useState<FilterOption>('all');
   const [hostLoading, setHostLoading] = useState(false);
   const [hostActionLoading, setHostActionLoading] = useState<string | null>(null);
 
@@ -98,13 +95,10 @@ export default function AdminEvents() {
       try {
         const { data } = await (api as any).supabase.from('verticals').select('id, name, slug, color');
         if (data && data.length > 0) {
-          const mapped: VerticalOption[] = [
-            { id: null, name: 'None', color: colors.border, accent: colors.textSecondary },
-            ...STATIC_VERTICAL_OPTIONS.slice(1).map((opt) => {
-              const dbV = (data as Vertical[]).find((v) => v.slug === opt.slug);
-              return { ...opt, id: dbV ? dbV.id : opt.id };
-            }),
-          ];
+          const mapped: VerticalOption[] = STATIC_VERTICAL_OPTIONS.map((opt) => {
+            const dbV = (data as Vertical[]).find((v) => v.slug === opt.slug);
+            return { ...opt, id: dbV ? dbV.id : opt.id };
+          });
           setVerticalOptions(mapped);
         }
       } catch (e) {
@@ -270,7 +264,9 @@ export default function AdminEvents() {
     [user, loadEvents],
   );
 
-  const filteredHostApps = hostApps.filter((a) => hostFilter === 'all' || a.status === hostFilter);
+  // Only pending applications need admin attention here. Approved ones become
+  // events (visible in the Events tab); rejected ones stay in the DB but leave the UI.
+  const filteredHostApps = hostApps.filter((a) => a.status === 'pending');
 
   const handleHostApprove = useCallback(async (appId: string) => {
     if (!user) return;
@@ -434,6 +430,13 @@ export default function AdminEvents() {
             <Text style={styles.eventMeta}>{eventDate}</Text>
           </View>
 
+          <View style={styles.eventMetaRow}>
+            <Ionicons name="people-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.eventMeta}>
+              {(item as any).application_count ?? 0} application{((item as any).application_count ?? 0) === 1 ? '' : 's'}
+            </Text>
+          </View>
+
           {eventVertical && eventVertical.id && (
             <View style={[styles.verticalChip, { backgroundColor: eventVertical.color }]}>
               <Text style={[styles.verticalChipText, { color: eventVertical.accent }]}>
@@ -587,8 +590,8 @@ export default function AdminEvents() {
               ListEmptyComponent={
                 <EmptyState
                   iconName="document-text-outline"
-                  title="No hosting applications"
-                  subtitle="When users submit event hosting requests, they'll appear here"
+                  title="No pending applications"
+                  subtitle="New event hosting requests will appear here for review"
                 />
               }
             />
@@ -614,7 +617,7 @@ export default function AdminEvents() {
                 <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>Assign this project to a vertical (optional)</Text>
+            <Text style={styles.modalSubtitle}>Assign this event to a vertical</Text>
 
             <Text style={styles.sectionLabel}>Select Vertical</Text>
             <View style={styles.verticalPicker}>
@@ -725,8 +728,8 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: Gap.md,
-    paddingBottom: Gap.lg,
+    paddingTop: 32,
+    paddingBottom: 24,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },

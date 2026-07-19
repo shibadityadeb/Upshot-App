@@ -10,10 +10,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
-import type { EventApplication } from '@upshot/types';
+import type { Event, EventApplication } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { EmptyState, StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
@@ -27,6 +27,11 @@ const VERTICAL_FILTERS = [
   { label: 'iBelieve', slug: 'ibelieve' },
 ] as const;
 const TIME_FILTERS = ['Upcoming', 'Past'];
+const VIEWS = [
+  { key: 'discover', label: 'Discover' },
+  { key: 'joined', label: 'Joined' },
+] as const;
+type ViewKey = (typeof VIEWS)[number]['key'];
 
 /** Joined workshops stay visible for a week after the event, then leave
     the UI only — the application rows are never touched in the DB. */
@@ -36,8 +41,11 @@ export default function PeopleWorkshops() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ vertical?: string }>();
 
+  const [view, setView] = useState<ViewKey>('discover');
   const [applications, setApplications] = useState<EventApplication[]>([]);
+  const [availableEvents, setAvailableEvents] = useState<Event[]>([]);
   const [verticalSlugById, setVerticalSlugById] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,6 +71,15 @@ export default function PeopleWorkshops() {
     }
   }, [user]);
 
+  const loadAvailableEvents = useCallback(async () => {
+    try {
+      const result = await api.events.getApprovedEvents(1, 50);
+      if (result.data) setAvailableEvents(result.data.data);
+    } catch (e) {
+      console.warn(e);
+    }
+  }, []);
+
   const loadVerticals = useCallback(async () => {
     try {
       const verts = await api.verticals.getAllVerticals();
@@ -78,17 +95,32 @@ export default function PeopleWorkshops() {
     loadVerticals();
   }, [loadVerticals]);
 
-  // Refresh on focus so a fresh application shows up immediately
+  // Arriving from an iRISE/iBelieve page pre-selects that vertical in Discover
+  useEffect(() => {
+    if (!params.vertical) return;
+    const idx = VERTICAL_FILTERS.findIndex((v) => v.slug === params.vertical);
+    if (idx > 0) {
+      setSelectedVertical(idx);
+      setView('discover');
+    }
+  }, [params.vertical]);
+
+  // Refresh on focus so a fresh application or new workshop shows up immediately
   useFocusEffect(
     useCallback(() => {
       loadApplications();
-    }, [loadApplications]),
+      loadAvailableEvents();
+    }, [loadApplications, loadAvailableEvents]),
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadApplications(), loadVerticals()]);
-  }, [loadApplications, loadVerticals]);
+    await Promise.all([loadApplications(), loadAvailableEvents(), loadVerticals()]);
+  }, [loadApplications, loadAvailableEvents, loadVerticals]);
+
+  const appliedEventIds = new Set(
+    applications.filter((a) => a.status !== 'withdrawn').map((a) => a.event_id),
+  );
 
   const now = Date.now();
   const joined = applications
@@ -124,6 +156,73 @@ export default function PeopleWorkshops() {
       if (aPast !== bPast) return aPast ? 1 : -1;
       return aPast ? db.localeCompare(da) : da.localeCompare(db);
     });
+
+  const available = availableEvents.filter((ev) => {
+    const wantedSlug = VERTICAL_FILTERS[selectedVertical].slug;
+    if (wantedSlug) {
+      const slug = ev.vertical_id ? verticalSlugById[ev.vertical_id] : undefined;
+      if (slug !== wantedSlug) return false;
+    }
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return true;
+    return (
+      ev.title.toLowerCase().includes(q) ||
+      (ev.location ?? '').toLowerCase().includes(q)
+    );
+  });
+
+  const renderAvailable = ({ item: ev }: { item: Event }) => {
+    const eventDate = ev.event_date ? new Date(ev.event_date) : null;
+    const slug = ev.vertical_id ? verticalSlugById[ev.vertical_id] : undefined;
+    const verticalLabel = slug === 'irise' ? 'iRISE' : slug === 'ibelieve' ? 'iBelieve' : null;
+    const hasApplied = appliedEventIds.has(ev.id);
+
+    return (
+      <TouchableOpacity
+        style={styles.joinedCard}
+        onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.joinedHeader}>
+          <Text style={styles.joinedTitle} numberOfLines={2}>{ev.title}</Text>
+          {hasApplied && (
+            <View style={styles.appliedPill}>
+              <Ionicons name="checkmark" size={12} color={colors.success} />
+              <Text style={styles.appliedPillText}>Applied</Text>
+            </View>
+          )}
+        </View>
+
+        {!!verticalLabel && (
+          <View style={styles.joinedTagRow}>
+            <View style={styles.verticalTag}>
+              <Text style={styles.verticalTagText}>{verticalLabel}</Text>
+            </View>
+          </View>
+        )}
+
+        {!!eventDate && (
+          <View style={styles.joinedMetaRow}>
+            <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.joinedMeta}>
+              {eventDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </Text>
+          </View>
+        )}
+
+        {!!ev.location && (
+          <View style={styles.joinedMetaRow}>
+            <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.joinedMeta} numberOfLines={1}>{ev.location}</Text>
+          </View>
+        )}
+
+        {!hasApplied && (
+          <Text style={styles.joinLink}>View & join →</Text>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   const renderJoined = ({ item: app }: { item: EventApplication }) => {
     const eventDate = app.event?.event_date ? new Date(app.event.event_date) : null;
@@ -196,7 +295,9 @@ export default function PeopleWorkshops() {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.headerTitle}>Workshops</Text>
-            <Text style={styles.headerSubtitle}>Your joined workshops</Text>
+            <Text style={styles.headerSubtitle}>
+              {view === 'discover' ? 'Find and join workshops' : 'Your joined workshops'}
+            </Text>
           </View>
           <TouchableOpacity
             style={styles.hostBtn}
@@ -211,9 +312,28 @@ export default function PeopleWorkshops() {
 
       {/* Search + filters */}
       <View style={styles.filterBlock}>
+        {/* Discover / Joined toggle */}
+        <View style={styles.viewToggleRow}>
+          {VIEWS.map((v) => {
+            const active = view === v.key;
+            return (
+              <TouchableOpacity
+                key={v.key}
+                onPress={() => setView(v.key)}
+                activeOpacity={0.75}
+                style={[styles.viewToggle, active && styles.viewToggleActive]}
+              >
+                <Text style={[styles.viewToggleLabel, active && styles.viewToggleLabelActive]}>
+                  {v.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <TextInput
           style={styles.searchInput}
-          placeholder="Search your workshops..."
+          placeholder={view === 'discover' ? 'Search workshops...' : 'Search your workshops...'}
           placeholderTextColor={colors.textLight}
           value={search}
           onChangeText={setSearch}
@@ -235,6 +355,7 @@ export default function PeopleWorkshops() {
             );
           })}
         </View>
+        {view === 'joined' && (
         <View style={styles.subPillRow}>
           {TIME_FILTERS.map((t, i) => {
             const active = subFilterEnabled && timeFilter === i;
@@ -263,30 +384,56 @@ export default function PeopleWorkshops() {
             );
           })}
         </View>
+        )}
       </View>
 
-      <FlatList
-        data={joined}
-        keyExtractor={(item) => item.id}
-        renderItem={renderJoined}
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-        ListEmptyComponent={
-          <EmptyState
-            iconName="ribbon-outline"
-            title={debouncedSearch ? 'No results found' : 'No joined workshops yet'}
-            subtitle={
-              debouncedSearch
-                ? 'Try a different search term'
-                : 'Apply to a workshop from the iRISE or\niBelieve pages and it will show up here.'
-            }
-          />
-        }
-      />
+      {view === 'discover' ? (
+        <FlatList
+          data={available}
+          keyExtractor={(item) => item.id}
+          renderItem={renderAvailable}
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              iconName="compass-outline"
+              title={debouncedSearch ? 'No results found' : 'No workshops available'}
+              subtitle={
+                debouncedSearch
+                  ? 'Try a different search term'
+                  : 'New workshops will appear here as soon\nas they are announced.'
+              }
+            />
+          }
+        />
+      ) : (
+        <FlatList
+          data={joined}
+          keyExtractor={(item) => item.id}
+          renderItem={renderJoined}
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              iconName="ribbon-outline"
+              title={debouncedSearch ? 'No results found' : 'No joined workshops yet'}
+              subtitle={
+                debouncedSearch
+                  ? 'Try a different search term'
+                  : 'Join a workshop from the Discover tab\nand it will show up here.'
+              }
+            />
+          }
+        />
+      )}
     </View>
   );
 }
@@ -339,6 +486,53 @@ const styles = StyleSheet.create({
     fontSize: FontSize.small,
     fontWeight: Font.bold,
     color: '#fff',
+  },
+  viewToggleRow: {
+    flexDirection: 'row',
+    gap: Gap.sm,
+    marginBottom: 10,
+  },
+  viewToggle: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: radius.full,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  viewToggleActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  viewToggleLabel: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: colors.textSecondary,
+  },
+  viewToggleLabelActive: {
+    color: '#FFFFFF',
+    fontWeight: Font.bold,
+  },
+  appliedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.success + '1A',
+    borderRadius: radius.full,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  appliedPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: colors.success,
+  },
+  joinLink: {
+    marginTop: Gap.sm,
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
   filterBlock: {
     backgroundColor: colors.surface,

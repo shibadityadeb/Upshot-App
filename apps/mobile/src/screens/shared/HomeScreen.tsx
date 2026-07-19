@@ -236,13 +236,13 @@ export default function HomeScreen() {
             image={IRISE_IMG}
             title="Women Leadership"
             subtitle="Leadership workshops designed for women."
-            onPress={() => router.push('/(shared)/vertical/irise' as any)}
+            onPress={() => router.push('/(people)/opportunities?vertical=irise' as any)}
           />
           <WorkshopCard
             image={IBELIEVE_IMG}
             title="Entrepreneur Network"
             subtitle="Workshops and networking for entrepreneurs."
-            onPress={() => router.push('/(shared)/vertical/ibelieve' as any)}
+            onPress={() => router.push('/(people)/opportunities?vertical=ibelieve' as any)}
           />
         </View>
       </View>

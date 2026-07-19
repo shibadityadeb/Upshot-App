@@ -619,41 +619,32 @@ export default function VerticalDetailScreen() {
             </>
           )}
 
-          {/* Events — hidden for Unfiltered and Campus Cartel */}
+          {/* Workshops — hidden for Unfiltered and Campus Cartel. The full list
+              (with applied status + search) lives in the Workshops tab, so this
+              section links there pre-filtered to this vertical. */}
           {slug !== 'unfiltered' && slug !== 'campus-cartel' && (
             <>
-              <Text style={styles.eventsHeading}>Events</Text>
-              {verticalEvents.length === 0 ? (
-                <EmptyState
-                  title="No events yet"
-                  subtitle={`${vertical?.name ?? 'This vertical'} events coming soon`}
-                />
-              ) : (
-                verticalEvents.map((ev) => (
-                  <TouchableOpacity
-                    key={ev.id}
-                    style={styles.eventCard}
-                    onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.eventColorBar} />
-                    <View style={styles.eventBody}>
-                      <Text style={styles.eventTitle} numberOfLines={2}>{ev.title}</Text>
-                      <Text style={styles.eventMeta}>
-                        {new Date(ev.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </Text>
-                      {!!ev.location && (
-                        <Text style={styles.eventLocation} numberOfLines={1}>{ev.location}</Text>
-                      )}
-                      <View style={styles.eventFooter}>
-                        {ev.max_attendees && (
-                          <Text style={styles.eventLocation}>{ev.max_attendees} spots</Text>
-                        )}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))
-              )}
+              <Text style={styles.eventsHeading}>Workshops</Text>
+              <TouchableOpacity
+                style={styles.workshopsCta}
+                onPress={() => router.push(`/(people)/opportunities?vertical=${slug}` as any)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.workshopsCtaIcon}>
+                  <Ionicons name="briefcase-outline" size={20} color={colors.ink} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.workshopsCtaTitle}>
+                    Browse {vertical?.name ?? ''} workshops
+                  </Text>
+                  <Text style={styles.workshopsCtaSub}>
+                    {verticalEvents.length > 0
+                      ? `${verticalEvents.length} upcoming workshop${verticalEvents.length !== 1 ? 's' : ''} · search & apply`
+                      : 'See upcoming workshops, search and apply'}
+                  </Text>
+                </View>
+                <Ionicons name="arrow-forward" size={18} color={colors.ink} />
+              </TouchableOpacity>
             </>
           )}
         </View>
@@ -1053,6 +1044,35 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
     marginTop: 8,
+  },
+  workshopsCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.base,
+    ...shadow.sm,
+  },
+  workshopsCtaIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  workshopsCtaTitle: {
+    fontSize: FontSize.body,
+    fontWeight: Font.bold,
+    color: colors.text,
+  },
+  workshopsCtaSub: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 
   // Event cards in vertical

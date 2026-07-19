@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Text,
   View,
@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   Image,
   StyleSheet,
+  Modal,
+  FlatList,
   type TextStyle,
   type ViewStyle,
   type TextInputProps,
@@ -265,6 +267,147 @@ const inputStyles = StyleSheet.create({
     color: colors.error,
     marginTop: 5,
     fontWeight: Font.medium,
+  },
+});
+
+// ─── SelectField ─────────────────────────────────────────────────────────────
+//
+// Label + touchable field for choosing one value from a fixed list, opened
+// via a bottom-sheet modal. Visually matches Input but never shows a keyboard.
+
+interface SelectFieldProps {
+  label?: string;
+  placeholder?: string;
+  value: string;
+  options: string[];
+  onSelect: (value: string) => void;
+  error?: string;
+  style?: StyleProp<ViewStyle>;
+}
+
+export function SelectField({
+  label,
+  placeholder,
+  value,
+  options,
+  onSelect,
+  error,
+  style,
+}: SelectFieldProps) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <View style={[inputStyles.wrapper, style]}>
+      {label && <Text style={inputStyles.label}>{label}</Text>}
+      <TouchableOpacity
+        style={[
+          inputStyles.container,
+          selectStyles.touchable,
+          error ? { borderColor: colors.error } : undefined,
+        ]}
+        onPress={() => setVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={[selectStyles.value, !value && selectStyles.placeholder]} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color={colors.textLight} />
+      </TouchableOpacity>
+      {error && <Text style={inputStyles.error}>{error}</Text>}
+
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
+        <View style={selectStyles.overlay}>
+          <View style={selectStyles.sheet}>
+            <View style={selectStyles.sheetHeader}>
+              <Text style={selectStyles.sheetTitle}>{label ?? 'Select'}</Text>
+              <TouchableOpacity onPress={() => setVisible(false)} activeOpacity={0.7}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={options}
+              keyExtractor={(item) => item}
+              style={selectStyles.list}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[selectStyles.option, value === item && selectStyles.optionActive]}
+                  onPress={() => { onSelect(item); setVisible(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[selectStyles.optionText, value === item && selectStyles.optionTextActive]}>
+                    {item}
+                  </Text>
+                  {value === item && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const selectStyles = StyleSheet.create({
+  touchable: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  value: {
+    flex: 1,
+    fontSize: FontSize.body,
+    color: colors.text,
+  },
+  placeholder: {
+    color: colors.textLight,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '60%',
+    paddingBottom: 30,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Gap.base,
+    paddingVertical: Gap.base,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  sheetTitle: {
+    fontSize: FontSize.h2,
+    fontWeight: Font.bold,
+    color: colors.text,
+  },
+  list: {
+    paddingHorizontal: Gap.base,
+  },
+  option: {
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  optionActive: {
+    backgroundColor: colors.primaryTint,
+  },
+  optionText: {
+    fontSize: FontSize.body,
+    color: colors.text,
+  },
+  optionTextActive: {
+    color: colors.ink,
+    fontWeight: Font.bold,
   },
 });
 

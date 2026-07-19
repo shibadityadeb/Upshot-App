@@ -154,7 +154,8 @@ export default function AdminUnfilteredScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await api.unfiltered.deleteVideo(video.id);
+          const { error } = await api.unfiltered.deleteVideo(video.id);
+          if (error) showError(error);
           loadVideos();
         },
       },
@@ -162,7 +163,8 @@ export default function AdminUnfilteredScreen() {
   }, [loadVideos]);
 
   const handleToggleFeatured = useCallback(async (video: UnfilteredVideo) => {
-    await api.unfiltered.toggleFeatured(video.id, !video.is_featured);
+    const { error } = await api.unfiltered.toggleFeatured(video.id, !video.is_featured);
+    if (error) showError(error);
     loadVideos();
   }, [loadVideos]);
 
@@ -202,6 +204,7 @@ export default function AdminUnfilteredScreen() {
       />
 
       <ScrollView
+        style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -444,6 +447,10 @@ export default function AdminUnfilteredScreen() {
 
 const styles = StyleSheet.create({
   safeArea: {
+    flex: 1,
+    backgroundColor: colors.primary,
+  },
+  scrollArea: {
     flex: 1,
     backgroundColor: colors.background,
   },

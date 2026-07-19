@@ -86,6 +86,7 @@ export default function AdminSettings() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          style={styles.scrollArea}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -210,9 +211,13 @@ export default function AdminSettings() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary,
   },
   flex: { flex: 1 },
+  scrollArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   scrollContent: {
     paddingBottom: 100,
   },
@@ -222,8 +227,8 @@ const styles = StyleSheet.create({
     paddingTop: Gap.xl,
     paddingBottom: Gap.xxl,
     paddingHorizontal: Gap.base,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   identityName: {
     fontSize: FontSize.h1,

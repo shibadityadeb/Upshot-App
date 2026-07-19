@@ -14,14 +14,9 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { Ambassador, Student, Task } from '@upshot/types';
+import type { Ambassador, Task } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
-import {
-  AvatarCircle,
-  LoadingScreen,
-  EmptyState,
-  CoinBadge,
-} from '../../src/components/common';
+import { LoadingScreen } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
@@ -64,7 +59,6 @@ export default function AmbassadorDashboard() {
   const user = useAuthStore((s) => s.user);
 
   const [ambassador, setAmbassador] = useState<Ambassador | null>(null);
-  const [students, setStudents] = useState<Student[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -106,14 +100,18 @@ export default function AmbassadorDashboard() {
         }
 
         setAmbassador(ambData);
-        const studentsResult = await api.ambassadors.getAmbassadorStudents(ambData.id);
-        if (studentsResult.data) setStudents(studentsResult.data);
       }
 
-      // Load assigned tasks
+      // Load personal tasks plus group tasks for campus cartel / ambassadors
       try {
-        const tasksResult = await api.tasks.getMyPendingTasks(user.id);
-        if (tasksResult.data) setTasks(tasksResult.data);
+        const [myResult, groupResult] = await Promise.all([
+          api.tasks.getMyPendingTasks(user.id),
+          api.tasks.getTasksForGroup(['campus_cartel', 'ambassadors'], user.id),
+        ]);
+        const myTasks = myResult.data ?? [];
+        const ids = new Set(myTasks.map((t) => t.id));
+        const groupTasks = (groupResult.data ?? []).filter((t) => !ids.has(t.id));
+        setTasks([...myTasks, ...groupTasks]);
       } catch {
         // silent
       }
@@ -159,10 +157,6 @@ export default function AmbassadorDashboard() {
   const nextThreshold = nextTier ? TIER_THRESHOLDS[nextTier] : null;
   const progress = nextThreshold ? Math.min(1, totalEarned / nextThreshold) : 1;
 
-  const recentStudents = [...students]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5);
-
   const pendingTasks = tasks.filter((t) => t.status === 'assigned');
 
   return (
@@ -195,7 +189,9 @@ export default function AmbassadorDashboard() {
           <View style={styles.codeBlock}>
             <Text style={styles.codeLabel}>YOUR REFERRAL CODE</Text>
             <View style={styles.codeRow}>
-              <Text style={styles.codeValue}>{ambassador?.referral_code ?? '------'}</Text>
+              <Text style={styles.codeValue} numberOfLines={1} adjustsFontSizeToFit>
+                {ambassador?.referral_code ?? '------'}
+              </Text>
               <TouchableOpacity onPress={handleCopy} style={styles.codeAction} activeOpacity={0.7}>
                 <Ionicons name="copy-outline" size={14} color="#FFFFFF" />
                 <Text style={styles.codeActionText}>Copy</Text>
@@ -262,69 +258,47 @@ export default function AmbassadorDashboard() {
           </View>
         </View>
 
-        {/* ── Assigned Tasks ── */}
-        {pendingTasks.length > 0 && (
-          <View style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons name="checkbox-outline" size={18} color={colors.campusCartelGreen} />
-              <Text style={styles.cardTitle}>Your Tasks</Text>
+        {/* ── Tasks — full list lives on its own page ── */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => router.push('/(people)/tasks' as any)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.tasksLinkRow}>
+            <View style={styles.tasksLinkIcon}>
+              <Ionicons name="checkbox-outline" size={20} color={colors.ink} />
             </View>
-            <View style={styles.miniList}>
-              {pendingTasks.map((task, idx) => (
-                <View key={task.id}>
-                  <TouchableOpacity
-                    style={styles.taskRow}
-                    onPress={() => router.push(`/(people)/task/${task.id}` as any)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.miniName} numberOfLines={1}>{task.title}</Text>
-                    </View>
-                    <CoinBadge amount={task.coin_value ?? 0} />
-                    <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-                  </TouchableOpacity>
-                  {idx < pendingTasks.length - 1 && <View style={styles.separator} />}
-                </View>
-              ))}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle}>Tasks</Text>
+              <Text style={styles.tasksLinkSub}>
+                {pendingTasks.length > 0
+                  ? `${pendingTasks.length} pending task${pendingTasks.length !== 1 ? 's' : ''} for you`
+                  : 'No pending tasks right now'}
+              </Text>
             </View>
+            {pendingTasks.length > 0 && (
+              <View style={styles.tasksLinkBadge}>
+                <Text style={styles.tasksLinkBadgeText}>{pendingTasks.length}</Text>
+              </View>
+            )}
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </View>
-        )}
+        </TouchableOpacity>
 
-        {/* ── Recent Referrals ── */}
+        {/* ── Referrals summary (count only — referred people stay private) ── */}
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
-            <Ionicons name="person-add-outline" size={18} color={colors.primary} />
-            <Text style={styles.cardTitle}>Recent Referrals</Text>
+            <Ionicons name="person-add-outline" size={18} color={colors.ink} />
+            <Text style={styles.cardTitle}>Referrals</Text>
           </View>
-          {recentStudents.length === 0 ? (
-            <EmptyState
-              iconName="people-outline"
-              title="No referrals yet"
-              subtitle="Share your referral code to get started"
-            />
-          ) : (
-            <View style={styles.miniList}>
-              {recentStudents.map((student, idx) => (
-                <View key={student.id}>
-                  <View style={styles.miniRow}>
-                    <AvatarCircle name={student.user?.full_name ?? 'Student'} size={36} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.miniName} numberOfLines={1}>
-                        {student.user?.full_name ?? 'Student'}
-                      </Text>
-                      <Text style={styles.miniSub} numberOfLines={1}>
-                        {student.user?.email ?? ''}
-                      </Text>
-                    </View>
-                    <Text style={styles.miniDate}>
-                      {new Date(student.created_at).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  {idx < recentStudents.length - 1 && <View style={styles.separator} />}
-                </View>
-              ))}
-            </View>
-          )}
+          <View style={styles.referralSummary}>
+            <Text style={styles.referralCount}>{ambassador?.referral_count ?? 0}</Text>
+            <Text style={styles.referralHint}>
+              {(ambassador?.referral_count ?? 0) === 0
+                ? 'Share your referral code to get started'
+                : `${(ambassador?.referral_count ?? 0) === 1 ? 'person has' : 'people have'} joined with your code`}
+            </Text>
+          </View>
         </View>
 
         <View style={{ height: 100 }} />
@@ -409,12 +383,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   codeValue: {
+    flex: 1,
     fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
     letterSpacing: 3,
   },
   codeAction: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -601,5 +577,53 @@ const styles = StyleSheet.create({
     height: 0.5,
     backgroundColor: colors.border,
     marginHorizontal: Gap.md,
+  },
+  tasksLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.md,
+  },
+  tasksLinkIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tasksLinkSub: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  tasksLinkBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+  },
+  tasksLinkBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: '#FFFFFF',
+  },
+  referralSummary: {
+    alignItems: 'center',
+    paddingVertical: Gap.lg,
+  },
+  referralCount: {
+    fontSize: 40,
+    fontWeight: Font.black,
+    color: colors.text,
+    lineHeight: 46,
+  },
+  referralHint: {
+    fontSize: FontSize.small,
+    color: colors.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
