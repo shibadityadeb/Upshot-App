@@ -126,6 +126,9 @@ export default function PeopleWorkshops() {
   const joined = applications
     .filter((app) => {
       if (app.status === 'withdrawn') return false;
+      // Events the user created are surfaced separately (joinedCreated) with a
+      // "Created by you" card — don't also list them as a normal application.
+      if (user && app.event?.created_by === user.id) return false;
 
       // 7-day post-event UI window — rows stay in the DB untouched
       const dateStr = app.event?.event_date;
@@ -157,6 +160,37 @@ export default function PeopleWorkshops() {
       return aPast ? db.localeCompare(da) : da.localeCompare(db);
     });
 
+  // Workshops this user created show up in the Joined tab too, as read-only
+  // "Created by you" cards. Synthesised as applications so they reuse renderJoined.
+  const joinedCreated: EventApplication[] = availableEvents
+    .filter((ev) => !!user && ev.created_by === user.id)
+    .filter((ev) => {
+      const wantedSlug = VERTICAL_FILTERS[selectedVertical].slug;
+      if (wantedSlug) {
+        const slug = ev.vertical_id ? verticalSlugById[ev.vertical_id] : undefined;
+        if (slug !== wantedSlug) return false;
+        const isPast = !!ev.event_date && new Date(ev.event_date).getTime() < now;
+        if ((timeFilter === 1) !== isPast) return false;
+      }
+      const q = debouncedSearch.toLowerCase();
+      if (!q) return true;
+      return (
+        ev.title.toLowerCase().includes(q) ||
+        (ev.location ?? '').toLowerCase().includes(q)
+      );
+    })
+    .map((ev) => ({
+      id: `created-${ev.id}`,
+      event_id: ev.id,
+      user_id: user!.id,
+      status: 'approved',
+      note: null,
+      applied_at: ev.created_at,
+      event: ev,
+    } as unknown as EventApplication));
+
+  const joinedData = [...joinedCreated, ...joined];
+
   const available = availableEvents.filter((ev) => {
     const wantedSlug = VERTICAL_FILTERS[selectedVertical].slug;
     if (wantedSlug) {
@@ -175,6 +209,7 @@ export default function PeopleWorkshops() {
     const eventDate = ev.event_date ? new Date(ev.event_date) : null;
     const slug = ev.vertical_id ? verticalSlugById[ev.vertical_id] : undefined;
     const verticalLabel = slug === 'irise' ? 'iRISE' : slug === 'ibelieve' ? 'iBelieve' : null;
+    const isOwner = !!user && ev.created_by === user.id;
     const hasApplied = appliedEventIds.has(ev.id);
 
     return (
@@ -185,12 +220,17 @@ export default function PeopleWorkshops() {
       >
         <View style={styles.joinedHeader}>
           <Text style={styles.joinedTitle} numberOfLines={2}>{ev.title}</Text>
-          {hasApplied && (
+          {isOwner ? (
+            <View style={styles.ownerPill}>
+              <Ionicons name="ribbon" size={12} color={colors.ink} />
+              <Text style={styles.ownerPillText}>Created by you</Text>
+            </View>
+          ) : hasApplied ? (
             <View style={styles.appliedPill}>
               <Ionicons name="checkmark" size={12} color={colors.success} />
               <Text style={styles.appliedPillText}>Applied</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {!!verticalLabel && (
@@ -217,14 +257,22 @@ export default function PeopleWorkshops() {
           </View>
         )}
 
-        {!hasApplied && (
+        {isOwner ? (
+          <View style={styles.goingRow}>
+            <Ionicons name="people-outline" size={13} color={colors.ink} />
+            <Text style={styles.goingText}>
+              {(ev.current_attendees ?? 0)} participant{(ev.current_attendees ?? 0) === 1 ? '' : 's'} coming
+            </Text>
+          </View>
+        ) : !hasApplied ? (
           <Text style={styles.joinLink}>View & join →</Text>
-        )}
+        ) : null}
       </TouchableOpacity>
     );
   };
 
   const renderJoined = ({ item: app }: { item: EventApplication }) => {
+    const isOwner = !!user && app.event?.created_by === user.id;
     const eventDate = app.event?.event_date ? new Date(app.event.event_date) : null;
     const isPast = !!eventDate && eventDate.getTime() < Date.now();
     const slug = app.event?.vertical_id ? verticalSlugById[app.event.vertical_id] : undefined;
@@ -240,7 +288,14 @@ export default function PeopleWorkshops() {
           <Text style={styles.joinedTitle} numberOfLines={2}>
             {app.event?.title ?? 'Workshop'}
           </Text>
-          <StatusBadge status={app.status} />
+          {isOwner ? (
+            <View style={styles.ownerPill}>
+              <Ionicons name="ribbon" size={12} color={colors.ink} />
+              <Text style={styles.ownerPillText}>Created by you</Text>
+            </View>
+          ) : (
+            <StatusBadge status={app.status} />
+          )}
         </View>
 
         {!!verticalLabel && (
@@ -267,10 +322,18 @@ export default function PeopleWorkshops() {
           </View>
         )}
 
-        {app.status === 'approved' && !isPast && (
+        {isOwner && (
+          <View style={styles.goingRow}>
+            <Ionicons name="people-outline" size={13} color={colors.ink} />
+            <Text style={styles.goingText}>
+              {(app.event?.current_attendees ?? 0)} participant{(app.event?.current_attendees ?? 0) === 1 ? '' : 's'} coming
+            </Text>
+          </View>
+        )}
+        {!isOwner && app.status === 'approved' && !isPast && (
           <Text style={styles.joinedConfirmed}>You are confirmed!</Text>
         )}
-        {isPast && (
+        {!isOwner && isPast && (
           <View style={styles.joinedDoneRow}>
             <Ionicons name="checkmark-done-outline" size={14} color={colors.textLight} />
             <Text style={styles.joinedDone}>Workshop completed</Text>
@@ -412,7 +475,7 @@ export default function PeopleWorkshops() {
         />
       ) : (
         <FlatList
-          data={joined}
+          data={joinedData}
           keyExtractor={(item) => item.id}
           renderItem={renderJoined}
           style={{ flex: 1 }}
@@ -527,6 +590,31 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
     color: colors.success,
+  },
+  ownerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primaryTint,
+    borderRadius: radius.full,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  ownerPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: colors.ink,
+  },
+  goingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: Gap.sm,
+  },
+  goingText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
   joinLink: {
     marginTop: Gap.sm,

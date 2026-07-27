@@ -141,6 +141,10 @@ export default function PeopleApply() {
   const hasDescription = !!description && description !== 'N/A' && description.trim() !== '';
   const organizerName = (event as any).company?.name ?? organizer?.full_name ?? 'Unknown';
   const organizerEmail = organizer?.email ?? (event as any).company?.email;
+  // The person who created the event can't apply to their own workshop —
+  // they see an ownership badge + how many participants the admin has accepted.
+  const isOwner = !!user && event.created_by === user.id;
+  const participantsCount = event.current_attendees ?? 0;
 
   return (
     <View style={styles.container}>
@@ -230,8 +234,8 @@ export default function PeopleApply() {
           </View>
         )}
 
-        {/* 6 — Note input (only if not applied) */}
-        {!applicationStatus && (
+        {/* 6 — Note input (only if not applied and not the organiser) */}
+        {!applicationStatus && !isOwner && (
           <View style={styles.noteBlock}>
             <Input
               label="Note (optional)"
@@ -246,7 +250,20 @@ export default function PeopleApply() {
 
         {/* 7 — Action area */}
         <View style={[styles.actionBlock, { paddingBottom: insets.bottom + 20 }]}>
-          {applicationStatus === 'approved' ? (
+          {isOwner ? (
+            <View style={styles.ownerBlock}>
+              <View style={styles.ownerBadge}>
+                <Ionicons name="ribbon-outline" size={16} color={colors.ink} />
+                <Text style={styles.ownerBadgeText}>Created by you</Text>
+              </View>
+              <View style={styles.participantsRow}>
+                <Ionicons name="people-outline" size={18} color="#0D0D0D" />
+                <Text style={styles.participantsText}>
+                  {participantsCount} participant{participantsCount === 1 ? '' : 's'} coming
+                </Text>
+              </View>
+            </View>
+          ) : applicationStatus === 'approved' ? (
             <View style={styles.appliedButton}>
               <Ionicons name="checkmark-circle" size={18} color="#065F46" />
               <Text style={styles.appliedButtonText}>Approved</Text>
@@ -478,6 +495,36 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  ownerBlock: {
+    width: '100%',
+    borderRadius: radius.xl,
+    backgroundColor: colors.primaryTint,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  ownerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ownerBadgeText: {
+    fontSize: 14,
+    fontWeight: Font.bold,
+    color: colors.ink,
+  },
+  participantsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  participantsText: {
+    fontSize: 16,
+    fontWeight: Font.bold,
+    color: '#0D0D0D',
   },
   applyButtonDisabled: {
     opacity: 0.5,
