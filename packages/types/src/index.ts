@@ -1,6 +1,6 @@
 // ─── Enums ───────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'company' | 'people' | 'ambassador' | 'student';
+export type UserRole = 'admin' | 'company' | 'people' | 'ambassador' | 'student' | 'host';
 
 export type EventStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 
@@ -95,6 +95,8 @@ export interface Task {
   assigned_by: string;
   assignee?: User;
   target_group: TaskTargetGroup | null;
+  /** Set on a personal submission copy — points at the group task it was cloned from. */
+  source_task_id?: string | null;
   status: TaskStatus;
   due_date: string | null;
   coin_value: number;
@@ -236,6 +238,48 @@ export interface RegisterStudentPayload {
   profession?: string;
   organisation_name?: string;
   ambassador_code?: string;
+}
+
+// ─── Hosts ───────────────────────────────────────────────
+
+export interface Host {
+  id: string;
+  user_id: string;
+  user?: User;
+  org_legal_name: string;
+  org_city: string;
+  org_state: string;
+  org_sector: string;
+  org_website: string | null;
+  designation: string;
+  department: string | null;
+  contact_phone: string | null;
+  is_verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RegisterHostPayload {
+  // Step 1 — personal
+  email: string;
+  password: string;
+  full_name: string;
+  contact_phone: string;
+  // Step 2 — company
+  org_legal_name: string;
+  org_city: string;
+  org_state: string;
+  org_sector: string;
+  org_website?: string;
+  // Step 3 — position
+  designation: string;
+  department?: string;
+}
+
+/** An event created by a host, with its live participant counts. */
+export interface HostedEvent extends Event {
+  approved_participants: number;
+  pending_participants: number;
 }
 
 // ─── Phase 3: Verticals, Content, Workforce ──────────────

@@ -164,6 +164,31 @@ export default function RegisterScreen() {
             <>
               <Text style={styles.formTitle}>Create your account</Text>
               <Text style={styles.formSubtitle}>Step 1 of 2 — Basic information</Text>
+
+              {/* Host accounts have their own 3-step flow and their own home area */}
+              <TouchableOpacity
+                style={styles.hostSwitch}
+                onPress={() => router.push('/(auth)/register-host')}
+                activeOpacity={0.8}
+              >
+                <View style={styles.hostSwitchIcon}>
+                  <Text style={styles.hostSwitchIconText}>★</Text>
+                </View>
+                <View style={styles.hostSwitchBody}>
+                  <Text style={styles.hostSwitchTitle}>Sign up to host events</Text>
+                  <Text style={styles.hostSwitchSub}>
+                    For organisations running their own events
+                  </Text>
+                </View>
+                <Text style={styles.hostSwitchChevron}>{'›'}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.orRow}>
+                <View style={styles.orLine} />
+                <Text style={styles.orText}>OR JOIN AS A MEMBER</Text>
+                <View style={styles.orLine} />
+              </View>
+
               <Input
                 label="Full Name"
                 placeholder="Jane Doe"
@@ -410,6 +435,58 @@ const styles = StyleSheet.create({
     fontWeight: Font.semibold,
     color: colors.textSecondary,
     marginBottom: Gap.sm,
+  },
+  hostSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.md,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    padding: Gap.base,
+  },
+  hostSwitchIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hostSwitchIconText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: Font.bold,
+  },
+  hostSwitchBody: { flex: 1 },
+  hostSwitchTitle: {
+    fontSize: FontSize.body,
+    fontWeight: Font.bold,
+    color: colors.text,
+  },
+  hostSwitchSub: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  hostSwitchChevron: {
+    fontSize: 22,
+    color: colors.textLight,
+    fontWeight: Font.bold,
+  },
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.sm,
+    marginVertical: Gap.lg,
+  },
+  orLine: { flex: 1, height: 0.5, backgroundColor: colors.border },
+  orText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: colors.textLight,
+    letterSpacing: 1,
   },
   actionBtn: {
     marginTop: Gap.sm,

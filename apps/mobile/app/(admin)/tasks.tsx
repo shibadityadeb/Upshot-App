@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  Linking,
   Platform,
   RefreshControl,
   StyleSheet,
@@ -226,9 +228,24 @@ export default function AdminTasks() {
           <View style={styles.submissionArea}>
             <Text style={styles.submissionByLabel}>Submitted by: {assigneeName}</Text>
             {!!item.submission_note && (
-              <Text style={styles.submissionNote} numberOfLines={3}>
+              <Text style={styles.submissionNote}>
                 {item.submission_note}
               </Text>
+            )}
+            {/* Proof photo. Students attach one when submitting; without this the
+                admin was approving on the note alone. */}
+            {!!item.submission_url && (
+              <TouchableOpacity
+                onPress={() => Linking.openURL(item.submission_url!)}
+                activeOpacity={0.85}
+                style={styles.proofWrap}
+              >
+                <Image source={{ uri: item.submission_url }} style={styles.proofImage} />
+                <View style={styles.proofHint}>
+                  <Ionicons name="expand-outline" size={12} color="#FFFFFF" />
+                  <Text style={styles.proofHintText}>Tap to open full size</Text>
+                </View>
+              </TouchableOpacity>
             )}
             {!!item.submitted_at && (
               <Text style={styles.submissionDate}>
@@ -464,6 +481,26 @@ const styles = StyleSheet.create({
     marginTop: Gap.sm,
     gap: 4,
   },
+  proofWrap: {
+    marginTop: 6,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceAlt,
+  },
+  proofImage: { width: '100%', height: 170, resizeMode: 'cover' },
+  proofHint: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  proofHintText: { fontSize: 10, color: '#FFFFFF', fontWeight: Font.semibold },
   submissionByLabel: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,

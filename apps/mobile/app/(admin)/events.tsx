@@ -500,13 +500,6 @@ export default function AdminEvents() {
             <Text style={styles.heroTitle}>Events</Text>
             <Text style={styles.heroSub}>{events.length} total</Text>
           </View>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => router.push('/(people)/host-event' as any)}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="add" size={22} color="#fff" />
-          </TouchableOpacity>
         </View>
 
         {/* Search inside hero */}

@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { LeaderboardEntry, CampusCartelStats, CampusCartelStatus, CampusCartelMember } from '@upshot/api-client';
+import type { CampusCartelStats, CampusCartelStatus, CampusCartelMember } from '@upshot/api-client';
 import type { Task } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { Button, Input, SelectField, CoinBadge } from '../../src/components/common';
@@ -29,7 +29,6 @@ const HOW_IT_WORKS = [
   { step: '1', title: 'Apply with a code', desc: 'Get an ambassador code and submit your application' },
   { step: '2', title: 'Get approved', desc: 'An admin will review and approve your application' },
   { step: '3', title: 'Complete assignments', desc: 'Do tasks assigned by admins to earn coins' },
-  { step: '4', title: 'Climb the leaderboard', desc: 'Earn more coins to rise in the rankings' },
 ];
 
 export default function CampusCartelScreen() {
@@ -41,7 +40,7 @@ export default function CampusCartelScreen() {
   const [currentApp, setCurrentApp] = useState<CampusCartelMember | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
   const [stats, setStats] = useState<CampusCartelStats | null>(null);
-  const [myRank, setMyRank] = useState<LeaderboardEntry | null>(null);
+  const [myCoins, setMyCoins] = useState<number>(0);
   const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
 
   // Join form state
@@ -73,11 +72,11 @@ export default function CampusCartelScreen() {
         setScreenState('not_applied');
       } else if (app.status === 'approved') {
         setScreenState('approved');
-        const [rankResult, tasksResult] = await Promise.all([
-          api.campusCartel.getMyRank(user.id),
+        const [walletResult, tasksResult] = await Promise.all([
+          api.coins.getWalletBalance(user.id),
           api.tasks.getMyPendingTasks(user.id),
         ]);
-        if (rankResult.data) setMyRank(rankResult.data);
+        if (walletResult.data) setMyCoins(walletResult.data.current_balance ?? 0);
         if (tasksResult.data) setPendingTasks(tasksResult.data.slice(0, 3));
       } else if (app.status === 'rejected') {
         setScreenState('rejected');
@@ -399,15 +398,13 @@ export default function CampusCartelScreen() {
 
               <View style={styles.memberStatsRow}>
                 <View style={styles.memberStatItem}>
-                  <Text style={styles.memberStatValue}>{myRank?.current_balance ?? 0}</Text>
+                  <Text style={styles.memberStatValue}>{myCoins}</Text>
                   <Text style={styles.memberStatLabel}>My Coins</Text>
                 </View>
                 <View style={styles.memberStatDivider} />
                 <View style={styles.memberStatItem}>
-                  <Text style={styles.memberStatValue}>
-                    {myRank ? `#${myRank.rank}` : '--'}
-                  </Text>
-                  <Text style={styles.memberStatLabel}>My Rank</Text>
+                  <Text style={styles.memberStatValue}>{pendingTasks.length}</Text>
+                  <Text style={styles.memberStatLabel}>Pending Tasks</Text>
                 </View>
               </View>
 
@@ -432,13 +429,27 @@ export default function CampusCartelScreen() {
                 </View>
               )}
 
-              <Button
-                title="View Leaderboard"
-                onPress={() => router.push('/(people)/leaderboard' as any)}
-                variant="outline"
-                style={{ marginTop: Gap.base }}
-                icon={<Ionicons name="trophy-outline" size={16} color={colors.ink} />}
-              />
+              {/* The full assignment list with the submission form. Members had no
+                  route to it at all — with nothing pending, the screen dead-ended. */}
+              <TouchableOpacity
+                style={styles.assignmentsBtn}
+                onPress={() => router.push('/(people)/tasks' as any)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.assignmentsIcon}>
+                  <Ionicons name="checkbox-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.assignmentsTitle}>My Assignments</Text>
+                  <Text style={styles.assignmentsSub}>
+                    {pendingTasks.length > 0
+                      ? `${pendingTasks.length} waiting — submit proof to earn coins`
+                      : 'View tasks and submit your completed work'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+              </TouchableOpacity>
+
             </View>
           )}
         </View>
@@ -696,6 +707,28 @@ const styles = StyleSheet.create({
   },
 
   // Tasks preview
+  assignmentsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.md,
+    marginTop: Gap.lg,
+    padding: Gap.base,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  assignmentsIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignmentsTitle: { fontSize: FontSize.body, fontWeight: Font.bold, color: colors.text },
+  assignmentsSub: { fontSize: FontSize.xs, color: colors.textSecondary, marginTop: 2 },
+
   tasksPreview: {
     marginTop: Gap.lg,
   },

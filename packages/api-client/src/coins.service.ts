@@ -66,14 +66,4 @@ export class CoinsService {
     if (error) return { data: null, error: { code: 'CREATE_FAILED', message: error.message } };
     return { data: data as unknown as CoinTransaction, error: null };
   }
-
-  async getLeaderboard(limit: number = 20): Promise<ApiResponse<WalletBalance[]>> {
-    const { data, error } = await this.supabase
-      .from('wallet_balances')
-      .select('*, profiles(*)')
-      .order('total_earned', { ascending: false })
-      .limit(limit);
-    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
-    return { data: (data ?? []) as unknown as WalletBalance[], error: null };
-  }
 }

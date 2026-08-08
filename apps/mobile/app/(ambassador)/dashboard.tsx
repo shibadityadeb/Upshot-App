@@ -164,6 +164,9 @@ export default function AmbassadorDashboard() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        // SafeAreaView already accounts for the top inset; letting iOS also adjust
+        // it offset the content and clipped the hero under the status bar.
+        contentInsetAdjustmentBehavior="never"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
         }
@@ -171,7 +174,13 @@ export default function AmbassadorDashboard() {
       >
         {/* ── Hero ── */}
         <View style={styles.hero}>
-          <TouchableOpacity onPress={() => router.replace('/(people)/events' as any)} style={styles.backBtn}>
+          {/* Ambassadors are community members too — this drops back into the
+              people area (its layout admits the ambassador role). */}
+          <TouchableOpacity
+            onPress={() => router.replace('/(people)/events' as any)}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+          >
             <Ionicons name="arrow-back" size={20} color={colors.ink} />
           </TouchableOpacity>
 
@@ -261,7 +270,7 @@ export default function AmbassadorDashboard() {
         {/* ── Tasks — full list lives on its own page ── */}
         <TouchableOpacity
           style={styles.card}
-          onPress={() => router.push('/(people)/tasks' as any)}
+          onPress={() => router.push('/(ambassador)/tasks' as any)}
           activeOpacity={0.8}
         >
           <View style={styles.tasksLinkRow}>

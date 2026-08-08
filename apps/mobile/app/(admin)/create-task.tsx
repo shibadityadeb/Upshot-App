@@ -66,13 +66,6 @@ export default function AdminCreateTask() {
 
     setSubmitting(true);
     try {
-      console.log('[CREATE_TASK] payload:', {
-        adminId: user.id,
-        title: title.trim(),
-        target_group: targetGroup,
-        coin_value: coins,
-        due_date: formatDate(dueDate),
-      });
       const result = await api.tasks.createTask(user.id, {
         title: title.trim(),
         description: description.trim(),
@@ -81,12 +74,17 @@ export default function AdminCreateTask() {
         due_date: formatDate(dueDate),
       });
 
-      console.log('[CREATE_TASK] result:', JSON.stringify(result));
       if (result.error) {
         showError(result.error);
       } else {
         Alert.alert('Success', 'Task created successfully!', [
-          { text: 'OK', onPress: () => router.back() },
+          {
+            text: 'OK',
+            // replace, not back: the form should not sit in the stack behind the
+            // list, and back() depended on where the user happened to come from.
+            // The list reloads itself on focus, so the new task is there.
+            onPress: () => router.replace('/(admin)/tasks'),
+          },
         ]);
       }
     } catch (e) {

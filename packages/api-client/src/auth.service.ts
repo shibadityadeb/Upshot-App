@@ -1,5 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ApiResponse, User, UserRole, RegisterStudentPayload } from '@upshot/types';
+import type {
+  ApiResponse,
+  User,
+  UserRole,
+  RegisterStudentPayload,
+  RegisterHostPayload,
+} from '@upshot/types';
 
 export class AuthService {
   constructor(private supabase: SupabaseClient) {}
@@ -80,11 +86,10 @@ export class AuthService {
           const { data: existingAmb } = await this.supabase
             .from('ambassadors').select('id').eq('user_id', userId).maybeSingle();
           if (!existingAmb) {
-            const { data: genCode } = await this.supabase.rpc('generate_random_code');
-            const ownCode = (genCode as string) || `UBM-${Date.now().toString(36).toUpperCase().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+            // referral_code is minted by the database (migration 025) — unique
+            // across both personal and admin-issued codes. No client fallback.
             await this.supabase.from('ambassadors').insert({
               user_id: userId,
-              referral_code: ownCode,
               code_type: codeRecord.code_type,
               issued_by: codeRecord.issued_by,
             });
@@ -147,6 +152,45 @@ export class AuthService {
       const msg = e instanceof Error ? e.message : 'Student insert failed';
       return { data: null, error: { code: 'STUDENT_INSERT', message: msg } };
     }
+
+    return this.getCurrentUser();
+  }
+
+  /**
+   * Register an event host. Creates the auth user with role 'host' (the
+   * handle_new_user trigger copies that into profiles), then stores the
+   * organisation and position details in `hosts`.
+   */
+  async registerHost(payload: RegisterHostPayload): Promise<ApiResponse<{ user: User }>> {
+    const { email, password, full_name, contact_phone } = payload;
+
+    const { data: authData, error: authError } = await this.supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name, role: 'host' as UserRole } },
+    });
+    if (authError) return { data: null, error: { code: authError.name, message: authError.message } };
+
+    const userId = authData.user?.id;
+    if (!userId) return { data: null, error: { code: 'NO_USER', message: 'User creation failed' } };
+
+    const { error: hostError } = await this.supabase.from('hosts').insert({
+      user_id: userId,
+      org_legal_name: payload.org_legal_name,
+      org_city: payload.org_city,
+      org_state: payload.org_state,
+      org_sector: payload.org_sector,
+      org_website: payload.org_website ?? null,
+      designation: payload.designation,
+      department: payload.department ?? null,
+      contact_phone: contact_phone,
+    });
+    if (hostError) {
+      return { data: null, error: { code: 'HOST_INSERT', message: hostError.message } };
+    }
+
+    // Keep the phone on the profile too so event forms can prefill it.
+    await this.supabase.from('profiles').update({ phone: contact_phone }).eq('id', userId);
 
     return this.getCurrentUser();
   }

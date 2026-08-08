@@ -9,7 +9,7 @@ export { WorkforceService } from './workforce.service';
 export { HostingService } from './hosting.service';
 export { UnfilteredService } from './unfiltered.service';
 export { CampusCartelService } from './campus-cartel.service';
-export type { LeaderboardEntry, CampusCartelStats, CampusCartelMember, CampusCartelStatus } from './campus-cartel.service';
+export type { CampusCartelStats, CampusCartelMember, CampusCartelStatus } from './campus-cartel.service';
 
 import { getSupabaseClient } from './client';
 import { AuthService } from './auth.service';
