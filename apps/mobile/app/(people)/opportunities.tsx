@@ -98,6 +98,14 @@ export default function PeopleWorkshops() {
   // Arriving from an iRISE/iBelieve page pre-selects that vertical in Discover
   useEffect(() => {
     if (!params.vertical) return;
+    // 'all' clears the filter. Without this the screen keeps whichever vertical was
+    // last selected — arriving from the iRISE card and then the All Workshops card
+    // would still show iRISE, since this tab keeps its state between visits.
+    if (params.vertical === 'all') {
+      setSelectedVertical(0);
+      setView('discover');
+      return;
+    }
     const idx = VERTICAL_FILTERS.findIndex((v) => v.slug === params.vertical);
     if (idx > 0) {
       setSelectedVertical(idx);

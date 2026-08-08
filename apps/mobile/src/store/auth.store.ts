@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createApiClient } from '@upshot/api-client';
-import type { User, RegisterStudentPayload } from '@upshot/types';
+import type { User, RegisterStudentPayload, RegisterHostPayload } from '@upshot/types';
 
 const api = createApiClient();
 
@@ -16,6 +16,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   registerStudent: (payload: RegisterStudentPayload) => Promise<boolean>;
+  registerHost: (payload: RegisterHostPayload) => Promise<boolean>;
   refreshUser: () => Promise<void>;
   clearError: () => void;
 }
@@ -94,6 +95,22 @@ export const useAuthStore = create<AuthState>((set) => ({
       return true;
     } catch (e: any) {
       set({ isLoading: false, error: e?.message ?? 'Registration failed' });
+      return false;
+    }
+  },
+
+  registerHost: async (payload) => {
+    set({ isLoading: true, error: null });
+    try {
+      const result = await api.auth.registerHost(payload);
+      if (result.error) {
+        set({ isLoading: false, error: result.error.message });
+        return false;
+      }
+      set({ user: result.data?.user ?? null, isLoading: false });
+      return true;
+    } catch (e: any) {
+      set({ isLoading: false, error: e?.message ?? 'Host registration failed' });
       return false;
     }
   },

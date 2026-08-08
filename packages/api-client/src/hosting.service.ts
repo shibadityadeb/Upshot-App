@@ -3,6 +3,9 @@ import type {
   ApiResponse,
   HostingApplication,
   CreateHostingApplicationPayload,
+  Host,
+  HostedEvent,
+  EventApplication,
 } from '@upshot/types';
 
 export class HostingService {
@@ -57,6 +60,83 @@ export class HostingService {
       .order('created_at', { ascending: false });
     if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
     return { data: (data ?? []) as unknown as HostingApplication[], error: null };
+  }
+
+  /** The host's own organisation + position record. */
+  async getHostProfile(userId: string): Promise<ApiResponse<Host | null>> {
+    const { data, error } = await this.supabase
+      .from('hosts')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? null) as unknown as Host | null, error: null };
+  }
+
+  async updateHostProfile(
+    userId: string,
+    updates: Partial<Omit<Host, 'id' | 'user_id' | 'is_verified' | 'created_at' | 'updated_at'>>,
+  ): Promise<ApiResponse<Host>> {
+    const { data, error } = await this.supabase
+      .from('hosts')
+      .update(updates)
+      .eq('user_id', userId)
+      .select()
+      .single();
+    if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
+    return { data: data as unknown as Host, error: null };
+  }
+
+  /**
+   * Live events this host created, each carrying its participant counts.
+   * Counts come from a second query rather than an embedded aggregate — PostgREST
+   * cannot filter an embedded count by status, and we need approved vs pending split.
+   */
+  async getMyHostedEvents(userId: string): Promise<ApiResponse<HostedEvent[]>> {
+    const { data: events, error } = await this.supabase
+      .from('events')
+      .select('*')
+      .eq('created_by', userId)
+      .order('event_date', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+
+    const list = (events ?? []) as any[];
+    if (list.length === 0) return { data: [], error: null };
+
+    const { data: apps } = await this.supabase
+      .from('event_applications')
+      .select('event_id, status')
+      .in('event_id', list.map((e) => e.id));
+
+    const approved = new Map<string, number>();
+    const pending = new Map<string, number>();
+    for (const app of (apps ?? []) as { event_id: string; status: string }[]) {
+      const bucket = app.status === 'approved' ? approved : app.status === 'pending' ? pending : null;
+      if (bucket) bucket.set(app.event_id, (bucket.get(app.event_id) ?? 0) + 1);
+    }
+
+    return {
+      data: list.map((e) => ({
+        ...e,
+        approved_participants: approved.get(e.id) ?? 0,
+        pending_participants: pending.get(e.id) ?? 0,
+      })) as HostedEvent[],
+      error: null,
+    };
+  }
+
+  /**
+   * Everyone who applied to one of the host's events. Readable thanks to the
+   * events.created_by branch of the event_applications_select policy (migration 022).
+   */
+  async getEventParticipants(eventId: string): Promise<ApiResponse<EventApplication[]>> {
+    const { data, error } = await this.supabase
+      .from('event_applications')
+      .select('*, user:profiles!user_id(*)')
+      .eq('event_id', eventId)
+      .order('applied_at', { ascending: false });
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as EventApplication[], error: null };
   }
 
   async getAllApplicationsAdmin(): Promise<ApiResponse<HostingApplication[]>> {

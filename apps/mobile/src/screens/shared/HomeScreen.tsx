@@ -45,6 +45,7 @@ const LOGO = require('../../../assets/logo.png');
 const CAMPUS_CARTEL_IMG = require('../../../assets/campus cartel.png');
 const IRISE_IMG = require('../../../assets/irise.jpg');
 const IBELIEVE_IMG = require('../../../assets/ibelieve.jpg');
+const ALL_WORKSHOPS_IMG = require('../../../assets/all-workshops.jpg');
 
 // UI-only fallback shown until the admin features a video through the
 // existing unfiltered API — the API result always wins when present.
@@ -243,6 +244,14 @@ export default function HomeScreen() {
             title="Entrepreneur Network"
             subtitle="Workshops and networking for entrepreneurs."
             onPress={() => router.push('/(people)/opportunities?vertical=ibelieve' as any)}
+          />
+          {/* Opens the same Workshops screen with the All filter — vertical=all is
+              passed explicitly so it resets a filter left over from the cards above. */}
+          <WorkshopCard
+            image={ALL_WORKSHOPS_IMG}
+            title="All Workshops"
+            subtitle="Browse every workshop happening across India."
+            onPress={() => router.push('/(people)/opportunities?vertical=all' as any)}
           />
         </View>
       </View>

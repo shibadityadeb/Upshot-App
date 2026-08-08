@@ -47,6 +47,7 @@ export default function RootLayout() {
           <Stack.Screen name="(admin)" options={{ headerShown: false }} />
           <Stack.Screen name="(company)" options={{ headerShown: false }} />
           <Stack.Screen name="(people)" options={{ headerShown: false }} />
+          <Stack.Screen name="(host)" options={{ headerShown: false }} />
           <Stack.Screen name="(ambassador)" options={{ headerShown: false }} />
           <Stack.Screen name="(shared)" options={{ headerShown: false }} />
           <Stack.Screen name="campus-cartel-apply" options={{ headerShown: false }} />

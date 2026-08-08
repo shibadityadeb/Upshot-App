@@ -20,6 +20,7 @@ import {
   Button,
   CoinBadge,
   Input,
+  RoleBadge,
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
@@ -32,12 +33,6 @@ const AVATARS = [
   'https://api.dicebear.com/9.x/adventurer/png?seed=Maria&size=128&backgroundColor=ffd5dc',
   'https://api.dicebear.com/9.x/adventurer/png?seed=Katherine&size=128&backgroundColor=ffdfbf',
 ];
-
-const ROLE_BADGE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  student: { bg: '#D1FAE5', text: '#065F46', label: 'Student' },
-  ambassador: { bg: '#FEF3C7', text: '#92400E', label: 'Ambassador' },
-  host: { bg: '#EDE9FE', text: '#5B21B6', label: 'Host' },
-};
 
 const INFO_ROWS = (user: any) => [
   { label: 'Full Name', value: user?.full_name ?? '—' },
@@ -121,14 +116,14 @@ export default function PeopleProfile() {
           .eq('user_id', user.id)
           .maybeSingle();
         if (studentData?.ambassador_code) {
-          earnedBadges.push('student');
           studentHasCode = true;
         }
       }
 
-      if (user.role === 'ambassador') {
-        earnedBadges.push('ambassador');
-      }
+      // The role badge is not something you earn — it's who you are, so it always
+      // shows. Previously 'student' was only added when the student had signed up
+      // with an ambassador code, which left most students with no badge at all.
+      earnedBadges.push(user.role);
 
       const { data: hostData } = await (api as any).supabase
         .from('events')
@@ -236,15 +231,9 @@ export default function PeopleProfile() {
             <Text style={styles.headerEmail}>{user.email}</Text>
             {(badges.length > 0 || showCoinBadge) && (
               <View style={styles.badgeRow}>
-                {badges.map((b) => {
-                  const s = ROLE_BADGE_STYLES[b];
-                  if (!s) return null;
-                  return (
-                    <View key={b} style={[styles.roleBadge, { backgroundColor: s.bg }]}>
-                      <Text style={[styles.roleBadgeText, { color: s.text }]}>{s.label}</Text>
-                    </View>
-                  );
-                })}
+                {badges.map((b) => (
+                  <RoleBadge key={b} role={b} size="md" />
+                ))}
                 {showCoinBadge && <CoinBadge amount={balance} />}
               </View>
             )}

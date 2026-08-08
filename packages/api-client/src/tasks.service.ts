@@ -22,7 +22,12 @@ export class TasksService {
   }
 
   async getTasksForGroup(groups: TaskTargetGroup[], userId?: string): Promise<ApiResponse<Task[]>> {
-    // Only return group tasks still in 'assigned' status (the originals, not personal copies)
+    // No audience means no tasks — never fall through to an unfiltered query.
+    if (groups.length === 0) return { data: [], error: null };
+
+    // Only return group tasks still in 'assigned' status (the originals, not personal copies).
+    // RLS (migration 023) independently restricts these to the caller's audience; this
+    // filter just avoids fetching rows the policy would drop anyway.
     const { data, error } = await this.supabase
       .from('tasks')
       .select('*')
@@ -33,21 +38,30 @@ export class TasksService {
 
     let groupTasks = (data ?? []) as unknown as Task[];
 
-    // If userId provided, exclude group tasks the user has already submitted (has a personal copy)
+    // Hide group tasks this user already submitted. Matched on source_task_id — the
+    // old title+assigned_by key collided whenever one admin reused a title, which
+    // hid an unrelated task permanently.
     if (userId && groupTasks.length > 0) {
-      const { data: myTasks } = await this.supabase
+      const { data: myCopies, error: copiesError } = await this.supabase
         .from('tasks')
-        .select('title, assigned_by')
+        .select('source_task_id')
         .eq('assigned_to', userId)
-        .in('status', ['submitted', 'approved', 'rejected']);
+        .not('source_task_id', 'is', null);
 
-      if (myTasks && myTasks.length > 0) {
-        const submittedKeys = new Set(
-          myTasks.map((t: any) => `${t.title}::${t.assigned_by}`),
-        );
-        groupTasks = groupTasks.filter(
-          (t) => !submittedKeys.has(`${t.title}::${t.assigned_by}`),
-        );
+      if (copiesError?.message?.includes('source_task_id')) {
+        // Pre-migration-023 database: fall back to the old title + assigned_by
+        // match so submitted tasks still leave the list. Imprecise when one admin
+        // reuses a title, which is exactly why 023 introduced source_task_id.
+        const { data: legacy } = await this.supabase
+          .from('tasks')
+          .select('title, assigned_by')
+          .eq('assigned_to', userId)
+          .in('status', ['submitted', 'approved', 'rejected']);
+        const keys = new Set((legacy ?? []).map((t: any) => `${t.title}::${t.assigned_by}`));
+        groupTasks = groupTasks.filter((t) => !keys.has(`${t.title}::${t.assigned_by}`));
+      } else if (myCopies && myCopies.length > 0) {
+        const submitted = new Set(myCopies.map((t: any) => t.source_task_id as string));
+        groupTasks = groupTasks.filter((t) => !submitted.has(t.id));
       }
     }
 
@@ -156,24 +170,41 @@ export class TasksService {
       if (isGroupTask) {
         // Clone: create a personal copy with the submission data
         // Original group task stays untouched for other users
-        const { data: clone, error: cloneError } = await this.supabase
+        // The integrity trigger (migration 023) rewrites title/description/coin_value
+        // and friends from source_task_id, so these values are a convenience for
+        // older databases — the reward can no longer be set from the client.
+        const row: Record<string, unknown> = {
+          title: task.title,
+          description: task.description,
+          event_id: task.event_id,
+          assigned_to: userId,
+          assigned_by: task.assigned_by,
+          target_group: null, // personal copy, not a group task
+          status: 'submitted',
+          due_date: task.due_date,
+          coin_value: task.coin_value,
+          submission_url: payload.submission_url ?? null,
+          submission_note: payload.submission_note ?? null,
+          submitted_at: new Date().toISOString(),
+        };
+
+        let { data: clone, error: cloneError } = await this.supabase
           .from('tasks')
-          .insert({
-            title: task.title,
-            description: task.description,
-            event_id: task.event_id,
-            assigned_to: userId,
-            assigned_by: task.assigned_by,
-            target_group: null, // personal copy, not a group task
-            status: 'submitted',
-            due_date: task.due_date,
-            coin_value: task.coin_value,
-            submission_url: payload.submission_url ?? null,
-            submission_note: payload.submission_note ?? null,
-            submitted_at: new Date().toISOString(),
-          })
+          .insert({ ...row, source_task_id: task.id })
           .select()
           .single();
+
+        // Databases without migration 023 have no source_task_id column. Retry
+        // without it — same pattern as createTask() and target_group. Once 023 is
+        // applied the first insert succeeds and the integrity trigger takes over
+        // (it requires source_task_id, so this fallback stops being reachable).
+        if (cloneError?.message?.includes('source_task_id')) {
+          ({ data: clone, error: cloneError } = await this.supabase
+            .from('tasks')
+            .insert(row)
+            .select()
+            .single());
+        }
 
         if (cloneError || !clone) {
           return { data: null, error: { code: 'CREATE_FAILED', message: cloneError?.message ?? 'Failed to submit' } };

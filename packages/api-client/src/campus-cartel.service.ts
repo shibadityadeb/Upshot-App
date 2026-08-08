@@ -1,19 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ApiResponse } from '@upshot/types';
 
-export interface LeaderboardEntry {
-  user_id: string;
-  full_name: string;
-  avatar_url: string | null;
-  role: string;
-  total_earned: number;
-  current_balance: number;
-  college: string | null;
-  ambassador_code: string | null;
-  ambassador_tier: string | null;
-  rank: number;
-}
-
 export interface CampusCartelStats {
   memberCount: number;
   uniqueColleges: number;
@@ -39,59 +26,26 @@ export interface CampusCartelMember {
 export class CampusCartelService {
   constructor(private supabase: SupabaseClient) {}
 
-  async getLeaderboard(limit: number = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
-    const { data, error } = await this.supabase
-      .from('leaderboard')
-      .select('*')
-      .limit(limit);
-    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
-    return { data: (data ?? []) as LeaderboardEntry[], error: null };
-  }
 
-  async getMyRank(userId: string): Promise<ApiResponse<LeaderboardEntry | null>> {
-    if (!userId) return { data: null, error: null };
-    const { data, error } = await this.supabase
-      .from('leaderboard')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
-    return { data: data as LeaderboardEntry | null, error: null };
-  }
 
+  /**
+   * Community-wide Campus Cartel totals.
+   *
+   * Counted through a SECURITY DEFINER RPC (migration 024) rather than by querying
+   * campus_cartel_members directly: ccm_select_own restricts SELECT to the caller's
+   * own row, so a direct count always came back as "1 member, 1 college".
+   */
   async getStats(): Promise<ApiResponse<CampusCartelStats>> {
-    const { count: memberCount, error: e1 } = await this.supabase
-      .from('campus_cartel_members')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
-      .eq('status', 'approved');
-    if (e1) return { data: null, error: { code: 'FETCH_FAILED', message: e1.message } };
+    const { data, error } = await this.supabase.rpc('get_campus_cartel_stats');
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
 
-    const { data: collegeData, error: e2 } = await this.supabase
-      .from('campus_cartel_members')
-      .select('college')
-      .eq('is_active', true)
-      .eq('status', 'approved')
-      .not('college', 'is', null);
-    if (e2) return { data: null, error: { code: 'FETCH_FAILED', message: e2.message } };
-
-    const uniqueColleges = collegeData
-      ? new Set(collegeData.map((r: any) => r.college)).size
-      : 0;
-
-    const { data: coinData } = await this.supabase
-      .from('wallet_balances')
-      .select('total_earned');
-
-    const totalCoins = coinData
-      ? coinData.reduce((sum: number, r: any) => sum + (r.total_earned ?? 0), 0)
-      : 0;
-
+    // The RPC returns TABLE(...), so PostgREST hands back a single-row array.
+    const row = Array.isArray(data) ? data[0] : data;
     return {
       data: {
-        memberCount: memberCount ?? 0,
-        uniqueColleges,
-        totalCoins,
+        memberCount: Number(row?.member_count ?? 0),
+        uniqueColleges: Number(row?.unique_colleges ?? 0),
+        totalCoins: Number(row?.total_coins ?? 0),
       },
       error: null,
     };
@@ -274,6 +228,53 @@ export class CampusCartelService {
   }
 
   /** Admin approves an application → set approved, is_active=true, award coins */
+  /**
+   * Claim an admin-issued ambassador code and turn the holder into an ambassador.
+   *
+   * No-op unless `code` names an active, unclaimed row in `ambassador_codes`, so
+   * personal referral codes and already-claimed codes fall straight through.
+   */
+  private async promoteToAmbassador(userId: string, code: string): Promise<void> {
+    const cleanCode = code.trim().toUpperCase();
+
+    const { data: codeRecord } = await this.supabase
+      .from('ambassador_codes')
+      .select('id, code_type, issued_by')
+      .eq('code', cleanCode)
+      .eq('is_active', true)
+      .eq('is_claimed', false)
+      .maybeSingle();
+    if (!codeRecord) return;
+
+    const { data: existingAmb } = await this.supabase
+      .from('ambassadors')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (existingAmb) return;
+
+    // The code is minted by the database (migration 025): generate_random_code()
+    // now retries until the candidate collides with neither an existing personal
+    // code nor an admin-issued one, and a BEFORE INSERT trigger fills it in if it
+    // is missing. No client-side fallback — a hand-rolled code would be unchecked
+    // for uniqueness and in the wrong shape.
+    const { error: ambError } = await this.supabase.from('ambassadors').insert({
+      user_id: userId,
+      code_type: codeRecord.code_type,
+      issued_by: codeRecord.issued_by,
+    });
+    // Leave the code unclaimed if the record could not be created, so the promotion
+    // can be retried rather than burning the code on a half-finished state.
+    if (ambError) return;
+
+    await this.supabase.from('profiles').update({ role: 'ambassador' }).eq('id', userId);
+
+    await this.supabase
+      .from('ambassador_codes')
+      .update({ is_claimed: true, assigned_to: userId, claimed_at: new Date().toISOString() })
+      .eq('id', codeRecord.id);
+  }
+
   async approveApplication(memberId: string): Promise<ApiResponse<CampusCartelMember>> {
     const { data, error } = await this.supabase
       .from('campus_cartel_members')
@@ -310,6 +311,15 @@ export class CampusCartelService {
       if (amb) {
         await this.supabase.rpc('increment_referral_count', { ambassador_row_id: amb.id });
       }
+
+      // An admin-issued code makes the applicant an ambassador on approval.
+      //
+      // applyForCampusCartel() accepts codes from `ambassador_codes` but only
+      // validates them — it never claimed the code or created the ambassador
+      // record, so applying with one granted membership and nothing else. Signing
+      // up with the same code (registerStudent) did promote, leaving two paths
+      // that disagreed. This mirrors the signup path at approval time.
+      await this.promoteToAmbassador(member.user_id, member.ambassador_code);
     }
 
     // Notify user
