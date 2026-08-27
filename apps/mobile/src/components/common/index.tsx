@@ -24,6 +24,7 @@ export { AppLoader } from './AppLoader';
 export { ErrorPopup } from './ErrorPopup';
 export { DatePickerModal, TimePickerModal } from './DateTimePickers';
 export { RoleBadge, ROLE_BADGE, roleBadgeMeta } from './RoleBadge';
+export { GoogleButton } from './GoogleButton';
 
 // ─── Button ──────────────────────────────────────────────────────────────────
 //

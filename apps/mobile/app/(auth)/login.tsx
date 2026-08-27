@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Input } from '../../src/components/common';
+import { Button, GoogleButton, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { colors, Font, FontSize, Gap, spacing } from '../../src/constants/theme';
 
@@ -19,11 +19,16 @@ const LOGO = require('../../assets/logo.png') as number;
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, isLoading, error, clearError } = useAuthStore();
+  const { signIn, signInWithGoogle, isLoading, error, clearError } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Tracked separately from the shared `isLoading` so only the button actually
+  // being used shows a spinner.
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const busy = isLoading || googleLoading;
 
   const handleSignIn = async () => {
     try {
@@ -33,6 +38,21 @@ export default function LoginScreen() {
     } catch (e) {
       // Unexpected throw — surface a visible message
       console.warn('[Login] signIn threw:', e);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (busy) return;
+    if (error) clearError();
+    setGoogleLoading(true);
+    try {
+      // Same as above — a successful sign-in lands the user through the
+      // (auth)/_layout Redirect. Cancellation resolves false and shows nothing.
+      await signInWithGoogle();
+    } catch (e) {
+      console.warn('[Login] signInWithGoogle threw:', e);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -112,8 +132,21 @@ export default function LoginScreen() {
             title="Sign In"
             onPress={handleSignIn}
             loading={isLoading}
-            disabled={isLoading || !email.trim() || !password}
+            disabled={busy || !email.trim() || !password}
             style={styles.signInBtn}
+          />
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <GoogleButton
+            onPress={handleGoogleSignIn}
+            loading={googleLoading}
+            disabled={busy}
+            style={styles.googleBtn}
           />
 
           <View style={styles.footer}>
@@ -229,6 +262,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   signInBtn: {
+    marginBottom: spacing.md,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.sm,
+    marginBottom: spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: colors.textLight,
+    letterSpacing: 1,
+  },
+  googleBtn: {
     marginBottom: spacing.lg,
   },
   footer: {
