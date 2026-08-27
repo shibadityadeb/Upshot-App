@@ -3,10 +3,15 @@ import { createClient, SupabaseClient, SupportedStorage } from '@supabase/supaba
 let supabaseInstance: SupabaseClient | null = null;
 
 /**
- * React Native has no `window.localStorage`, so supabase-js falls back to an
- * in-memory store and the session is lost every time the JS context restarts.
- * AsyncStorage is already a dependency of the mobile app; resolve it lazily so
- * this package keeps working in Node (scripts, type-checking) where it is absent.
+ * Persistent storage for the auth session.
+ *
+ * Without this, supabase-js checks `supportsLocalStorage()`, finds no
+ * `window.localStorage` in React Native, and silently falls back to an
+ * in-memory store — so the refresh token never reaches disk and every JS
+ * restart (app relaunch, Fast Refresh, dev reload) begins signed out.
+ *
+ * Resolved lazily so this package still works under Node, where AsyncStorage
+ * is absent — type-checking, scripts and the web export must not require it.
  */
 function resolveStorage(): SupportedStorage | undefined {
   try {
@@ -16,6 +21,19 @@ function resolveStorage(): SupportedStorage | undefined {
   } catch {
     return undefined;
   }
+}
+
+let sessionPersistenceEnabled = false;
+
+/**
+ * Whether the auth session is backed by real storage rather than memory.
+ *
+ * Exposed so the app can say so out loud at startup: falling back to memory is
+ * silent, and the only symptom is users being signed out on every restart —
+ * exactly the bug this guards against regressing.
+ */
+export function isSessionPersistenceEnabled(): boolean {
+  return sessionPersistenceEnabled;
 }
 
 export function getSupabaseClient(
@@ -34,15 +52,18 @@ export function getSupabaseClient(
   }
 
   const storage = resolveStorage();
+  sessionPersistenceEnabled = !!storage;
 
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      // Persist to AsyncStorage on device so the session survives an app restart.
+      // Omitted entirely off-device so supabase-js keeps its own default.
       ...(storage ? { storage } : {}),
       persistSession: true,
+      // Refreshes the access token before expiry. Paired with AppState in the
+      // app layer (see auth.store) so the timer follows foreground/background.
       autoRefreshToken: true,
-      // There is no browser URL to read a session out of; deep links are handled
-      // explicitly by AuthService.completeAuthFromUrl().
+      // There is no browser URL to read a session out of; auth deep links are
+      // handled explicitly by AuthService.completeAuthFromUrl().
       detectSessionInUrl: false,
     },
   });

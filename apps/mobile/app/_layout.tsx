@@ -30,7 +30,7 @@ export function ErrorBoundary({ retry }: { error: Error; retry: () => void }) {
 
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
-  const isInitialized = useAuthStore((s) => s.isInitialized);
+  const status = useAuthStore((s) => s.status);
 
   useEffect(() => {
     initialize();
@@ -54,7 +54,7 @@ export default function RootLayout() {
           <Stack.Screen name="unfiltered-feature" options={{ headerShown: false }} />
         </Stack>
         <ErrorPopup />
-        <AppLoader visible={!isInitialized} />
+        <AppLoader visible={status === 'loading'} />
       </View>
     </SafeAreaProvider>
   );

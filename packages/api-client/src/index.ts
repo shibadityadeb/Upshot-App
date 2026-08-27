@@ -1,4 +1,4 @@
-export { getSupabaseClient, resetClients } from './client';
+export { getSupabaseClient, resetClients, isSessionPersistenceEnabled } from './client';
 export { AuthService } from './auth.service';
 export { EventsService } from './events.service';
 export { TasksService } from './tasks.service';

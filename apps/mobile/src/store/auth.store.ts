@@ -1,13 +1,29 @@
 import { create } from 'zustand';
+import { AppState, type AppStateStatus } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { createApiClient } from '@upshot/api-client';
+import { createApiClient, isSessionPersistenceEnabled } from '@upshot/api-client';
 import type { User, RegisterStudentPayload, RegisterHostPayload } from '@upshot/types';
 import { getOAuthRedirectUrl } from '../utils/authRedirect';
 
 const api = createApiClient();
 
-// Module-level subscription ref for proper cleanup
+// Module-level refs so repeated initialize() calls never stack listeners.
 let authSubscription: { unsubscribe: () => void } | null = null;
+let appStateSubscription: { remove: () => void } | null = null;
+
+/** Development-only auth tracing. Never logs tokens, passwords or user data. */
+function authLog(message: string): void {
+  if (__DEV__) console.log(`[AUTH] ${message}`);
+}
+
+/**
+ * The single authoritative auth state.
+ *
+ * `loading` exists so nothing has to infer "signed out" from a null user while
+ * the persisted session is still being read off disk — that inference is what
+ * bounced people to the login screen mid-restore.
+ */
+export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 // Guards against a second consent window being opened while one is already up —
 // `isLoading` alone is not enough, since it is shared with the email/password flow.
@@ -15,6 +31,7 @@ let googleSignInInFlight = false;
 
 interface AuthState {
   user: User | null;
+  status: AuthStatus;
   isLoading: boolean;
   isInitialized: boolean;
   error: string | null;
@@ -28,44 +45,112 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  status: 'loading',
   isLoading: false,
   isInitialized: false,
   error: null,
 
   initialize: async () => {
+    authLog('Initializing');
+    // Surfaced explicitly: an in-memory fallback signs everyone out on restart
+    // and is otherwise completely silent.
+    authLog(
+      isSessionPersistenceEnabled()
+        ? 'Session storage: AsyncStorage (persistent)'
+        : 'Session storage: IN-MEMORY — sessions will NOT survive a restart',
+    );
+
     try {
+      authLog('Restoring session');
       const sessionResult = await api.auth.getSession();
+
       if (sessionResult.data) {
         const userResult = await api.auth.getCurrentUser();
         if (userResult.data) {
-          set({ user: userResult.data.user });
+          set({ user: userResult.data.user, status: 'authenticated' });
+          authLog('Initial session: authenticated');
+        } else {
+          // A session exists but the profile lookup failed — most likely the
+          // network. Staying 'authenticated' keeps the restored session; the
+          // profile is re-fetched on the next auth event or refreshUser().
+          set({ status: 'authenticated' });
+          authLog('Initial session: authenticated (profile fetch deferred)');
         }
+      } else {
+        set({ user: null, status: 'unauthenticated' });
+        authLog('Initial session: unauthenticated');
       }
-    } catch {
-      // Silently fail — user stays null
+    } catch (e) {
+      // A restore failure is not a sign-out. Supabase keeps whatever it has on
+      // disk, so treat this as "not signed in yet" without clearing storage.
+      authLog(`Session restore error: ${e instanceof Error ? e.name : 'unknown'}`);
+      set({ user: null, status: 'unauthenticated' });
     } finally {
       set({ isInitialized: true });
     }
 
-    // Unsubscribe previous listener before creating a new one
+    // Replace rather than add — initialize() may run again on a dev reload.
     if (authSubscription) {
       authSubscription.unsubscribe();
       authSubscription = null;
     }
 
-    const { data: { subscription } } = api.supabase.auth.onAuthStateChange(async (event) => {
-      if (event === 'SIGNED_OUT') {
-        set({ user: null });
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        const result = await api.auth.getCurrentUser();
-        if (result.data) {
-          set({ user: result.data.user });
+    const { data: { subscription } } = api.supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        authLog(event);
+
+        switch (event) {
+          case 'SIGNED_OUT':
+            // The only path that clears the user. Supabase emits this for an
+            // explicit sign-out or a refresh token it has definitively rejected.
+            set({ user: null, status: 'unauthenticated' });
+            return;
+
+          case 'INITIAL_SESSION':
+            // Already handled above by the explicit restore; acting again here
+            // would race it. Recorded for tracing only.
+            return;
+
+          case 'SIGNED_IN':
+          case 'TOKEN_REFRESHED':
+          case 'USER_UPDATED': {
+            if (!session) return;
+            const result = await api.auth.getCurrentUser();
+            if (result.data) {
+              set({ user: result.data.user, status: 'authenticated' });
+            } else if (!get().user) {
+              // Session is valid but the profile could not be read yet. Mark
+              // authenticated so navigation proceeds; never downgrade to
+              // unauthenticated on a failed profile fetch.
+              set({ status: 'authenticated' });
+            }
+            return;
+          }
+
+          default:
+            return;
         }
-      }
-    });
+      },
+    );
     authSubscription = subscription;
+
+    // supabase-js cannot refresh reliably while the app is backgrounded, and
+    // leaving the timer running there is what makes tokens go stale. Follow the
+    // app's foreground state instead.
+    if (appStateSubscription) {
+      appStateSubscription.remove();
+      appStateSubscription = null;
+    }
+
+    const handleAppState = (state: AppStateStatus) => {
+      if (state === 'active') api.supabase.auth.startAutoRefresh();
+      else api.supabase.auth.stopAutoRefresh();
+    };
+
+    appStateSubscription = AppState.addEventListener('change', handleAppState);
+    handleAppState(AppState.currentState);
   },
 
   signIn: async (email, password) => {
@@ -76,7 +161,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ isLoading: false, error: result.error.message });
         return false;
       }
-      set({ user: result.data?.user ?? null, isLoading: false });
+      const signedIn = result.data?.user ?? null;
+      set({ user: signedIn, isLoading: false, status: signedIn ? 'authenticated' : 'unauthenticated' });
       return true;
     } catch (e: any) {
       set({ isLoading: false, error: e?.message ?? 'Sign in failed' });
@@ -126,7 +212,14 @@ export const useAuthStore = create<AuthState>((set) => ({
         return false;
       }
 
-      set({ user: sessionResult.data?.user ?? null, isLoading: false });
+      // Google must land in exactly the same authenticated state as
+      // email/password — same session, same status, same routing downstream.
+      const signedIn = sessionResult.data?.user ?? null;
+      set({
+        user: signedIn,
+        isLoading: false,
+        status: signedIn ? 'authenticated' : 'unauthenticated',
+      });
       return true;
     } catch (e: any) {
       set({ isLoading: false, error: e?.message ?? 'Google sign-in failed. Please try again.' });
@@ -139,7 +232,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     set({ isLoading: true });
     await api.auth.signOut();
-    set({ user: null, isLoading: false });
+    set({ user: null, isLoading: false, status: 'unauthenticated' });
   },
 
   registerStudent: async (payload) => {
@@ -150,7 +243,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ isLoading: false, error: result.error.message });
         return false;
       }
-      set({ user: result.data?.user ?? null, isLoading: false });
+      const signedIn = result.data?.user ?? null;
+      set({ user: signedIn, isLoading: false, status: signedIn ? 'authenticated' : 'unauthenticated' });
       return true;
     } catch (e: any) {
       set({ isLoading: false, error: e?.message ?? 'Registration failed' });
@@ -166,7 +260,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ isLoading: false, error: result.error.message });
         return false;
       }
-      set({ user: result.data?.user ?? null, isLoading: false });
+      const signedIn = result.data?.user ?? null;
+      set({ user: signedIn, isLoading: false, status: signedIn ? 'authenticated' : 'unauthenticated' });
       return true;
     } catch (e: any) {
       set({ isLoading: false, error: e?.message ?? 'Host registration failed' });
@@ -177,7 +272,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshUser: async () => {
     const result = await api.auth.getCurrentUser();
     if (result.data) {
-      set({ user: result.data.user });
+      set({ user: result.data.user, status: 'authenticated' });
     }
   },
 
