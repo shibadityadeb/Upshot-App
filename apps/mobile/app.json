@@ -36,7 +36,8 @@
         {
           "photosPermission": "Allow Upshot to access your photos to attach proof of task completion."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "owner": "shibadityadeb"
   }

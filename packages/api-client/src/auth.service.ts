@@ -260,4 +260,129 @@ export class AuthService {
     if (error) return { data: null, error: { code: error.name, message: error.message } };
     return { data: null, error: null };
   }
+
+  /**
+   * Build the provider consent URL without opening a browser.
+   *
+   * The app layer owns the browser session (expo-web-browser); this package stays
+   * free of Expo dependencies. Supabase performs the code/token exchange with
+   * Google server-side using the OAuth client secret held in the Supabase project,
+   * so no client secret is ever present in the React Native bundle.
+   */
+  async getOAuthUrl(
+    provider: 'google',
+    redirectTo: string,
+  ): Promise<ApiResponse<{ url: string }>> {
+    // No `skipBrowserRedirect` here: it appends `skip_http_redirect=true`, which
+    // makes Supabase answer the authorize request with a JSON body instead of a
+    // 302 to Google — the in-app browser would render the JSON rather than the
+    // consent screen. It is also unnecessary, because supabase-js only performs
+    // the automatic redirect when `isBrowser()` is true, which it never is here.
+    const { data, error } = await this.supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (error) return { data: null, error: { code: error.name, message: error.message } };
+    if (!data?.url) {
+      return { data: null, error: { code: 'NO_URL', message: 'Could not start Google sign-in.' } };
+    }
+    return { data: { url: data.url }, error: null };
+  }
+
+  /**
+   * Ask why a consent window closed without a redirect.
+   *
+   * A user cancelling and a misconfigured provider are indistinguishable from the
+   * browser result alone — both come back as `cancel`. A configured provider
+   * answers the authorize URL with a redirect; an unconfigured one answers 4xx and
+   * a JSON body (e.g. "Unsupported provider: provider is not enabled"), which the
+   * browser renders as a raw blob. Called only after a cancel, so the normal
+   * sign-in path costs no extra round-trip.
+   *
+   * Returns null when nothing is wrong, so a genuine cancellation stays silent.
+   */
+  async checkOAuthProviderError(url: string): Promise<string | null> {
+    try {
+      const res = await fetch(url, { method: 'GET', redirect: 'manual' });
+      if (res.status < 400) return null;
+      const body = await res.text();
+      const parsed = JSON.parse(body) as {
+        msg?: string;
+        error_description?: string;
+        error?: string;
+      };
+      return parsed.msg ?? parsed.error_description ?? parsed.error ?? null;
+    } catch {
+      // Network failure or a non-JSON body — nothing useful to report.
+      return null;
+    }
+  }
+
+  /**
+   * Turn an auth deep link into a session.
+   *
+   * Covers both shapes Supabase can return: `?code=` (PKCE) and the implicit
+   * `#access_token=&refresh_token=` fragment, plus provider errors delivered in
+   * either position. Used by the OAuth callback and the password-recovery link.
+   */
+  async completeAuthFromUrl(url: string): Promise<ApiResponse<{ user: User }>> {
+    const params = parseAuthUrlParams(url);
+
+    const providerError = params.error_description || params.error;
+    if (providerError) {
+      return { data: null, error: { code: params.error ?? 'OAUTH_ERROR', message: providerError } };
+    }
+
+    if (params.code) {
+      const { error } = await this.supabase.auth.exchangeCodeForSession(params.code);
+      if (error) return { data: null, error: { code: error.name, message: error.message } };
+      return this.getCurrentUser();
+    }
+
+    if (params.access_token && params.refresh_token) {
+      const { error } = await this.supabase.auth.setSession({
+        access_token: params.access_token,
+        refresh_token: params.refresh_token,
+      });
+      if (error) return { data: null, error: { code: error.name, message: error.message } };
+      return this.getCurrentUser();
+    }
+
+    return {
+      data: null,
+      error: { code: 'NO_CREDENTIALS', message: 'This link is invalid or has already been used.' },
+    };
+  }
+
+}
+
+/**
+ * Read auth params from a deep link, checking both the query string and the
+ * fragment — Supabase uses the fragment for implicit tokens and the query for
+ * PKCE codes and provider errors.
+ */
+function parseAuthUrlParams(url: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const collect = (raw: string) => {
+    if (!raw) return;
+    for (const pair of raw.replace(/^[?#]/, '').split('&')) {
+      if (!pair) continue;
+      const idx = pair.indexOf('=');
+      const key = decodeURIComponent(idx === -1 ? pair : pair.slice(0, idx));
+      const value = idx === -1 ? '' : decodeURIComponent(pair.slice(idx + 1).replace(/\+/g, ' '));
+      if (key) out[key] = value;
+    }
+  };
+
+  const hashIdx = url.indexOf('#');
+  const withoutHash = hashIdx === -1 ? url : url.slice(0, hashIdx);
+  if (hashIdx !== -1) collect(url.slice(hashIdx));
+
+  const queryIdx = withoutHash.indexOf('?');
+  if (queryIdx !== -1) collect(withoutHash.slice(queryIdx));
+
+  return out;
 }
