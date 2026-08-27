@@ -42,7 +42,16 @@
           "photosPermission": "Allow Upshot to access your photos to attach proof of task completion."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ]
     ],
     "owner": "shibadityadeb"
   }
