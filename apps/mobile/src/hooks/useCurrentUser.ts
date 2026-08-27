@@ -8,16 +8,23 @@ export function useCurrentUser() {
   return { user, isLoading };
 }
 
+/**
+ * Imperative auth gate for screens outside a guarded route group.
+ *
+ * Keyed on `status`, never on a bare null user: redirecting while the persisted
+ * session is still being restored is what sent signed-in people to the login
+ * screen. Route groups are guarded declaratively in their `_layout`; prefer that.
+ */
 export function useRequireAuth() {
   const user = useAuthStore((s) => s.user);
-  const isInitialized = useAuthStore((s) => s.isInitialized);
+  const status = useAuthStore((s) => s.status);
   const router = useRouter();
 
   useEffect(() => {
-    if (isInitialized && !user) {
+    if (status === 'unauthenticated') {
       router.replace('/(auth)/login');
     }
-  }, [isInitialized, user, router]);
+  }, [status, router]);
 
-  return { user, isInitialized };
+  return { user, status, isReady: status !== 'loading' };
 }

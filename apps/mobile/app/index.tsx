@@ -3,9 +3,12 @@ import { useAuthStore } from '../src/store/auth.store';
 
 export default function Index() {
   const user = useAuthStore((s) => s.user);
-  const isInitialized = useAuthStore((s) => s.isInitialized);
+  const status = useAuthStore((s) => s.status);
 
-  if (!isInitialized) return null;
+  // Render nothing until the persisted session has been resolved — the root
+  // layout shows the splash overlay, and redirecting early would land a
+  // signed-in user on the login screen.
+  if (status === 'loading') return null;
 
   if (!user) return <Redirect href="/(auth)/login" />;
 
