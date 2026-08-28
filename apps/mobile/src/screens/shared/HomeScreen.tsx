@@ -170,7 +170,7 @@ export default function HomeScreen() {
         </View>
 
         <Text style={styles.heroSubtitle}>
-          India's media and community network, told in four parts.
+          India's media and community network
         </Text>
 
         {/* Accent bar */}
@@ -231,9 +231,9 @@ export default function HomeScreen() {
 
       <View style={styles.divider} />
 
-      {/* ─── Upcoming Workshops (Events + Growth Solutions) ──── */}
+      {/* ─── Upcoming Events (Events + Growth Solutions) ────── */}
       <View style={styles.section}>
-        <SectionHeader title="Upcoming Workshops" />
+        <SectionHeader title="Upcoming Events" />
         <View style={styles.workshopList}>
           <WorkshopCard
             image={IRISE_IMG}
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     fontWeight: Font.bold,
   },
 
-  // ── Upcoming Workshops ────────────────────────────────────
+  // ── Upcoming Events ───────────────────────────────────────
   workshopList: {
     gap: Gap.md,
   },
