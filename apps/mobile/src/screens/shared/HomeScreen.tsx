@@ -231,20 +231,20 @@ export default function HomeScreen() {
 
       <View style={styles.divider} />
 
-      {/* ─── Upcoming Workshops (iRISE + iBelieve) ───────────── */}
+      {/* ─── Upcoming Workshops (Events + Growth Solutions) ──── */}
       <View style={styles.section}>
         <SectionHeader title="Upcoming Workshops" />
         <View style={styles.workshopList}>
           <WorkshopCard
             image={IRISE_IMG}
-            title="Women Leadership"
-            subtitle="Leadership workshops designed for women."
+            title="Events"
+            subtitle="Conferences, summits and meetups across India."
             onPress={() => router.push('/(people)/opportunities?vertical=irise' as any)}
           />
           <WorkshopCard
             image={IBELIEVE_IMG}
-            title="Entrepreneur Network"
-            subtitle="Workshops and networking for entrepreneurs."
+            title="Growth Solutions"
+            subtitle="Programmes that help businesses and founders grow."
             onPress={() => router.push('/(people)/opportunities?vertical=ibelieve' as any)}
           />
           {/* Opens the same Workshops screen with the All filter — vertical=all is

@@ -23,8 +23,8 @@ const api = createApiClient();
 
 const VERTICAL_FILTERS = [
   { label: 'All', slug: null },
-  { label: 'iRISE', slug: 'irise' },
-  { label: 'iBelieve', slug: 'ibelieve' },
+  { label: 'Events', slug: 'irise' },
+  { label: 'Growth Solutions', slug: 'ibelieve' },
 ] as const;
 const TIME_FILTERS = ['Upcoming', 'Past'];
 const VIEWS = [
@@ -95,12 +95,12 @@ export default function PeopleWorkshops() {
     loadVerticals();
   }, [loadVerticals]);
 
-  // Arriving from an iRISE/iBelieve page pre-selects that vertical in Discover
+  // Arriving from an Events/Growth Solutions page pre-selects that vertical
   useEffect(() => {
     if (!params.vertical) return;
     // 'all' clears the filter. Without this the screen keeps whichever vertical was
-    // last selected — arriving from the iRISE card and then the All Workshops card
-    // would still show iRISE, since this tab keeps its state between visits.
+    // last selected — arriving from the Events card and then the All Workshops card
+    // would still show Events, since this tab keeps its state between visits.
     if (params.vertical === 'all') {
       setSelectedVertical(0);
       setView('discover');
@@ -216,7 +216,7 @@ export default function PeopleWorkshops() {
   const renderAvailable = ({ item: ev }: { item: Event }) => {
     const eventDate = ev.event_date ? new Date(ev.event_date) : null;
     const slug = ev.vertical_id ? verticalSlugById[ev.vertical_id] : undefined;
-    const verticalLabel = slug === 'irise' ? 'iRISE' : slug === 'ibelieve' ? 'iBelieve' : null;
+    const verticalLabel = slug === 'irise' ? 'Events' : slug === 'ibelieve' ? 'Growth Solutions' : null;
     const isOwner = !!user && ev.created_by === user.id;
     const hasApplied = appliedEventIds.has(ev.id);
 
@@ -284,7 +284,7 @@ export default function PeopleWorkshops() {
     const eventDate = app.event?.event_date ? new Date(app.event.event_date) : null;
     const isPast = !!eventDate && eventDate.getTime() < Date.now();
     const slug = app.event?.vertical_id ? verticalSlugById[app.event.vertical_id] : undefined;
-    const verticalLabel = slug === 'irise' ? 'iRISE' : slug === 'ibelieve' ? 'iBelieve' : null;
+    const verticalLabel = slug === 'irise' ? 'Events' : slug === 'ibelieve' ? 'Growth Solutions' : null;
 
     return (
       <TouchableOpacity

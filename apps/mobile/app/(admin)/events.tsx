@@ -41,10 +41,10 @@ interface VerticalOption {
   accent: string;
 }
 
-// Events must belong to a workshop vertical — iRISE or iBelieve.
+// Events must belong to a workshop vertical — Events or Growth Solutions.
 const STATIC_VERTICAL_OPTIONS: VerticalOption[] = [
-  { id: 'irise', slug: 'irise', name: 'iRISE', color: verticalColors.irise + '20', accent: verticalColors.irise },
-  { id: 'ibelieve', slug: 'ibelieve', name: 'iBelieve', color: verticalColors.ibelieve + '20', accent: verticalColors.ibelieve },
+  { id: 'irise', slug: 'irise', name: 'Events', color: verticalColors.irise + '20', accent: verticalColors.irise },
+  { id: 'ibelieve', slug: 'ibelieve', name: 'Growth Solutions', color: verticalColors.ibelieve + '20', accent: verticalColors.ibelieve },
 ];
 
 type FilterOption = 'all' | 'pending' | 'approved' | 'rejected';

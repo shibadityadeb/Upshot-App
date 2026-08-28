@@ -59,9 +59,9 @@ const VERTICAL_FALLBACKS: Record<string, Vertical> = {
   },
   'irise': {
     id: '3',
-    name: 'iRISE',
+    name: 'Events',
     slug: 'irise',
-    tagline: 'Celebrating women who lead, inspire and transform',
+    tagline: 'Conferences, summits and meetups across India',
     color: '#D97706',
     is_active: true,
     sort_order: 3,
@@ -69,9 +69,9 @@ const VERTICAL_FALLBACKS: Record<string, Vertical> = {
   },
   'ibelieve': {
     id: '4',
-    name: 'iBelieve',
+    name: 'Growth Solutions',
     slug: 'ibelieve',
-    tagline: 'Where entrepreneurs and business leaders connect',
+    tagline: 'Programmes that help businesses and founders grow',
     color: '#DC2626',
     is_active: true,
     sort_order: 4,
