@@ -24,6 +24,7 @@ import {
   AvatarCircle,
   Divider,
   LoadingScreen,
+  RoleBadge,
 } from '../../src/components/common';
 import type { Company } from '@upshot/types';
 import { showError } from '../../src/store/error.store';
@@ -134,6 +135,7 @@ export default function CompanyProfile() {
           <Text style={styles.companyName}>{company?.name ?? 'Your Company'}</Text>
           <Text style={styles.industryText}>{company?.industry ?? ''}</Text>
           <View style={styles.badgeRow}>
+            <RoleBadge role="company" />
             {company?.is_verified ? (
               <Badge
                 label="✓ Verified Partner"
@@ -257,6 +259,10 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   infoCard: {
     backgroundColor: colors.surface,

@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
-import { AvatarCircle, Button, Input } from '../../src/components/common';
+import { AvatarCircle, Button, Input, roleBadgeMeta } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
@@ -83,8 +83,12 @@ export default function AmbassadorProfile() {
             <AvatarCircle name={user.full_name ?? 'Ambassador'} size={72} avatarUrl={user.avatar_url} />
             <Text style={styles.identityName}>{user.full_name ?? 'Ambassador'}</Text>
             <Text style={styles.identityEmail}>{user.email}</Text>
+            {/* Being an ambassador is something a community member does, not a
+                category of its own — the label comes from the shared map. */}
             <View style={styles.ambassadorChip}>
-              <Text style={styles.ambassadorChipText}>AMBASSADOR</Text>
+              <Text style={styles.ambassadorChipText}>
+                {roleBadgeMeta(user.role).label.toUpperCase()}
+              </Text>
             </View>
           </View>
 

@@ -3,23 +3,34 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { colors, Font } from '../../constants/theme';
 
 /**
- * Single source of truth for how a person's role is labelled and coloured.
+ * Single source of truth for how a person's category is labelled and coloured.
  *
- * Shared so "who is an ambassador and who is a student" reads identically
- * wherever a person appears. None of these pairings put white or lime on lime —
- * each carries its own tint and ink.
+ * A profile shows one of two categories: Community Member or Client. Students,
+ * ambassadors and hosts are all community members — those are things a member
+ * does, not separate kinds of account — so they share one label rather than
+ * each carrying their own. Admin stays distinct because it marks Upshot staff
+ * rather than a customer category.
+ *
+ * None of these pairings put white or lime on lime — each carries its own tint
+ * and ink.
  */
+const COMMUNITY_MEMBER = {
+  label: 'Community Member',
+  bg: colors.surfaceAlt,
+  fg: colors.textSecondary,
+};
+
 export const ROLE_BADGE: Record<string, { label: string; bg: string; fg: string }> = {
-  ambassador: { label: 'Ambassador', bg: '#FEF3C7', fg: '#92400E' },
-  student: { label: 'Student', bg: '#D1FAE5', fg: '#065F46' },
-  host: { label: 'Host', bg: '#EDE9FE', fg: '#5B21B6' },
   admin: { label: 'Admin', bg: '#EDE9FE', fg: '#5B21B6' },
-  company: { label: 'Company', bg: '#CCFBF1', fg: '#0F766E' },
-  people: { label: 'Member', bg: colors.surfaceAlt, fg: colors.textSecondary },
+  company: { label: 'Client', bg: '#CCFBF1', fg: '#0F766E' },
+  people: COMMUNITY_MEMBER,
+  student: COMMUNITY_MEMBER,
+  ambassador: COMMUNITY_MEMBER,
+  host: COMMUNITY_MEMBER,
 };
 
 export function roleBadgeMeta(role: string | undefined | null) {
-  return ROLE_BADGE[role ?? ''] ?? ROLE_BADGE.people;
+  return ROLE_BADGE[role ?? ''] ?? COMMUNITY_MEMBER;
 }
 
 interface RoleBadgeProps {
