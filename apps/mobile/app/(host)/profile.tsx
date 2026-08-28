@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Host } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
-import { AvatarCircle } from '../../src/components/common';
+import { AvatarCircle, roleBadgeMeta } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
@@ -72,8 +72,12 @@ export default function HostProfile() {
         />
         <View style={styles.headerText}>
           <Text style={styles.headerName} numberOfLines={1}>{user?.full_name ?? 'Host'}</Text>
+          {/* Hosting is something a community member does, not a category of
+              its own — the label comes from the shared map so it cannot drift. */}
           <View style={styles.roleChip}>
-            <Text style={styles.roleChipText}>HOST</Text>
+            <Text style={styles.roleChipText}>
+              {roleBadgeMeta(user?.role).label.toUpperCase()}
+            </Text>
           </View>
         </View>
       </View>

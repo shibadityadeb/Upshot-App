@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
-import { colors, Font, FontSize, Gap, spacing } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, shadow, spacing } from '../../src/constants/theme';
 import type { RegisterStudentPayload } from '@upshot/types';
 import { useDebounce } from '../../src/hooks/useDebounce';
 import { createApiClient } from '@upshot/api-client';
@@ -368,11 +368,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Gap.sm,
   },
+  // Capsule, matching the login header — see the note there.
   logoBadge: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 999,
+    paddingHorizontal: 24,
+    paddingVertical: 13,
+    ...shadow.md,
   },
   logoImage: {
     width: 130,

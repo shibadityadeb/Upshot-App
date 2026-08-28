@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -21,18 +20,12 @@ import {
   CoinBadge,
   Input,
   RoleBadge,
+  roleBadgeMeta,
 } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
-
-const AVATARS = [
-  'https://api.dicebear.com/9.x/adventurer/png?seed=Liam&size=128&backgroundColor=b6e3f4',
-  'https://api.dicebear.com/9.x/adventurer/png?seed=George&size=128&backgroundColor=c0aede',
-  'https://api.dicebear.com/9.x/adventurer/png?seed=Maria&size=128&backgroundColor=ffd5dc',
-  'https://api.dicebear.com/9.x/adventurer/png?seed=Katherine&size=128&backgroundColor=ffdfbf',
-];
 
 const INFO_ROWS = (user: any) => [
   { label: 'Full Name', value: user?.full_name ?? '—' },
@@ -54,18 +47,10 @@ export default function PeopleProfile() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
-  const refreshUser = useAuthStore((s) => s.refreshUser);
 
   const [balance, setBalance] = useState(0);
   const [workforceProfile, setWorkforceProfile] = useState<WorkforceProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [avatarIndex, setAvatarIndex] = useState(() => {
-    if (user?.avatar_url) {
-      const idx = AVATARS.indexOf(user.avatar_url);
-      return idx >= 0 ? idx : 0;
-    }
-    return 0;
-  });
 
   // Badge state
   const [badges, setBadges] = useState<string[]>([]);
@@ -76,21 +61,6 @@ export default function PeopleProfile() {
   const [editName, setEditName] = useState(user?.full_name ?? '');
   const [editBio, setEditBio] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const selectAvatar = useCallback(async (index: number) => {
-    if (!user?.id) return;
-    setAvatarIndex(index);
-    const url = AVATARS[index];
-    try {
-      await (api as any).supabase
-        .from('profiles')
-        .update({ avatar_url: url })
-        .eq('id', user.id);
-      await refreshUser();
-    } catch (e) {
-      console.warn('Failed to save avatar', e);
-    }
-  }, [user?.id, refreshUser]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -120,9 +90,8 @@ export default function PeopleProfile() {
         }
       }
 
-      // The role badge is not something you earn — it's who you are, so it always
-      // shows. Previously 'student' was only added when the student had signed up
-      // with an ambassador code, which left most students with no badge at all.
+      // The category badge is not something you earn — it's who you are, so it
+      // always shows.
       earnedBadges.push(user.role);
 
       const { data: hostData } = await (api as any).supabase
@@ -135,7 +104,19 @@ export default function PeopleProfile() {
         earnedBadges.push('host');
       }
 
-      setBadges(earnedBadges);
+      // A profile shows one of two categories, and hosting is something a
+      // community member does rather than a category of its own — so a member
+      // who has hosted resolves to the same label twice. Collapse by label
+      // instead of stacking identical chips.
+      const seen = new Set<string>();
+      const uniqueBadges = earnedBadges.filter((role) => {
+        const { label } = roleBadgeMeta(role);
+        if (seen.has(label)) return false;
+        seen.add(label);
+        return true;
+      });
+
+      setBadges(uniqueBadges);
       setHasAmbassadorCode(studentHasCode);
     } catch (e) {
       console.warn(e);
@@ -223,10 +204,9 @@ export default function PeopleProfile() {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── DARK HEADER ── */}
-          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-            <View style={styles.mainAvatar}>
-              <Image source={{ uri: AVATARS[avatarIndex] }} style={styles.mainAvatarImg} />
-            </View>
+          {/* Extra top padding stands in for the avatar that used to sit here,
+              so the name does not crowd the status bar. */}
+          <View style={[styles.header, { paddingTop: insets.top + 32 }]}>
             <Text style={styles.headerName}>{user.full_name ?? 'User'}</Text>
             <Text style={styles.headerEmail}>{user.email}</Text>
             {(badges.length > 0 || showCoinBadge) && (
@@ -237,26 +217,6 @@ export default function PeopleProfile() {
                 {showCoinBadge && <CoinBadge amount={balance} />}
               </View>
             )}
-          </View>
-
-          {/* ── AVATAR SELECTOR CARD ── */}
-          <View style={styles.avatarCard}>
-            <Text style={styles.avatarCardTitle}>CHOOSE YOUR AVATAR</Text>
-            <View style={styles.avatarOptions}>
-              {AVATARS.map((uri, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => selectAvatar(i)}
-                  activeOpacity={0.7}
-                  style={[
-                    styles.avatarOption,
-                    avatarIndex === i && styles.avatarOptionSelected,
-                  ]}
-                >
-                  <Image source={{ uri }} style={styles.avatarOptionImg} />
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
 
           {/* ── PROFILE INFO CARD ── */}
@@ -342,19 +302,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
-  mainAvatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 3,
-    borderColor: colors.ink,
-    overflow: 'hidden',
-    marginBottom: 14,
-    backgroundColor: colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mainAvatarImg: { width: 82, height: 82, borderRadius: 41 },
   headerName: {
     fontSize: 22,
     fontWeight: '900',
@@ -383,50 +330,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: Font.bold,
   },
-
-  // ── Avatar selector card ──
-  avatarCard: {
-    backgroundColor: colors.surface,
-    marginHorizontal: 16,
-    borderRadius: 16,
-    padding: 16,
-    marginTop: -1,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  avatarCardTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  avatarOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  avatarOption: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2.5,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarOptionSelected: {
-    borderColor: colors.ink,
-    backgroundColor: colors.primaryTint,
-  },
-  avatarOptionImg: { width: 52, height: 52, borderRadius: 26 },
 
   // ── Profile info card ──
   infoCard: {
