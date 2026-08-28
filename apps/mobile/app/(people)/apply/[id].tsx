@@ -86,9 +86,16 @@ export default function PeopleApply() {
       const result = await api.events.applyForEvent(event.id, user.id, note.trim() || undefined);
       if (result.error) {
         showError(result.error);
-      } else {
+      } else if (result.data?.status === 'pending') {
+        // The event filled up — the database put them on the waiting list.
         setApplicationStatus('pending');
-        Alert.alert('Application Submitted', 'Your application is pending approval by the organiser.');
+        Alert.alert(
+          "You're on the waiting list",
+          "This event is full. You'll be added automatically if someone drops out.",
+        );
+      } else {
+        setApplicationStatus('approved');
+        Alert.alert("You're in", 'You have been added to the attendee list for this event.');
       }
     } finally {
       setApplying(false);
@@ -145,6 +152,14 @@ export default function PeopleApply() {
   // they see an ownership badge + how many participants the admin has accepted.
   const isOwner = !!user && event.created_by === user.id;
   const participantsCount = event.current_attendees ?? 0;
+  // Joining is automatic up to capacity; 'pending' means the event was full and
+  // they are waiting for a seat. Someone who withdrew falls through to the
+  // button and can apply again.
+  const isGoing = applicationStatus === 'approved';
+  const isWaiting = applicationStatus === 'pending';
+  const isRejected = applicationStatus === 'rejected';
+  const seatsLeft =
+    event.max_attendees != null ? Math.max(event.max_attendees - participantsCount, 0) : null;
 
   return (
     <View style={styles.container}>
@@ -234,8 +249,8 @@ export default function PeopleApply() {
           </View>
         )}
 
-        {/* 6 — Note input (only if not applied and not the organiser) */}
-        {!applicationStatus && !isOwner && (
+        {/* 6 — Note input (only if not already on the list and not the organiser) */}
+        {!isGoing && !isWaiting && !isRejected && !isOwner && (
           <View style={styles.noteBlock}>
             <Input
               label="Note (optional)"
@@ -263,20 +278,25 @@ export default function PeopleApply() {
                 </Text>
               </View>
             </View>
-          ) : applicationStatus === 'approved' ? (
+          ) : isGoing ? (
             <View style={styles.appliedButton}>
               <Ionicons name="checkmark-circle" size={18} color="#065F46" />
-              <Text style={styles.appliedButtonText}>Approved</Text>
+              <Text style={styles.appliedButtonText}>You're going</Text>
             </View>
-          ) : applicationStatus === 'pending' ? (
-            <View style={styles.pendingButton}>
-              <Ionicons name="time-outline" size={18} color="#92400E" />
-              <Text style={styles.pendingButtonText}>Pending Approval</Text>
+          ) : isWaiting ? (
+            <View style={styles.waitingBlock}>
+              <View style={styles.waitingButton}>
+                <Ionicons name="hourglass-outline" size={18} color="#92400E" />
+                <Text style={styles.waitingButtonText}>On the waiting list</Text>
+              </View>
+              <Text style={styles.waitingHint}>
+                This event is full. You'll be added automatically if someone drops out.
+              </Text>
             </View>
-          ) : applicationStatus === 'rejected' ? (
+          ) : isRejected ? (
             <View style={styles.rejectedButton}>
               <Ionicons name="close-circle" size={18} color="#991B1B" />
-              <Text style={styles.rejectedButtonText}>Application Rejected</Text>
+              <Text style={styles.rejectedButtonText}>Removed from this event</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -288,7 +308,9 @@ export default function PeopleApply() {
               {applying ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.applyButtonText}>Apply now</Text>
+                <Text style={styles.applyButtonText}>
+                  {seatsLeft === 0 ? 'Join the waiting list' : 'Apply now'}
+                </Text>
               )}
             </TouchableOpacity>
           )}
@@ -549,20 +571,30 @@ const styles = StyleSheet.create({
     fontWeight: Font.bold,
     color: '#065F46',
   },
-  pendingButton: {
+  waitingBlock: {
     width: '100%',
-    height: 52,
+    gap: 10,
+  },
+  waitingButton: {
+    width: '100%',
+    height: 54,
     backgroundColor: '#FEF3C7',
-    borderRadius: 12,
+    borderRadius: radius.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  pendingButtonText: {
+  waitingButtonText: {
     fontSize: 16,
     fontWeight: Font.bold,
     color: '#92400E',
+  },
+  waitingHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   rejectedButton: {
     width: '100%',

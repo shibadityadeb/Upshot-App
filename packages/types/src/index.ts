@@ -279,7 +279,8 @@ export interface RegisterHostPayload {
 /** An event created by a host, with its live participant counts. */
 export interface HostedEvent extends Event {
   approved_participants: number;
-  pending_participants: number;
+  /** Applied once the event was full — promoted automatically as seats free up. */
+  waitlisted_participants: number;
 }
 
 // ─── Phase 3: Verticals, Content, Workforce ──────────────

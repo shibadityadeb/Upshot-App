@@ -61,15 +61,17 @@ function LiveEventCard({ event, onPress }: { event: HostedEvent; onPress: () => 
           </View>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
-            <Text style={[styles.statValue, event.pending_participants > 0 && styles.statValuePending]}>
-              {event.pending_participants}
+            <Text style={styles.statValue}>
+              {capacity ? Math.max(capacity - approved, 0) : '—'}
             </Text>
-            <Text style={styles.statLabel}>Awaiting approval</Text>
+            <Text style={styles.statLabel}>Spots left</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
-            <Text style={styles.statValue}>{capacity ?? '—'}</Text>
-            <Text style={styles.statLabel}>Capacity</Text>
+            <Text style={[styles.statValue, event.waitlisted_participants > 0 && styles.statValueWaiting]}>
+              {event.waitlisted_participants}
+            </Text>
+            <Text style={styles.statLabel}>Waiting</Text>
           </View>
         </View>
 
@@ -174,7 +176,6 @@ export default function HostEvents() {
   }, [load]);
 
   const totalJoined = events.reduce((sum, e) => sum + e.approved_participants, 0);
-  const totalPending = events.reduce((sum, e) => sum + e.pending_participants, 0);
   const isEmpty = events.length === 0 && proposals.length === 0;
 
   return (
@@ -211,15 +212,6 @@ export default function HostEvents() {
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
         </TouchableOpacity>
-
-        {totalPending > 0 && (
-          <View style={styles.pendingBanner}>
-            <Ionicons name="people-outline" size={16} color={colors.ink} />
-            <Text style={styles.pendingBannerText}>
-              {totalPending} applicant{totalPending === 1 ? '' : 's'} awaiting admin approval
-            </Text>
-          </View>
-        )}
 
         {loading ? (
           <View style={styles.loader}>
@@ -318,22 +310,6 @@ const styles = StyleSheet.create({
   newBtnTitle: { fontSize: FontSize.body, fontWeight: Font.bold, color: colors.text },
   newBtnSub: { fontSize: FontSize.xs, color: colors.textSecondary, marginTop: 2 },
 
-  pendingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Gap.sm,
-    backgroundColor: colors.primaryTint,
-    borderRadius: radius.lg,
-    padding: Gap.md,
-    marginBottom: Gap.base,
-  },
-  pendingBannerText: {
-    flex: 1,
-    fontSize: FontSize.small,
-    fontWeight: Font.semibold,
-    color: colors.ink,
-  },
-
   sectionTitle: {
     fontSize: FontSize.small,
     fontWeight: Font.bold,
@@ -382,7 +358,7 @@ const styles = StyleSheet.create({
   },
   stat: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: FontSize.h2, fontWeight: Font.black, color: colors.text },
-  statValuePending: { color: colors.warning },
+  statValueWaiting: { color: colors.warning },
   statLabel: {
     fontSize: 10,
     color: colors.textSecondary,

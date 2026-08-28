@@ -263,6 +263,10 @@ export default function NewEvent() {
                 onChangeText={setMaxAttendees}
                 keyboardType="number-pad"
               />
+              {/* Capacity is the auto-approval cut-off, so say what blank does. */}
+              <Text style={styles.fieldHint}>
+                People join automatically up to this number, then wait. Leave blank for no limit.
+              </Text>
             </View>
             <View style={[styles.fieldGroup, styles.flex]}>
               <Text style={styles.fieldLabel}>Fees (₹)</Text>
@@ -438,6 +442,12 @@ const styles = StyleSheet.create({
     fontWeight: Font.semibold,
     color: colors.text,
     marginBottom: 6,
+  },
+  fieldHint: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 5,
+    lineHeight: 15,
   },
   input: {
     backgroundColor: colors.surface,

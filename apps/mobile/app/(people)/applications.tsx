@@ -420,12 +420,22 @@ export default function PeopleApplications() {
 
                   {!!app.note && <Text style={styles.noteText} numberOfLines={2}>{app.note}</Text>}
 
-                  {app.status === 'pending' && (
-                    <View style={styles.actionRow}>
-                      <Button title="Withdraw" onPress={() => confirmWithdraw(app.id)} variant="outline" size="sm" loading={isWithdrawing} disabled={isWithdrawing} />
-                    </View>
+                  {/* Joining is automatic up to capacity, so withdrawing is how
+                      someone gives a spot back — it stays available once
+                      approved. 'pending' means the event was full when they
+                      applied and they're waiting for a seat. */}
+                  {(app.status === 'approved' || app.status === 'pending') && (
+                    <>
+                      <Text style={app.status === 'approved' ? styles.approvedText : styles.waitingText}>
+                        {app.status === 'approved'
+                          ? "You're going!"
+                          : "Event full — you'll be added if a spot opens up"}
+                      </Text>
+                      <View style={styles.actionRow}>
+                        <Button title="Withdraw" onPress={() => confirmWithdraw(app.id)} variant="outline" size="sm" loading={isWithdrawing} disabled={isWithdrawing} />
+                      </View>
+                    </>
                   )}
-                  {app.status === 'approved' && <Text style={styles.approvedText}>You are confirmed!</Text>}
                   {app.status === 'rejected' && !!(app as any).rejection_reason && (
                     <Text style={styles.rejectedNote}>{(app as any).rejection_reason}</Text>
                   )}
@@ -524,6 +534,7 @@ const styles = StyleSheet.create({
   noteText: { fontSize: FontSize.small, color: colors.textSecondary, fontStyle: 'italic', marginTop: Gap.xs },
   actionRow: { marginTop: Gap.sm, flexDirection: 'row' },
   approvedText: { marginTop: Gap.sm, fontSize: FontSize.body, fontWeight: Font.semibold, color: colors.success },
+  waitingText: { marginTop: Gap.sm, fontSize: FontSize.small, fontWeight: Font.semibold, color: colors.warning },
   rejectedNote: { marginTop: Gap.sm, fontSize: FontSize.small, color: colors.error, fontStyle: 'italic' },
 
   // ── Unfiltered request ──────────────────────────────────────
