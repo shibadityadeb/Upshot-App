@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, GoogleButton, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
-import { colors, Font, FontSize, Gap, spacing } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, shadow, spacing } from '../../src/constants/theme';
 
 const LOGO = require('../../assets/logo.png') as number;
 
@@ -177,11 +177,15 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
   },
+  // A capsule rather than a box: the wordmark is roughly 2.6:1, so fully
+  // rounded ends hug it, while a true circle would leave dead space above and
+  // below and shrink the logo to fit. White ground keeps it off the lime.
   logoBadge: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 999,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    ...shadow.md,
   },
   logoImage: {
     width: 150,

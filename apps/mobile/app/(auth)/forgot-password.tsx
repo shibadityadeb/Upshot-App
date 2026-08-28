@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../../src/components/common';
 import { createApiClient } from '@upshot/api-client';
-import { colors, typography, spacing } from '../../src/constants/theme';
+import { colors, shadow, spacing, typography } from '../../src/constants/theme';
 
 const api = createApiClient();
 const LOGO = require('../../assets/logo.png');
@@ -139,11 +139,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.lg,
   },
+  // Capsule, matching the login header — see the note there.
   logoBadge: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 999,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    ...shadow.md,
   },
   logoImage: {
     width: 150,

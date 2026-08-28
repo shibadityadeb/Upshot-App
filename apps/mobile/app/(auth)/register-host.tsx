@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input, SelectField } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
-import { colors, Font, FontSize, Gap } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, shadow } from '../../src/constants/theme';
 import { INDIAN_STATES } from '../../src/constants/india';
 import { SECTORS } from '../../src/constants/host';
 import type { RegisterHostPayload } from '@upshot/types';
@@ -356,11 +356,13 @@ const styles = StyleSheet.create({
   backButton: { paddingVertical: Gap.sm, paddingRight: Gap.base },
   backText: { color: colors.ink, fontSize: FontSize.body, fontWeight: Font.semibold },
   logoContainer: { alignItems: 'center', marginTop: Gap.sm, gap: Gap.sm },
+  // Capsule, matching the login header — see the note there.
   logoBadge: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 999,
+    paddingHorizontal: 24,
+    paddingVertical: 13,
+    ...shadow.md,
   },
   logoImage: { width: 130, height: 34 },
   hostChip: {
