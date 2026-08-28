@@ -47,8 +47,8 @@ const STATIC_VERTICAL_OPTIONS: VerticalOption[] = [
   { id: null, name: 'None', color: colors.border, accent: colors.textSecondary },
   { id: 'unfiltered', slug: 'unfiltered', name: 'Unfiltered', color: verticalColors.unfiltered + '20', accent: verticalColors.unfiltered },
   { id: 'campus-cartel', slug: 'campus-cartel', name: 'Campus Cartel', color: verticalColors.campusCartel + '20', accent: verticalColors.campusCartel },
-  { id: 'irise', slug: 'irise', name: 'iRISE', color: verticalColors.irise + '20', accent: verticalColors.irise },
-  { id: 'ibelieve', slug: 'ibelieve', name: 'iBelieve', color: verticalColors.ibelieve + '20', accent: verticalColors.ibelieve },
+  { id: 'irise', slug: 'irise', name: 'Events', color: verticalColors.irise + '20', accent: verticalColors.irise },
+  { id: 'ibelieve', slug: 'ibelieve', name: 'Growth Solutions', color: verticalColors.ibelieve + '20', accent: verticalColors.ibelieve },
 ];
 
 export default function AmbassadorCodesScreen() {
