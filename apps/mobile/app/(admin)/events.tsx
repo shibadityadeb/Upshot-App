@@ -433,7 +433,7 @@ export default function AdminEvents() {
           <View style={styles.eventMetaRow}>
             <Ionicons name="people-outline" size={13} color={colors.textSecondary} />
             <Text style={styles.eventMeta}>
-              {(item as any).application_count ?? 0} application{((item as any).application_count ?? 0) === 1 ? '' : 's'}
+              {(item as any).application_count ?? 0} going
             </Text>
           </View>
 

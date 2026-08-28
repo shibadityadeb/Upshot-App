@@ -509,6 +509,7 @@ const statusColorMap: Record<string, string> = {
   submitted: colors.ink,
   in_progress: colors.warning,
   withdrawn: colors.textSecondary,
+  waiting: colors.warning,
 };
 
 interface StatusBadgeProps {

@@ -31,19 +31,22 @@ import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
 
-// Rejected and withdrawn applications live in the Archived bucket.
-type AppFilter = 'pending' | 'approved' | 'archived';
+// Applications approve themselves up to the event's capacity, so there is no
+// queue to work: people are either coming, waiting for a seat to free up, or
+// off the list. Nothing here needs an admin decision to move along — the
+// waiting list promotes itself (migration 027).
+type AppFilter = 'going' | 'waiting' | 'removed';
 
 const APP_FILTERS: { key: AppFilter; label: string }[] = [
-  { key: 'pending', label: 'Pending' },
-  { key: 'approved', label: 'Approved' },
-  { key: 'archived', label: 'Archived' },
+  { key: 'going', label: 'Going' },
+  { key: 'waiting', label: 'Waiting' },
+  { key: 'removed', label: 'Removed' },
 ];
 
 function bucketOf(status: string): AppFilter {
-  if (status === 'pending') return 'pending';
-  if (status === 'approved') return 'approved';
-  return 'archived';
+  if (status === 'approved') return 'going';
+  if (status === 'pending') return 'waiting';
+  return 'removed';
 }
 
 export default function AdminEventDetail() {
@@ -53,7 +56,7 @@ export default function AdminEventDetail() {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [applications, setApplications] = useState<EventApplication[]>([]);
-  const [appFilter, setAppFilter] = useState<AppFilter>('pending');
+  const [appFilter, setAppFilter] = useState<AppFilter>('going');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +150,8 @@ export default function AdminEventDetail() {
     async (appId: string, status: 'approved' | 'rejected') => {
       if (!user) return;
       setActionLoading(appId + status);
+      // 'approved' here is an admin override on a waitlisted person; the
+      // capacity trigger rejects it when every seat is taken.
       try {
         const result = await api.events.updateApplicationStatus(appId, user.id, status);
         if (result.error) {
@@ -161,7 +166,37 @@ export default function AdminEventDetail() {
     [user, load],
   );
 
+  // Rejecting keeps the record; deleting wipes it and lets the person re-apply.
+  const handleAppDelete = useCallback(
+    (appId: string, name: string) => {
+      Alert.alert(
+        'Remove attendee',
+        `Delete ${name}'s entry for this event? They can sign up again afterwards.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              setActionLoading(appId + 'delete');
+              try {
+                const result = await api.events.removeApplication(appId);
+                if (result.error) showError(result.error);
+                else await load();
+              } finally {
+                setActionLoading(null);
+              }
+            },
+          },
+        ],
+      );
+    },
+    [load],
+  );
+
   const filteredApplications = applications.filter((a) => bucketOf(a.status) === appFilter);
+  const goingCount = applications.filter((a) => bucketOf(a.status) === 'going').length;
+  const waitingCount = applications.filter((a) => bucketOf(a.status) === 'waiting').length;
 
   if (loading) {
     return (
@@ -265,8 +300,11 @@ export default function AdminEventDetail() {
         {/* Applicants */}
         <View style={styles.section}>
           <SectionHeader
-            title="Applications"
-            subtitle={`${applications.length} total for this event`}
+            title="Attendees"
+            subtitle={
+              `${goingCount}${event.max_attendees ? ` of ${event.max_attendees}` : ''} coming` +
+              (waitingCount > 0 ? ` · ${waitingCount} waiting` : ' · joins are automatic')
+            }
           />
 
           {/* Bucket filter */}
@@ -297,19 +335,21 @@ export default function AdminEventDetail() {
           {filteredApplications.length === 0 ? (
             <EmptyState
               iconName={
-                appFilter === 'pending' ? 'hourglass-outline'
-                : appFilter === 'approved' ? 'checkmark-done-outline'
+                appFilter === 'going' ? 'people-outline'
+                : appFilter === 'waiting' ? 'hourglass-outline'
                 : 'archive-outline'
               }
               title={
-                appFilter === 'pending' ? 'No pending applications'
-                : appFilter === 'approved' ? 'No approved attendees yet'
-                : 'No archived applications'
+                appFilter === 'going' ? 'No one has signed up yet'
+                : appFilter === 'waiting' ? 'Nobody waiting'
+                : 'Nobody removed'
               }
               subtitle={
-                appFilter === 'pending' ? 'New applications for this event will appear here.'
-                : appFilter === 'approved' ? 'Approve pending applications to build the attendee list.'
-                : 'Rejected and withdrawn applications end up here.'
+                appFilter === 'going'
+                  ? 'Anyone who applies joins this event straight away and shows up here.'
+                  : appFilter === 'waiting'
+                  ? 'Once the event is full, later applicants wait here and move up on their own.'
+                  : 'People you reject, and anyone who withdraws, end up here.'
               }
             />
           ) : (
@@ -319,21 +359,27 @@ export default function AdminEventDetail() {
                 (app as any).profile?.full_name ??
                 'Unknown';
               const applicantEmail = (app as any).user?.email ?? null;
-              const isPending = app.status === 'pending';
-              const approvingThis = actionLoading === app.id + 'approved';
+              const applicantPhone = (app as any).user?.phone ?? null;
+              const bucket = bucketOf(app.status);
               const rejectingThis = actionLoading === app.id + 'rejected';
+              const deletingThis = actionLoading === app.id + 'delete';
+              const busy = rejectingThis || deletingThis;
 
               return (
                 <Card key={app.id} style={styles.appCard}>
                   <View style={styles.appHeader}>
                     <Text style={styles.appName}>{applicantName}</Text>
-                    <StatusBadge status={app.status} />
+                    <StatusBadge status={bucket === 'waiting' ? 'waiting' : app.status} />
                   </View>
                   {!!applicantEmail && (
                     <Text style={styles.appEmail} numberOfLines={1}>{applicantEmail}</Text>
                   )}
+                  {!!applicantPhone && (
+                    <Text style={styles.appEmail} numberOfLines={1}>{applicantPhone}</Text>
+                  )}
                   <Text style={styles.appDate}>
-                    Applied {new Date(app.applied_at).toLocaleDateString('en-IN', {
+                    {bucket === 'waiting' ? 'Waiting since' : 'Joined'}{' '}
+                    {new Date(app.applied_at).toLocaleDateString('en-IN', {
                       day: 'numeric',
                       month: 'short',
                     })}
@@ -341,28 +387,41 @@ export default function AdminEventDetail() {
                   {!!app.note && (
                     <Text style={styles.appNote} numberOfLines={2}>{app.note}</Text>
                   )}
-                  {isPending && (
-                    <View style={styles.appActions}>
-                      <Button
-                        title="Accept"
-                        variant="primary"
-                        size="sm"
-                        style={styles.actionBtn}
-                        onPress={() => handleAppAction(app.id, 'approved')}
-                        disabled={approvingThis || rejectingThis}
-                        loading={approvingThis}
-                      />
+                  <View style={styles.appActions}>
+                    {bucket === 'going' && (
                       <Button
                         title="Reject"
                         variant="outline"
                         size="sm"
                         style={[styles.actionBtn, styles.rejectBtn]}
                         onPress={() => handleAppAction(app.id, 'rejected')}
-                        disabled={approvingThis || rejectingThis}
+                        disabled={busy}
                         loading={rejectingThis}
                       />
-                    </View>
-                  )}
+                    )}
+                    {bucket === 'waiting' && (
+                      // Only works while a seat is free — the capacity trigger
+                      // refuses otherwise and the error surfaces here.
+                      <Button
+                        title="Let in"
+                        variant="primary"
+                        size="sm"
+                        style={styles.actionBtn}
+                        onPress={() => handleAppAction(app.id, 'approved')}
+                        disabled={busy}
+                        loading={actionLoading === app.id + 'approved'}
+                      />
+                    )}
+                    <Button
+                      title="Delete"
+                      variant="outline"
+                      size="sm"
+                      style={[styles.actionBtn, styles.rejectBtn]}
+                      onPress={() => handleAppDelete(app.id, applicantName)}
+                      disabled={busy}
+                      loading={deletingThis}
+                    />
+                  </View>
                 </Card>
               );
             })

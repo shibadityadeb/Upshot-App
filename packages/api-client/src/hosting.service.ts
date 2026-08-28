@@ -89,8 +89,9 @@ export class HostingService {
 
   /**
    * Live events this host created, each carrying its participant counts.
-   * Counts come from a second query rather than an embedded aggregate — PostgREST
-   * cannot filter an embedded count by status, and we need approved vs pending split.
+   * Counts come from a second query rather than an embedded aggregate —
+   * PostgREST cannot filter an embedded count by status, and we need the
+   * confirmed attendees split from the waiting list.
    */
   async getMyHostedEvents(userId: string): Promise<ApiResponse<HostedEvent[]>> {
     const { data: events, error } = await this.supabase
@@ -108,10 +109,11 @@ export class HostingService {
       .select('event_id, status')
       .in('event_id', list.map((e) => e.id));
 
+    // 'pending' means waitlisted: the event was full when they applied.
     const approved = new Map<string, number>();
-    const pending = new Map<string, number>();
+    const waiting = new Map<string, number>();
     for (const app of (apps ?? []) as { event_id: string; status: string }[]) {
-      const bucket = app.status === 'approved' ? approved : app.status === 'pending' ? pending : null;
+      const bucket = app.status === 'approved' ? approved : app.status === 'pending' ? waiting : null;
       if (bucket) bucket.set(app.event_id, (bucket.get(app.event_id) ?? 0) + 1);
     }
 
@@ -119,7 +121,7 @@ export class HostingService {
       data: list.map((e) => ({
         ...e,
         approved_participants: approved.get(e.id) ?? 0,
-        pending_participants: pending.get(e.id) ?? 0,
+        waitlisted_participants: waiting.get(e.id) ?? 0,
       })) as HostedEvent[],
       error: null,
     };

@@ -12,26 +12,32 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
-import type { Event, EventApplication, ApplicationStatus } from '@upshot/types';
+import type { Event, EventApplication } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
 import { AvatarCircle, StatusBadge } from '../../../src/components/common';
 
 const api = createApiClient();
 
-type Filter = 'all' | 'approved' | 'pending';
+type Filter = 'all' | 'going' | 'waiting' | 'removed';
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'approved', label: 'Joined' },
-  { key: 'pending', label: 'Awaiting' },
+  { key: 'going', label: 'Going' },
+  { key: 'waiting', label: 'Waiting' },
+  { key: 'removed', label: 'Removed' },
 ];
+
+// 'pending' means the event was full when they applied — they are on the
+// waiting list and move up on their own as seats free.
+const bucketOf = (status: string): Exclude<Filter, 'all'> =>
+  status === 'approved' ? 'going' : status === 'pending' ? 'waiting' : 'removed';
 
 /**
  * Read-only participant list for one of the host's events.
  *
- * Approving applicants stays with admins — a host sees who applied and who has
- * been let in, but does not decide. Readable via the events.created_by branch of
- * the event_applications_select policy (migration 022).
+ * Applicants join automatically up to capacity; taking someone off the list
+ * stays with admins. Readable via the events.created_by branch of the
+ * event_applications_select policy (migration 022).
  */
 export default function EventParticipants() {
   const router = useRouter();
@@ -75,17 +81,13 @@ export default function EventParticipants() {
 
   const counts = participants.reduce(
     (acc, p) => {
-      if (p.status === 'approved') acc.approved += 1;
-      else if (p.status === 'pending') acc.pending += 1;
+      acc[bucketOf(p.status)] += 1;
       return acc;
     },
-    { approved: 0, pending: 0 },
+    { going: 0, waiting: 0, removed: 0 },
   );
 
-  const visible = participants.filter((p) => {
-    if (filter === 'all') return true;
-    return p.status === (filter as ApplicationStatus);
-  });
+  const visible = participants.filter((p) => filter === 'all' || bucketOf(p.status) === filter);
 
   return (
     <View style={styles.container}>
@@ -103,18 +105,20 @@ export default function EventParticipants() {
 
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryValue}>{counts.approved}</Text>
-          <Text style={styles.summaryLabel}>Joined</Text>
+          <Text style={styles.summaryValue}>{counts.going}</Text>
+          <Text style={styles.summaryLabel}>Going</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={[styles.summaryValue, counts.pending > 0 && { color: colors.warning }]}>
-            {counts.pending}
+          <Text style={styles.summaryValue}>
+            {event?.max_attendees ? Math.max(event.max_attendees - counts.going, 0) : '—'}
           </Text>
-          <Text style={styles.summaryLabel}>Awaiting approval</Text>
+          <Text style={styles.summaryLabel}>Spots left</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryValue}>{event?.max_attendees ?? '—'}</Text>
-          <Text style={styles.summaryLabel}>Capacity</Text>
+          <Text style={[styles.summaryValue, counts.waiting > 0 && { color: colors.warning }]}>
+            {counts.waiting}
+          </Text>
+          <Text style={styles.summaryLabel}>Waiting</Text>
         </View>
       </View>
 
@@ -148,11 +152,11 @@ export default function EventParticipants() {
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={48} color={colors.border} />
             <Text style={styles.emptyTitle}>
-              {filter === 'all' ? 'No one has applied yet' : 'Nothing here'}
+              {filter === 'all' ? 'No one has signed up yet' : 'Nothing here'}
             </Text>
             <Text style={styles.emptySub}>
               {filter === 'all'
-                ? 'Applications will appear here as people join'
+                ? 'People appear here the moment they join'
                 : 'Try a different filter'}
             </Text>
           </View>
@@ -178,15 +182,16 @@ export default function EventParticipants() {
                 </Text>
                 {!!p.note && <Text style={styles.rowNote} numberOfLines={3}>“{p.note}”</Text>}
               </View>
-              <StatusBadge status={p.status} />
+              <StatusBadge status={bucketOf(p.status) === 'waiting' ? 'waiting' : p.status} />
             </View>
           ))
         )}
 
-        {!loading && counts.pending > 0 && (
+        {!loading && participants.length > 0 && (
           <Text style={styles.footnote}>
-            Applicants are approved by the Upshot team. Pending entries become participants once
-            they're reviewed.
+            {counts.waiting > 0
+              ? "People join automatically until the event is full; the rest wait and move up on their own as spots free. Reach out to the Upshot team if someone needs to be taken off the list."
+              : 'People join automatically when they apply. Reach out to the Upshot team if someone needs to be taken off the list.'}
           </Text>
         )}
       </ScrollView>
