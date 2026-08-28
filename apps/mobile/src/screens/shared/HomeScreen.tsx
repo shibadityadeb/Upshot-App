@@ -39,7 +39,9 @@ const api = createApiClient();
 // ─── Design tokens (single source of truth for this screen) ─────────────────
 const PAGE_H = Gap.base;       // 16 — horizontal padding for all sections
 const SECTION_V = Gap.xl;      // 24 — top/bottom padding for every section
-const HERO_TAGS = ['Unfiltered', 'Campus cartel', 'iRISE', 'iBelieve'];
+/** The four brand pillars named in the hero. Display labels only — the workshop
+ *  verticals (irise / ibelieve) are separate and still drive filtering. */
+const HERO_TAGS = ['Unfiltered', 'Campus Cartel', 'Events', 'Growth Solutions'];
 
 const LOGO = require('../../../assets/logo.png');
 const CAMPUS_CARTEL_IMG = require('../../../assets/campus cartel.png');
@@ -370,6 +372,11 @@ const styles = StyleSheet.create({
   heroTagsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    // Wraps because the pillar names no longer fit one line on a standard
+    // handset — "Growth Solutions" alone pushes the row past the viewport, and
+    // without this the last label is silently clipped.
+    flexWrap: 'wrap',
+    rowGap: 2,
     paddingHorizontal: PAGE_H,
     marginTop: Gap.md,
   },
