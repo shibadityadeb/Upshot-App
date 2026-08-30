@@ -44,7 +44,7 @@ const SECTION_V = Gap.xl;      // 24 — top/bottom padding for every section
 const HERO_TAGS = ['Unfiltered', 'Campus Cartel', 'Events', 'Growth Solutions'];
 
 const LOGO = require('../../../assets/logo.png');
-const CAMPUS_CARTEL_IMG = require('../../../assets/campus cartel.png');
+const CAMPUS_CARTEL_IMG = require('../../../assets/campus-cartel.jpg');
 const IRISE_IMG = require('../../../assets/irise.jpg');
 const IBELIEVE_IMG = require('../../../assets/ibelieve.jpg');
 const ALL_WORKSHOPS_IMG = require('../../../assets/all-workshops.jpg');
@@ -320,11 +320,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  // A capsule rather than a box, matching the auth headers: the wordmark is
+  // roughly 2.6:1, so fully rounded ends hug it where a circle would leave dead
+  // space above and below. White ground keeps it off the lime hero.
   heroLogoBadge: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    ...shadow.md,
   },
   heroLogoImage: {
     width: 96,
