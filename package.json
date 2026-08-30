@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "mobile": "yarn workspace @upshot/mobile start",
+    "admin": "yarn workspace @upshot/admin dev",
+    "admin:build": "yarn workspace @upshot/admin build",
     "type-check": "yarn workspaces run type-check",
     "db:generate": "yarn workspace @upshot/database db:generate",
     "db:push": "yarn workspace @upshot/database db:push",

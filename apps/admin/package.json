@@ -1,0 +1,29 @@
+{
+  "name": "@upshot/admin",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
+    "@upshot/api-client": "*",
+    "@upshot/types": "*",
+    "next": "15.1.6",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/react": "~19.0.10",
+    "@types/react-dom": "~19.0.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.4.5"
+  }
+}
