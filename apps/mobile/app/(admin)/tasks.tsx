@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
+import { isTaskVisible, taskDueState } from '@upshot/types';
 import type { Task } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import {
@@ -157,9 +158,14 @@ export default function AdminTasks() {
     [loadTasks],
   );
 
-  const filteredTasks = filter === 'all' ? tasks : tasks.filter((t) => t.status === filter);
+  // A task drops off the admin's lists a week after its due date passes — long
+  // enough to chase or clean up, short enough that the list stays current.
+  // "All" then means every task still live, each carrying its own badge.
+  const liveTasks = tasks.filter((t) => isTaskVisible(t, 'admin'));
 
-  const pendingCount = tasks.filter((t) => t.status === 'submitted').length;
+  const filteredTasks = filter === 'all' ? liveTasks : liveTasks.filter((t) => t.status === filter);
+
+  const pendingCount = liveTasks.filter((t) => t.status === 'submitted').length;
 
   const renderTask = ({ item }: { item: Task }) => {
     const isSubmitted = item.status === 'submitted';
@@ -221,6 +227,17 @@ export default function AdminTasks() {
               </Text>
             </View>
           )}
+          {/* Every task says where it stands against its due date, so the All
+              filter reads at a glance. Undated tasks have nothing to say. */}
+          {taskDueState(item.due_date, 'admin') === 'overdue' ? (
+            <View style={styles.overduePill}>
+              <Text style={styles.overdueText}>Due date passed</Text>
+            </View>
+          ) : taskDueState(item.due_date, 'admin') === 'ongoing' ? (
+            <View style={styles.ongoingPill}>
+              <Text style={styles.ongoingText}>Ongoing</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Submission details for submitted tasks */}
@@ -449,6 +466,28 @@ const styles = StyleSheet.create({
   dueDate: {
     fontSize: FontSize.xs,
     color: colors.textSecondary,
+  },
+  overduePill: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  overdueText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: '#991B1B',
+  },
+  ongoingPill: {
+    backgroundColor: colors.primaryTint,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  ongoingText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: colors.ink,
   },
   assigneeRow: {
     flexDirection: 'row',
