@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
+import { isTaskVisible, taskDueState } from '@upshot/types';
 import type { Task } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { EmptyState, StatusBadge, CoinBadge, SegmentedControl } from '../../src/components/common';
@@ -72,7 +73,8 @@ export default function MyTasksScreen() {
     setRefreshing(false);
   }, [loadData]);
 
-  const list = activeIdx === 0 ? pending : completed;
+  // Tasks drop out three days after their due date passes — see isTaskVisible.
+  const list = (activeIdx === 0 ? pending : completed).filter((t) => isTaskVisible(t, 'member'));
 
   if (loading) {
     return (
@@ -92,14 +94,20 @@ export default function MyTasksScreen() {
         <Text style={styles.cardTitle} numberOfLines={2}>{task.title}</Text>
         <CoinBadge amount={task.coin_value} />
       </View>
-      {task.due_date && (
-        <View style={styles.metaRow}>
-          <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
-          <Text style={styles.metaText}>
-            Due {new Date(task.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-          </Text>
-        </View>
-      )}
+      {task.due_date &&
+        (taskDueState(task.due_date, 'member') === 'overdue' ? (
+          <View style={styles.overduePill}>
+            <Ionicons name="alert-circle-outline" size={12} color="#991B1B" />
+            <Text style={styles.overdueText}>Due date passed</Text>
+          </View>
+        ) : (
+          <View style={styles.metaRow}>
+            <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
+            <Text style={styles.metaText}>
+              Due {new Date(task.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+            </Text>
+          </View>
+        ))}
       <TouchableOpacity
         style={styles.submitBtn}
         onPress={() => router.push(`/(people)/task/${task.id}` as any)}
@@ -248,6 +256,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     marginTop: Gap.sm,
+  },
+  overduePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: Gap.sm,
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  overdueText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: '#991B1B',
   },
   metaText: {
     fontSize: FontSize.xs,

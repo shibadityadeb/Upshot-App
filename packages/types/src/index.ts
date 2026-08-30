@@ -109,6 +109,79 @@ export interface Task {
   updated_at: string;
 }
 
+// ─── Task due dates ──────────────────────────────────────
+//
+// A task with a due date does not live forever. Once the date passes it is
+// flagged as overdue, and after a grace window it drops out of the lists
+// altogether so nobody is scrolling past work that can no longer be done.
+//
+// The windows differ by who is looking: the people doing the work lose sight of
+// it quickly, while an admin keeps it around long enough to chase or clean up.
+// Both apps import this so the two never drift apart.
+
+export type TaskAudience = 'member' | 'admin';
+
+/** Days between the due date passing and the task disappearing from a list. */
+export const TASK_HIDE_AFTER_DUE_DAYS: Record<TaskAudience, number> = {
+  member: 3,
+  admin: 7,
+};
+
+/**
+ * `none`    — no due date, so it never ages out
+ * `ongoing` — still has time on the clock
+ * `overdue` — the date has passed; shown with a badge
+ * `expired` — past the grace window; hidden from the list
+ */
+export type TaskDueState = 'none' | 'ongoing' | 'overdue' | 'expired';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Midnight at the end of the due day, in local time.
+ *
+ * due_date is a plain calendar date ('2026-08-30'), so a task due today is
+ * still ongoing all of today — the clock runs out when the day does. Parsing the
+ * parts by hand rather than `new Date(str)` avoids that string being read as UTC
+ * and shifting the deadline by a day for anyone east or west of it.
+ */
+function endOfDueDay(dueDate: string): number | null {
+  const [y, m, d] = dueDate.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d + 1).getTime();
+}
+
+export function taskDueState(
+  dueDate: string | null | undefined,
+  audience: TaskAudience,
+  now: number = Date.now(),
+): TaskDueState {
+  if (!dueDate) return 'none';
+
+  const deadline = endOfDueDay(dueDate);
+  if (deadline === null) return 'none';
+  if (now < deadline) return 'ongoing';
+
+  const hiddenFrom = deadline + TASK_HIDE_AFTER_DUE_DAYS[audience] * DAY_MS;
+  return now < hiddenFrom ? 'overdue' : 'expired';
+}
+
+/**
+ * Whether a task still belongs in a list.
+ *
+ * A task awaiting review is kept regardless of age: somebody did the work and is
+ * owed an answer, and hiding it would strand the submission — the member could
+ * not see it pending and the admin could not review it.
+ */
+export function isTaskVisible(
+  task: Pick<Task, 'due_date' | 'status'>,
+  audience: TaskAudience,
+  now: number = Date.now(),
+): boolean {
+  if (task.status === 'submitted') return true;
+  return taskDueState(task.due_date, audience, now) !== 'expired';
+}
+
 export interface WalletBalance {
   user_id: string;
   total_earned: number;
