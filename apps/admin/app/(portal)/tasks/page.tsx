@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { isTaskVisible, taskDueState } from '@upshot/types';
 import type { Task } from '@upshot/types';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -49,18 +50,22 @@ export default function TasksPage() {
     void load();
   }, [load]);
 
+  // A task drops off a week after its due date passes — the same window the
+  // in-app admin section uses, since both read it from @upshot/types.
+  const liveTasks = useMemo(() => tasks.filter((t) => isTaskVisible(t, 'admin')), [tasks]);
+
   const counts = useMemo(
     () => ({
-      submitted: tasks.filter((t) => t.status === 'submitted').length,
-      assigned: tasks.filter((t) => t.status === 'assigned').length,
-      approved: tasks.filter((t) => t.status === 'approved').length,
-      rejected: tasks.filter((t) => t.status === 'rejected').length,
-      all: tasks.length,
+      submitted: liveTasks.filter((t) => t.status === 'submitted').length,
+      assigned: liveTasks.filter((t) => t.status === 'assigned').length,
+      approved: liveTasks.filter((t) => t.status === 'approved').length,
+      rejected: liveTasks.filter((t) => t.status === 'rejected').length,
+      all: liveTasks.length,
     }),
-    [tasks],
+    [liveTasks],
   );
 
-  const visible = tasks.filter((t) => filter === 'all' || t.status === filter);
+  const visible = liveTasks.filter((t) => filter === 'all' || t.status === filter);
 
   async function review(taskId: string, approved: boolean) {
     if (!user) return;
@@ -111,6 +116,7 @@ export default function TasksPage() {
           {visible.map((t) => {
             const assignee = t.assignee?.full_name ?? (t.target_group ? `Group · ${t.target_group.replace(/_/g, ' ')}` : '—');
             const busy = busyId?.startsWith(t.id) ?? false;
+            const dueState = taskDueState(t.due_date, 'admin');
             return (
               <Row key={t.id}>
                 <Cell>
@@ -127,7 +133,21 @@ export default function TasksPage() {
                   )}
                 </Cell>
                 <Cell className="text-muted">{assignee}</Cell>
-                <Cell className="whitespace-nowrap text-muted">{formatDate(t.due_date)}</Cell>
+                <Cell className="whitespace-nowrap">
+                  <p className="text-muted">{formatDate(t.due_date)}</p>
+                  {/* Every dated task says where it stands, so the All filter
+                      reads at a glance. */}
+                  {dueState === 'overdue' && (
+                    <span className="mt-1 inline-block rounded-full bg-danger/15 px-2 py-0.5 text-[11px] font-bold text-danger">
+                      Due date passed
+                    </span>
+                  )}
+                  {dueState === 'ongoing' && (
+                    <span className="mt-1 inline-block rounded-full bg-lime-tint px-2 py-0.5 text-[11px] font-bold text-ink">
+                      Ongoing
+                    </span>
+                  )}
+                </Cell>
                 <Cell className="text-muted">{t.coin_value}</Cell>
                 <Cell>
                   <StatusBadge status={t.status} />
