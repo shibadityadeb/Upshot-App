@@ -51,7 +51,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "owner": "shibadityadeb"
   }
