@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createApiClient } from '@upshot/api-client';
+import { isTaskVisible, taskDueState } from '@upshot/types';
 import type { Task, TaskTargetGroup } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../constants/theme';
 import { LoadingScreen, EmptyState } from '../../components/common';
@@ -254,9 +255,15 @@ export default function TasksScreen() {
     );
   }
 
-  const activeTasks = tasks.filter((t) => t.status === 'assigned' || t.status === 'in_progress');
-  const submittedTasks = tasks.filter((t) => t.status === 'submitted');
-  const completedTasks = tasks.filter((t) => t.status === 'approved' || t.status === 'rejected');
+  // A task whose due date passed more than three days ago is gone from here —
+  // it cannot be done any more, so it is only clutter. Anything still awaiting
+  // review survives regardless, so a submission never vanishes on the person
+  // who made it.
+  const liveTasks = tasks.filter((t) => isTaskVisible(t, 'member'));
+
+  const activeTasks = liveTasks.filter((t) => t.status === 'assigned' || t.status === 'in_progress');
+  const submittedTasks = liveTasks.filter((t) => t.status === 'submitted');
+  const completedTasks = liveTasks.filter((t) => t.status === 'approved' || t.status === 'rejected');
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -274,7 +281,7 @@ export default function TasksScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        {tasks.length === 0 && (
+        {liveTasks.length === 0 && (
           <View style={styles.section}>
             <EmptyState
               iconName="checkbox-outline"
@@ -289,6 +296,7 @@ export default function TasksScreen() {
             <Text style={styles.sectionLabel}>Active</Text>
             {activeTasks.map((task) => {
               const isExpanded = expandedTaskId === task.id;
+              const overdue = taskDueState(task.due_date, 'member') === 'overdue';
               return (
                 <View key={task.id} style={styles.taskCard}>
                   <TouchableOpacity
@@ -313,10 +321,16 @@ export default function TasksScreen() {
                           <Ionicons name="diamond-outline" size={11} color="#92400E" />
                           <Text style={styles.coinText}>{task.coin_value}</Text>
                         </View>
-                        {task.due_date && (
+                        {task.due_date && !overdue && (
                           <View style={styles.duePill}>
                             <Ionicons name="calendar-outline" size={10} color={colors.textSecondary} />
                             <Text style={styles.dueText}>{task.due_date}</Text>
+                          </View>
+                        )}
+                        {overdue && (
+                          <View style={styles.overduePill}>
+                            <Ionicons name="alert-circle-outline" size={11} color="#991B1B" />
+                            <Text style={styles.overdueText}>Due date passed</Text>
                           </View>
                         )}
                       </View>
@@ -630,6 +644,20 @@ const styles = StyleSheet.create({
   dueText: {
     fontSize: FontSize.xs,
     color: colors.textSecondary,
+  },
+  overduePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  overdueText: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    color: '#991B1B',
   },
   statusPill: {
     backgroundColor: colors.primary + '18',
