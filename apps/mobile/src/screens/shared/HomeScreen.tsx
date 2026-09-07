@@ -32,6 +32,7 @@ import {
   FeaturedPodcastCard,
   CommunityBanner,
   WorkshopCard,
+  HomeFooter,
 } from '../../components/home';
 import { useAuthStore } from '../../store/auth.store';
 
@@ -330,6 +331,10 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <View style={styles.divider} />
+
+      {/* ─── Footer ───────────────────────────────────────────── */}
+      <HomeFooter paddingHorizontal={PAGE_H} />
     </ScrollView>
   );
 }
