@@ -9,6 +9,7 @@ import {
   StyleSheet,
   StatusBar,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -39,9 +40,14 @@ const api = createApiClient();
 // ─── Design tokens (single source of truth for this screen) ─────────────────
 const PAGE_H = Gap.base;       // 16 — horizontal padding for all sections
 const SECTION_V = Gap.xl;      // 24 — top/bottom padding for every section
-/** The four brand pillars named in the hero. Display labels only — the workshop
- *  verticals (irise / ibelieve) are separate and still drive filtering. */
-const HERO_TAGS = ['Unfiltered', 'Campus Cartel', 'Events', 'Growth Solutions'];
+/** The numbers from the website. Static copy — edit here to change them. */
+const TRACK_RECORD = [
+  { value: '120+', label: 'Campaigns Delivered' },
+  { value: '40+', label: 'Industry Leaders Featured' },
+  { value: '6+', label: 'Active States' },
+  { value: '200+', label: 'Community Activations' },
+  { value: '30+', label: 'Brand Partnerships' },
+];
 
 const LOGO = require('../../../assets/logo.png');
 const CAMPUS_CARTEL_IMG = require('../../../assets/campus-cartel.jpg');
@@ -76,6 +82,9 @@ function getTimeOfDay(): string {
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  // Five stats share one row. Below ~360pt (iPhone SE class) the numbers and
+  // labels step down one notch so the row never wraps or feels cramped.
+  const { width: windowWidth } = useWindowDimensions();
 
   const [featuredVideo, setFeaturedVideo] = useState<UnfilteredVideo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,6 +134,7 @@ export default function HomeScreen() {
   }
 
   const timeOfDay = getTimeOfDay();
+  const compactStats = windowWidth < 360;
 
   const podcastTitle = featuredVideo?.title ?? PLACEHOLDER_PODCAST.title;
   const podcastSubtitle = featuredVideo
@@ -182,11 +192,30 @@ export default function HomeScreen() {
           <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.15)', flex: 1 }]} />
         </View>
 
-        <View style={styles.heroTagsRow}>
-          {HERO_TAGS.map((tag, i) => (
-            <React.Fragment key={tag}>
-              {i > 0 && <Text style={styles.heroTagDot}>·</Text>}
-              <Text style={styles.heroTagText}>{tag}</Text>
+        {/* The track record closes the hero. Ink on lime — the numbers carry
+            at size without a second colour, and lime on lime would vanish.
+            All five sit in one row, equal-width, separated by hairlines so
+            the eye reads them as a single strip rather than a grid. */}
+        <View style={styles.heroStatsRow}>
+          {TRACK_RECORD.map((stat, index) => (
+            <React.Fragment key={stat.label}>
+              {index > 0 && <View style={styles.heroStatDivider} />}
+              <View style={styles.heroStatCell}>
+                <Text
+                  style={[styles.heroStatValue, compactStats && styles.heroStatValueCompact]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {stat.value}
+                </Text>
+                <Text
+                  style={[styles.heroStatLabel, compactStats && styles.heroStatLabelCompact]}
+                  numberOfLines={3}
+                >
+                  {stat.label}
+                </Text>
+              </View>
             </React.Fragment>
           ))}
         </View>
@@ -207,6 +236,25 @@ export default function HomeScreen() {
           isNew={isNewEpisode}
           onPress={() => Linking.openURL(podcastUrl)}
         />
+
+        {/* The pitch form already existed behind the Unfiltered page and the
+            applications screen; this is the way in from the home screen, next
+            to the episode it is about. Kept quieter than the lime buttons
+            further down so it reads as an invitation, not a third shout. */}
+        <TouchableOpacity
+          style={styles.featureCta}
+          onPress={() => router.push('/unfiltered-feature' as any)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.featureCtaIcon}>
+            <Ionicons name="mic-outline" size={16} color={colors.ink} />
+          </View>
+          <View style={styles.featureCtaText}>
+            <Text style={styles.featureCtaTitle}>Apply to get featured</Text>
+            <Text style={styles.featureCtaSub}>Pitch yourself as a guest on the show</Text>
+          </View>
+          <Ionicons name="arrow-forward" size={16} color={colors.ink} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.divider} />
@@ -269,7 +317,7 @@ export default function HomeScreen() {
             Got an idea? Bring your event to life
           </Text>
           <Text style={styles.hostBannerBody}>
-            Submit your event proposal and reach thousands of people across India.
+            Share your requirements & reach the right audience for your brand.
           </Text>
           <TouchableOpacity
             style={styles.hostBannerBtn}
@@ -306,9 +354,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginHorizontal: PAGE_H,
   },
+  // ── "Apply to get featured" row under the podcast card ────
+  featureCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.md,
+    marginTop: Gap.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: Gap.md,
+    paddingHorizontal: Gap.base,
+    ...shadow.sm,
+  },
+  featureCtaIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureCtaText: { flex: 1 },
+  featureCtaTitle: {
+    fontSize: FontSize.body,
+    fontWeight: Font.bold,
+    color: colors.ink,
+  },
+  featureCtaSub: {
+    fontSize: FontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
   // ── Hero ──────────────────────────────────────────────────
   hero: {
-    paddingBottom: Gap.xxl,
+    paddingBottom: Gap.xl + Gap.xs,
     backgroundColor: colors.primary,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
@@ -344,10 +425,10 @@ const styles = StyleSheet.create({
     marginTop: Gap.xl,
   },
   heroHeadlineLine: {
-    fontSize: 34,
+    fontSize: FontSize.h1,
     fontWeight: Font.black,
-    letterSpacing: -0.8,
-    lineHeight: 40,
+    letterSpacing: -0.5,
+    lineHeight: 30,
     color: colors.ink,
   },
   heroHeadlineAccent: {
@@ -356,45 +437,65 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     paddingHorizontal: PAGE_H,
-    marginTop: Gap.md,
-    fontSize: FontSize.body,
+    marginTop: Gap.sm,
+    fontSize: FontSize.small,
     color: 'rgba(14,14,14,0.6)',
     fontWeight: Font.medium,
-    lineHeight: 22,
+    lineHeight: 18,
   },
   heroGradientBar: {
     flexDirection: 'row',
     height: 3,
     marginHorizontal: PAGE_H,
-    marginTop: Gap.lg,
+    marginTop: Gap.xl,
     borderRadius: 2,
     overflow: 'hidden',
   },
   heroGradientSegment: {
     height: 3,
   },
-  heroTagsRow: {
+  heroStatsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    // Wraps because the pillar names no longer fit one line on a standard
-    // handset — "Growth Solutions" alone pushes the row past the viewport, and
-    // without this the last label is silently clipped.
-    flexWrap: 'wrap',
-    rowGap: 2,
+    alignItems: 'flex-start',
     paddingHorizontal: PAGE_H,
-    marginTop: Gap.md,
+    marginTop: Gap.xl,
   },
-  heroTagDot: {
-    fontSize: FontSize.body,
-    color: 'rgba(14,14,14,0.35)',
-    marginHorizontal: 8,
+  heroStatCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 2,
   },
-  heroTagText: {
-    fontSize: FontSize.small,
+  heroStatDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    marginVertical: 2,
+    backgroundColor: 'rgba(14,14,14,0.18)',
+  },
+  heroStatValue: {
+    fontSize: FontSize.h2,
+    lineHeight: 24,
+    fontWeight: Font.black,
     color: colors.ink,
-    fontWeight: Font.bold,
+    letterSpacing: -0.4,
+    fontVariant: ['tabular-nums'],
   },
-
+  heroStatValueCompact: {
+    fontSize: FontSize.h3,
+    lineHeight: 20,
+  },
+  heroStatLabel: {
+    fontSize: FontSize.micro,
+    lineHeight: 13,
+    fontWeight: Font.medium,
+    color: 'rgba(14,14,14,0.62)',
+    textAlign: 'center',
+    marginTop: 4,
+    letterSpacing: 0.1,
+  },
+  heroStatLabelCompact: {
+    fontSize: 9,
+    lineHeight: 12,
+  },
   // ── Upcoming Events ───────────────────────────────────────
   workshopList: {
     gap: Gap.md,
