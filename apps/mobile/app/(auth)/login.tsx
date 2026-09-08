@@ -73,7 +73,7 @@ export default function LoginScreen() {
           <View style={styles.logoBadge}>
             <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
           </View>
-          <Text style={styles.logoTagline}>India's Community for Students & Companies</Text>
+          <Text style={styles.logoTagline}>Communities | Conversations | Growth</Text>
         </View>
         <Text style={styles.headerHeadline}>The network that{'\n'}gets you noticed.</Text>
       </SafeAreaView>
