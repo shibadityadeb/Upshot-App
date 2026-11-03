@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event, EventApplication } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
-import { EmptyState, StatusBadge } from '../../src/components/common';
+import { EmptyState, EventBanner, StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useDebounce } from '../../src/hooks/useDebounce';
 
@@ -226,6 +226,7 @@ export default function PeopleWorkshops() {
         onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
         activeOpacity={0.8}
       >
+        {!!ev.banner_url && <EventBanner uri={ev.banner_url} height={170} style={styles.cardBanner} />}
         <View style={styles.joinedHeader}>
           <Text style={styles.joinedTitle} numberOfLines={2}>{ev.title}</Text>
           {isOwner ? (
@@ -272,9 +273,25 @@ export default function PeopleWorkshops() {
               {(ev.current_attendees ?? 0)} participant{(ev.current_attendees ?? 0) === 1 ? '' : 's'} coming
             </Text>
           </View>
-        ) : !hasApplied ? (
-          <Text style={styles.joinLink}>View & join →</Text>
-        ) : null}
+        ) : (
+          <View style={styles.cardActions}>
+            <TouchableOpacity
+              style={[styles.cardBtn, styles.joinBtn]}
+              onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.joinBtnText}>{hasApplied ? 'View details' : 'View & join'}</Text>
+              <Ionicons name="arrow-forward" size={15} color={colors.onPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.cardBtn, styles.sponsorBtn]}
+              onPress={() => router.push(`/(people)/sponsor/${ev.id}` as any)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.sponsorBtnText}>Sponsor</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -292,6 +309,9 @@ export default function PeopleWorkshops() {
         onPress={() => router.push(`/(people)/apply/${app.event_id}` as any)}
         activeOpacity={0.8}
       >
+        {!!app.event?.banner_url && (
+          <EventBanner uri={app.event.banner_url} height={170} style={styles.cardBanner} />
+        )}
         <View style={styles.joinedHeader}>
           <Text style={styles.joinedTitle} numberOfLines={2}>
             {app.event?.title ?? 'Workshop'}
@@ -624,11 +644,35 @@ const styles = StyleSheet.create({
     fontWeight: Font.bold,
     color: colors.ink,
   },
-  joinLink: {
-    marginTop: Gap.sm,
+  cardActions: {
+    flexDirection: 'row',
+    gap: Gap.sm,
+    marginTop: Gap.md,
+  },
+  cardBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: radius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  joinBtn: {
+    backgroundColor: colors.primary,
+  },
+  joinBtnText: {
     fontSize: FontSize.small,
     fontWeight: Font.bold,
-    color: colors.ink,
+    color: colors.onPrimary,
+  },
+  sponsorBtn: {
+    backgroundColor: colors.ink,
+  },
+  sponsorBtnText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: '#FFFFFF',
   },
   filterBlock: {
     backgroundColor: colors.surface,
@@ -724,6 +768,15 @@ const styles = StyleSheet.create({
     padding: Gap.base,
     marginBottom: Gap.sm,
     ...shadow.sm,
+  },
+  cardBanner: {
+    // Bleed to the card edges, above the padded content.
+    marginTop: -Gap.base,
+    marginHorizontal: -Gap.base,
+    marginBottom: Gap.md,
+    width: 'auto',
+    borderTopLeftRadius: radius.xl - 1,
+    borderTopRightRadius: radius.xl - 1,
   },
   joinedHeader: {
     flexDirection: 'row',

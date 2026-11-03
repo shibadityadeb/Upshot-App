@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
+import type { AudienceStats } from '@upshot/api-client';
 import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
 import { LoadingScreen } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
@@ -87,6 +88,7 @@ export default function AdminDashboard() {
     ambassadors: 0,
   });
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+  const [audience, setAudience] = useState<AudienceStats | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -104,6 +106,7 @@ export default function AdminDashboard() {
           .in('status', ['approved', 'pending'])
           .order('event_date', { ascending: true })
           .limit(5),
+        api.stats.getAudienceStats(),
       ]);
 
       const val = (i: number) => results[i].status === 'fulfilled' ? (results[i] as any).value : null;
@@ -120,6 +123,7 @@ export default function AdminDashboard() {
         ambassadors,
       });
       setUpcomingEvents(upcoming);
+      setAudience(val(5)?.data ?? null);
 
     } catch {
       showError(null, { context: 'Failed to load dashboard data.' });
@@ -204,6 +208,31 @@ export default function AdminDashboard() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Users & activity */}
+        {audience && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Users & activity</Text>
+            <View style={styles.audienceGrid}>
+              {[
+                { label: 'Signed up', value: audience.totalUsers, accent: true },
+                { label: 'People', value: audience.byRole.people },
+                { label: 'Students', value: audience.byRole.student },
+                { label: 'Ambassadors', value: audience.byRole.ambassador },
+                { label: 'Hosts', value: audience.byRole.host },
+                { label: 'Companies', value: audience.byRole.company },
+                { label: 'Applied for an event', value: audience.applicants },
+                { label: 'Applications', value: audience.applications },
+                { label: 'Sponsor inquiries', value: audience.sponsorInquiries },
+              ].map((t) => (
+                <View key={t.label} style={[styles.audienceTile, t.accent && styles.audienceTileAccent]}>
+                  <Text style={styles.audienceValue}>{t.value}</Text>
+                  <Text style={styles.audienceLabel} numberOfLines={2}>{t.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Upcoming Events */}
         {upcomingEvents.length > 0 && (
@@ -371,6 +400,39 @@ const styles = StyleSheet.create({
     fontWeight: Font.black,
     color: colors.ink,
     letterSpacing: -0.5,
+  },
+
+  // Users & activity
+  audienceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  audienceTile: {
+    width: '31%',
+    flexGrow: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  audienceTileAccent: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  audienceValue: {
+    fontSize: 22,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.5,
+  },
+  audienceLabel: {
+    fontSize: 11,
+    fontWeight: Font.bold,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 
   // Sections

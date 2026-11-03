@@ -19,6 +19,7 @@ const NAV = [
   { href: '/campus-cartel', label: 'Campus Cartel' },
   { href: '/ambassador-codes', label: 'Ambassador codes' },
   { href: '/unfiltered', label: 'Unfiltered' },
+  { href: '/sponsors', label: 'Sponsors' },
   { href: '/settings', label: 'Settings' },
 ];
 
