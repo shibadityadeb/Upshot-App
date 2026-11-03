@@ -11,7 +11,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "permissions": [
+      "permissions": [],
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },

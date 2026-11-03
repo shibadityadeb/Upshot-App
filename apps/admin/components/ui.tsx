@@ -106,6 +106,10 @@ const STATUS_TONES: Record<string, string> = {
   assigned: 'bg-info/15 text-info',
   rejected: 'bg-danger/15 text-danger',
   cancelled: 'bg-danger/15 text-danger',
+  new: 'bg-warn/15 text-warn',
+  contacted: 'bg-info/15 text-info',
+  accepted: 'bg-ok/15 text-ok',
+  declined: 'bg-danger/15 text-danger',
   withdrawn: 'bg-faint/20 text-muted',
   draft: 'bg-faint/20 text-muted',
 };

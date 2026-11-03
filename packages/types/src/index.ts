@@ -492,6 +492,42 @@ export interface CreateUnfilteredFeatureRequestPayload {
   social_url?: string;
 }
 
+// ─── Sponsor Inquiries ───────────────────────────────────
+
+export type SponsorInquiryStatus = 'pending' | 'contacted' | 'accepted' | 'declined';
+
+export interface SponsorInquiry {
+  id: string;
+  event_id: string;
+  event?: Event;
+  user_id: string;
+  user?: User;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  website: string | null;
+  why_sponsor: string;
+  message: string | null;
+  status: SponsorInquiryStatus;
+  admin_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSponsorInquiryPayload {
+  event_id: string;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  website?: string;
+  why_sponsor: string;
+  message?: string;
+}
+
 // ─── Hosting Applications ───────────────────────────────
 
 export type HostingApplicationStatus = 'pending' | 'approved' | 'rejected';

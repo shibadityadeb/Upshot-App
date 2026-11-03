@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
 import { colors, Font, FontSize, Gap, radius } from '../../../src/constants/theme';
-import { AvatarCircle, Input } from '../../../src/components/common';
+import { AvatarCircle, EventBanner, Input } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
 import { showError } from '../../../src/store/error.store';
 
@@ -170,9 +169,9 @@ export default function PeopleApply() {
         keyboardShouldPersistTaps="handled"
       >
         {/* 1 — Hero image with overlaid back button + category */}
-        <View style={styles.heroWrap}>
+        <View style={[styles.heroWrap, event.banner_url && { height: 260 + insets.top }]}>
           {event.banner_url ? (
-            <Image source={{ uri: event.banner_url }} style={styles.heroImage} resizeMode="cover" />
+            <EventBanner uri={event.banner_url} height={260 + insets.top} insetTop={insets.top} />
           ) : (
             <View style={[styles.heroPlaceholder, { backgroundColor: colors.primary + '18' }]}>
               <Text style={styles.heroPlaceholderTitle}>{event.title}</Text>
@@ -348,10 +347,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 260,
     backgroundColor: '#E5E7EB',
-  },
-  heroImage: {
-    width: '100%',
-    height: 260,
   },
   heroPlaceholder: {
     width: '100%',

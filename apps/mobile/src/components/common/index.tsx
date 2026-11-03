@@ -25,6 +25,7 @@ export { ErrorPopup } from './ErrorPopup';
 export { DatePickerModal, TimePickerModal } from './DateTimePickers';
 export { RoleBadge, ROLE_BADGE, roleBadgeMeta } from './RoleBadge';
 export { GoogleButton } from './GoogleButton';
+export { EventBanner } from './EventBanner';
 
 // ─── Button ──────────────────────────────────────────────────────────────────
 //

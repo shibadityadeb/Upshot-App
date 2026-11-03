@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Event } from '@upshot/types';
+import type { AudienceStats } from '@upshot/api-client';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import {
@@ -31,6 +32,7 @@ export default function DashboardPage() {
     ambassadors: 0,
     people: 0,
   });
+  const [audience, setAudience] = useState<AudienceStats | null>(null);
   const [upcoming, setUpcoming] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export default function DashboardPage() {
         .in('status', ['approved', 'pending'])
         .order('event_date', { ascending: true })
         .limit(8),
+      client.stats.getAudienceStats(),
     ]);
 
     const val = (i: number) =>
@@ -68,6 +71,7 @@ export default function DashboardPage() {
       people: val(4)?.count ?? 0,
     });
     setUpcoming((val(5)?.data ?? []) as Event[]);
+    setAudience(val(6)?.data ?? null);
 
     if (results.every((r) => r.status === 'rejected')) {
       setError('Could not reach Supabase. Check the portal credentials in .env.local.');
@@ -93,6 +97,25 @@ export default function DashboardPage() {
         <StatCard label="Ambassadors" value={stats.ambassadors} />
         <StatCard label="People" value={stats.people} />
       </div>
+
+      {audience && (
+        <>
+          <h2 className="mb-3 text-lg font-bold text-ink">Users &amp; activity</h2>
+          <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <StatCard label="Signed up (all)" value={audience.totalUsers} tone="lime" />
+            <StatCard label="People" value={audience.byRole.people} />
+            <StatCard label="Students" value={audience.byRole.student} />
+            <StatCard label="Ambassadors" value={audience.byRole.ambassador} />
+            <StatCard label="Hosts" value={audience.byRole.host} />
+            <StatCard label="Companies" value={audience.byRole.company} />
+          </div>
+          <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <StatCard label="People who applied for an event" value={audience.applicants} />
+            <StatCard label="Event applications" value={audience.applications} />
+            <StatCard label="Sponsor inquiries" value={audience.sponsorInquiries} />
+          </div>
+        </>
+      )}
 
       <h2 className="mb-3 text-lg font-bold text-ink">Upcoming events</h2>
       {upcoming.length === 0 ? (
