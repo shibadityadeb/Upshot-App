@@ -9,18 +9,19 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { HostingApplication } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../../src/constants/theme';
 import { Button, StatusBadge } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
 import { TouchableOpacity } from 'react-native';
 import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../../assets/hero-liquid.png');
 
 function DetailRow({ icon, label, value }: { icon: string; label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -43,6 +44,9 @@ export default function HostAppDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [app, setApp] = useState<HostingApplication | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,22 +144,26 @@ export default function HostAppDetail() {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={20} color={colors.ink} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <TouchableOpacity style={styles.backPill} onPress={() => router.back()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={14} color="#fff" />
+            <Text style={styles.backPillText}>Back</Text>
+          </TouchableOpacity>
           <Text style={styles.headerEyebrow}>HOSTING APPLICATION</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>{app.title}</Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.headerTitle} numberOfLines={2}>{app.title}</Text>
+            <StatusBadge status={app.status} />
+          </View>
         </View>
-        <StatusBadge status={app.status} />
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
         showsVerticalScrollIndicator={false}
       >
         {/* Cover Image */}
@@ -263,36 +271,50 @@ export default function HostAppDetail() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.primary },
+  safeArea: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
 
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: Gap.md,
-    paddingBottom: Gap.lg,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  backPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Gap.md,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(14,14,14,0.45)',
+    borderRadius: radius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    gap: 6,
+    marginBottom: Gap.md,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(14,14,14,0.1)',
-    alignItems: 'center', justifyContent: 'center',
+  backPillText: {
+    fontSize: FontSize.small, fontWeight: Font.semibold, color: '#fff',
   },
   headerEyebrow: {
     fontSize: FontSize.xs, fontWeight: Font.bold,
-    color: 'rgba(14,14,14,0.6)', letterSpacing: 1.5, marginBottom: 2,
+    color: '#2c3326', letterSpacing: 1.5, marginBottom: 4,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Gap.sm,
   },
   headerTitle: {
-    fontSize: FontSize.h2, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.3,
+    flex: 1,
+    fontSize: FontSize.display, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.7, lineHeight: 34,
   },
 
   scroll: { flex: 1, backgroundColor: colors.background },
@@ -300,7 +322,7 @@ const styles = StyleSheet.create({
 
   coverImage: {
     width: '100%', height: 200,
-    borderRadius: radius.lg, marginBottom: Gap.base,
+    borderRadius: radius.xl, marginBottom: Gap.base,
   },
 
   sectionTitle: {
@@ -311,7 +333,7 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
     padding: Gap.base,
     borderWidth: 1,
     borderColor: colors.border,

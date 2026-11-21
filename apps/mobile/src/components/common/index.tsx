@@ -761,7 +761,9 @@ const ccStyles = StyleSheet.create({
 // ─── OpportunityCard ─────────────────────────────────────────────────────────
 
 interface OpportunityCardProps {
-  event: Event & { vertical?: { color: string }; company?: { name: string; is_verified?: boolean } };
+  // The approved-events query embeds `vertical` and may carry an application
+  // count from the ranker; `company` comes straight from Event (Company | null).
+  event: Event & { vertical?: { color?: string | null } | null; application_count?: number };
   onPress: () => void;
   onApply: () => void;
   hasApplied: boolean;

@@ -2,28 +2,33 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import { isTaskVisible, taskDueState } from '@upshot/types';
 import type { Task } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
-import { EmptyState, StatusBadge, CoinBadge, SegmentedControl } from '../../src/components/common';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
+import { EmptyState, StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 const SEGMENTS = ['Active', 'Completed'];
 
 export default function MyTasksScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [pending, setPending] = useState<Task[]>([]);
@@ -88,33 +93,43 @@ export default function MyTasksScreen() {
     <TouchableOpacity
       style={styles.card}
       onPress={() => router.push(`/(people)/task/${task.id}` as any)}
-      activeOpacity={0.75}
+      activeOpacity={0.9}
     >
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={2}>{task.title}</Text>
-        <CoinBadge amount={task.coin_value} />
+        <View style={styles.coinPill}>
+          <View style={styles.coinDot} />
+          <Text style={styles.coinText}>{task.coin_value} coins</Text>
+        </View>
       </View>
-      {task.due_date &&
-        (taskDueState(task.due_date, 'member') === 'overdue' ? (
-          <View style={styles.overduePill}>
-            <Ionicons name="alert-circle-outline" size={12} color="#991B1B" />
-            <Text style={styles.overdueText}>Due date passed</Text>
-          </View>
-        ) : (
-          <View style={styles.metaRow}>
-            <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
-            <Text style={styles.metaText}>
-              Due {new Date(task.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-            </Text>
-          </View>
-        ))}
+
+      <View style={styles.metaCluster}>
+        {task.due_date &&
+          (taskDueState(task.due_date, 'member') === 'overdue' ? (
+            <View style={styles.overduePill}>
+              <Ionicons name="alert-circle" size={13} color={colors.error} />
+              <Text style={styles.overdueText}>Due date passed</Text>
+            </View>
+          ) : (
+            <View style={styles.dueChip}>
+              <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+              <Text style={styles.dueText}>
+                Due {new Date(task.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </Text>
+            </View>
+          ))}
+        <View style={styles.statusPill}>
+          <Text style={styles.statusPillText}>Assigned</Text>
+        </View>
+      </View>
+
       <TouchableOpacity
         style={styles.submitBtn}
         onPress={() => router.push(`/(people)/task/${task.id}` as any)}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         <Text style={styles.submitBtnText}>Submit</Text>
-        <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+        <Ionicons name="arrow-forward" size={15} color={colors.onPrimary} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -126,8 +141,8 @@ export default function MyTasksScreen() {
         <StatusBadge status={task.status} />
       </View>
       {task.status === 'approved' && (
-        <View style={styles.earnedRow}>
-          <Ionicons name="diamond" size={14} color={colors.success} />
+        <View style={styles.earnedPill}>
+          <View style={styles.coinDot} />
           <Text style={styles.earnedText}>+{task.coin_value} earned</Text>
         </View>
       )}
@@ -138,20 +153,39 @@ export default function MyTasksScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.ink} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Assignments</Text>
+    <View style={styles.container}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.headerRow, columnStyle]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color={colors.ink} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>My Assignments</Text>
+            <Text style={styles.headerSubtitle}>Complete tasks, earn coins</Text>
+          </View>
+        </View>
       </View>
 
-      <SegmentedControl
-        segments={SEGMENTS}
-        activeIndex={activeIdx}
-        onChange={setActiveIdx}
-      />
+      {/* Active / Completed toggle */}
+      <View style={[styles.toggleWrap, columnStyle]}>
+        <View style={styles.toggleRow}>
+          {SEGMENTS.map((seg, i) => {
+            const active = activeIdx === i;
+            return (
+              <TouchableOpacity
+                key={seg}
+                onPress={() => setActiveIdx(i)}
+                activeOpacity={0.85}
+                style={[styles.toggle, active && styles.toggleActive]}
+              >
+                <Text style={[styles.toggleLabel, active && styles.toggleLabelActive]}>{seg}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
 
       <FlatList
         data={list}
@@ -159,7 +193,8 @@ export default function MyTasksScreen() {
         renderItem={({ item }) =>
           activeIdx === 0 ? renderPending(item) : renderCompleted(item)
         }
-        contentContainerStyle={styles.listContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.listContent, columnStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.campusCartelGreen} />
@@ -176,64 +211,65 @@ export default function MyTasksScreen() {
           />
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
+const GOLD = '#E3A017';
+const AMBER = '#92400E';
 
-  // Header
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+
+  // ── Header (lime liquid) ──
   header: {
     backgroundColor: colors.primary,
-    paddingTop: Gap.sm,
-    paddingBottom: Gap.lg,
     paddingHorizontal: Gap.base,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Gap.md,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Gap.md },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(14,14,14,0.1)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(14,14,14,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.black,
-    color: colors.ink,
-    letterSpacing: -0.5,
-  },
+  headerTitle: { fontSize: FontSize.display, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.7 },
+  headerSubtitle: { fontSize: FontSize.small, color: '#2c3326', marginTop: 3, fontWeight: Font.semibold },
 
-  // List
-  listContent: {
-    paddingHorizontal: Gap.base,
-    paddingTop: Gap.md,
-    paddingBottom: 100,
-    flexGrow: 1,
+  // ── Toggle ──
+  toggleWrap: { paddingHorizontal: Gap.base },
+  toggleRow: { flexDirection: 'row', gap: Gap.sm, marginTop: Gap.base },
+  toggle: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  toggleActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  toggleLabel: { fontSize: FontSize.small, fontWeight: Font.bold, color: colors.textSecondary },
+  toggleLabelActive: { color: '#FFFFFF' },
 
-  // Card
+  // ── List ──
+  listContent: { paddingHorizontal: Gap.base, paddingTop: Gap.base, paddingBottom: 110, flexGrow: 1 },
+
+  // ── Card ──
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
     padding: Gap.base,
-    marginBottom: Gap.md,
-    borderWidth: 0.5,
+    marginBottom: Gap.base,
+    borderWidth: 1,
     borderColor: colors.border,
     ...shadow.sm,
   },
@@ -244,76 +280,92 @@ const styles = StyleSheet.create({
     gap: Gap.sm,
   },
   cardTitle: {
-    fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: colors.text,
     flex: 1,
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
+    color: colors.ink,
+    lineHeight: 24,
+    letterSpacing: -0.3,
   },
 
-  // Meta
-  metaRow: {
+  // ── Coin (gold) ──
+  coinPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: Gap.sm,
+    gap: 5,
+    backgroundColor: '#FEF3C7',
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
+  coinDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: GOLD },
+  coinText: { fontSize: FontSize.xs, fontWeight: Font.black, color: AMBER },
+
+  // ── Meta cluster (due + status) ──
+  metaCluster: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Gap.sm, marginTop: Gap.md },
+  dueChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  dueText: { fontSize: FontSize.xs, color: colors.textSecondary, fontWeight: Font.semibold },
   overduePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    marginTop: Gap.sm,
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    gap: 5,
+    backgroundColor: colors.error + '18',
     borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  overdueText: {
-    fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: '#991B1B',
+  overdueText: { fontSize: FontSize.xs, fontWeight: Font.black, color: colors.error },
+  statusPill: {
+    backgroundColor: colors.info + '18',
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  metaText: {
-    fontSize: FontSize.xs,
-    color: colors.textSecondary,
-  },
+  statusPillText: { fontSize: FontSize.xs, fontWeight: Font.black, color: colors.ink },
 
-  // Submit button
+  // ── Submit button ──
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Gap.xs,
-    marginTop: Gap.md,
-    height: 36,
-    backgroundColor: colors.campusCartelGreen,
-    borderRadius: 10,
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: Gap.base,
+    height: 44,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
     paddingHorizontal: Gap.lg,
     alignSelf: 'flex-start',
   },
-  submitBtnText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: '#FFFFFF',
-  },
+  submitBtnText: { fontSize: FontSize.small, fontWeight: Font.black, color: colors.onPrimary },
 
-  // Earned row
-  earnedRow: {
+  // ── Earned (gold) ──
+  earnedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Gap.xs,
-    marginTop: Gap.sm,
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: Gap.md,
+    backgroundColor: '#FEF3C7',
+    borderRadius: radius.full,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
   },
-  earnedText: {
-    fontSize: FontSize.body,
-    fontWeight: Font.bold,
-    color: colors.success,
-  },
+  earnedText: { fontSize: FontSize.small, fontWeight: Font.black, color: AMBER },
 
-  // Reject note
+  // ── Reject note ──
   rejectNote: {
     fontSize: FontSize.small,
     color: colors.error,
-    marginTop: Gap.sm,
+    marginTop: Gap.md,
     lineHeight: 20,
+    fontStyle: 'italic',
   },
 });

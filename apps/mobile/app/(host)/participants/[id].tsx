@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,10 +14,11 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event, EventApplication } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../../src/constants/theme';
 import { AvatarCircle, StatusBadge } from '../../../src/components/common';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../../assets/hero-liquid.png');
 
 type Filter = 'all' | 'going' | 'waiting' | 'removed';
 
@@ -42,6 +44,8 @@ const bucketOf = (status: string): Exclude<Filter, 'all'> =>
 export default function EventParticipants() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [event, setEvent] = useState<Event | null>(null);
@@ -92,18 +96,21 @@ export default function EventParticipants() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={20} color={colors.ink} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.headerEyebrow}>PARTICIPANTS</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {event?.title ?? 'Event'}
-          </Text>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.headerRow, columnStyle]}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={20} color={colors.ink} />
+          </TouchableOpacity>
+          <View style={styles.headerText}>
+            <Text style={styles.headerEyebrow}>PARTICIPANTS</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {event?.title ?? 'Event'}
+            </Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.summaryRow}>
+      <View style={[styles.summaryRow, columnStyle]}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryValue}>{counts.going}</Text>
           <Text style={styles.summaryLabel}>Going</Text>
@@ -122,7 +129,7 @@ export default function EventParticipants() {
         </View>
       </View>
 
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, columnStyle]}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
@@ -138,7 +145,7 @@ export default function EventParticipants() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -205,18 +212,22 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingBottom: Gap.lg,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(14,14,14,0.1)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(14,14,14,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -224,15 +235,15 @@ const styles = StyleSheet.create({
   headerEyebrow: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(14,14,14,0.6)',
+    color: '#2c3326',
     letterSpacing: 1.5,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   headerTitle: {
-    fontSize: FontSize.h1,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
 
   summaryRow: {
@@ -244,10 +255,10 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: Gap.md,
+    paddingVertical: Gap.base,
     alignItems: 'center',
     ...shadow.sm,
   },
@@ -269,7 +280,7 @@ const styles = StyleSheet.create({
   filterPill: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: radius.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -285,7 +296,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: Gap.md,
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     padding: Gap.base,
@@ -293,7 +304,7 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   rowBody: { flex: 1 },
-  rowName: { fontSize: FontSize.body, fontWeight: Font.bold, color: colors.text },
+  rowName: { fontSize: FontSize.h3, fontWeight: Font.bold, color: colors.ink },
   rowMeta: { fontSize: FontSize.xs, color: colors.textSecondary, marginTop: 1 },
   rowDate: { fontSize: FontSize.xs, color: colors.textLight, marginTop: 3 },
   rowNote: {

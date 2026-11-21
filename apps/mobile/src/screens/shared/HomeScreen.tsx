@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ScrollView,
   View,
   Text,
   Image,
+  TextInput,
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
   StatusBar,
   Linking,
-  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import type { UnfilteredVideo } from '@upshot/types';
+import type { Event, HomeCard } from '@upshot/types';
 import {
   colors,
   Font,
@@ -23,77 +23,59 @@ import {
   Gap,
   radius,
   shadow,
+  useResponsive,
 } from '../../constants/theme';
+import { LoadingScreen } from '../../components/common';
 import {
-  SectionHeader,
-  LoadingScreen,
-} from '../../components/common';
-import {
-  FeaturedPodcastCard,
-  CommunityBanner,
-  WorkshopCard,
   HomeFooter,
+  SpecialEventsCarousel,
+  FeaturedCarousel,
+  type FeaturedSlide,
 } from '../../components/home';
 import { useAuthStore } from '../../store/auth.store';
+import { rankEvents, categoryWeightsFromApplications } from '../../lib/rankEvents';
 
 const api = createApiClient();
 
-// ─── Design tokens (single source of truth for this screen) ─────────────────
 const PAGE_H = Gap.base;       // 16 — horizontal padding for all sections
-const SECTION_V = Gap.xl;      // 24 — top/bottom padding for every section
-/** The numbers from the website. Static copy — edit here to change them. */
+const SECTION_V = Gap.xl;      // 24
+
+/** Headline track-record numbers. Static copy — edit here to change them. */
 const TRACK_RECORD = [
-  { value: '120+', label: 'Campaigns Delivered' },
-  { value: '40+', label: 'Industry Leaders Featured' },
-  { value: '6+', label: 'Active States' },
-  { value: '200+', label: 'Community Activations' },
-  { value: '30+', label: 'Brand Partnerships' },
+  { value: '130+', label: 'Campaigns', icon: 'calendar-outline' as const, color: '#6AA62E' },
+  { value: '40+', label: 'Leaders', icon: 'people-outline' as const, color: '#8B5CF6' },
+  { value: '6+', label: 'States', icon: 'location-outline' as const, color: '#6AA62E' },
 ];
 
+const SPECIAL_LIMIT = 8;
+// When no event is admin-starred, how many ranked events seed the Special rail
+// (kept small so the Recommended rail below still has events to show).
+const SPECIAL_FALLBACK = 3;
+
 const LOGO = require('../../../assets/logo.png');
-const CAMPUS_CARTEL_IMG = require('../../../assets/campus-cartel.jpg');
-const IRISE_IMG = require('../../../assets/irise.jpg');
-const IBELIEVE_IMG = require('../../../assets/ibelieve.jpg');
-const ALL_WORKSHOPS_IMG = require('../../../assets/all-workshops.jpg');
-
-// UI-only fallback shown until the admin features a video through the
-// existing unfiltered API — the API result always wins when present.
-const PLACEHOLDER_PODCAST = {
-  youtube_url: 'https://youtu.be/z_JlWC62ZXk?si=uYprPaQ0y5HES4HG',
-  title: 'Unfiltered — real conversations with leaders',
-  description: 'Founders, CXOs and policymakers, unscripted.',
-  thumbnail_url: 'https://img.youtube.com/vi/z_JlWC62ZXk/hqdefault.jpg',
-};
-
-/** An episode counts as "new" for two weeks after the admin adds it. */
-const NEW_EPISODE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
-
-function youtubeThumb(url: string): string | null {
-  const match = url.match(/(?:youtu\.be\/|[?&]v=|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/);
-  return match ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null;
-}
-
-function getTimeOfDay(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Morning edition';
-  if (hour < 17) return 'Afternoon edition';
-  return 'Evening edition';
-}
+const HERO_LIQUID = require('../../../assets/hero-liquid.png');
+const COINS = require('../../../assets/coins.png');
+const FEAT_CONCERT = require('../../../assets/feat-concert.jpg');
+const FEAT_CAMPUS = require('../../../assets/feat-campus.jpg');
+const FEAT_WORKSHOP = require('../../../assets/feat-workshop.jpg');
+const FEAT_UNFILTERED = require('../../../assets/feat-unfiltered.jpg');
 
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  // Five stats share one row. Below ~360pt (iPhone SE class) the numbers and
-  // labels step down one notch so the row never wraps or feels cramped.
-  const { width: windowWidth } = useWindowDimensions();
+  const r = useResponsive();
 
-  const [featuredVideo, setFeaturedVideo] = useState<UnfilteredVideo | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
+  const [homeCards, setHomeCards] = useState<HomeCard[]>([]);
+  const [appliedCategories, setAppliedCategories] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [isCartelMember, setIsCartelMember] = useState(false);
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   async function onRefresh() {
@@ -105,299 +87,420 @@ export default function HomeScreen() {
   async function load(showLoader = true) {
     if (showLoader) setLoading(true);
     try {
-      // Featured unfiltered video for the podcast hero card
       try {
-        const featuredResult = await api.unfiltered.getFeaturedVideo();
-        if (featuredResult.data) {
-          setFeaturedVideo(featuredResult.data);
-        }
+        const res = await api.events.getApprovedEvents(1, 50);
+        if (res.data) setEvents(res.data.data);
       } catch (e) {
-        console.warn('Failed to load featured video', e);
+        console.warn('Failed to load events', e);
       }
-
-      // Campus Cartel membership — drives the community banner CTA label
+      // Admin-curated home content. Wrapped defensively so the screen still
+      // works before migration 030 (the table/column) is applied — it just
+      // falls back to the built-in Featured cards and ranked Special Events.
+      try {
+        const [cardsRes, featRes] = await Promise.all([
+          api.homeCards.getActiveCards(),
+          api.events.getFeaturedEvents(SPECIAL_LIMIT),
+        ]);
+        if (cardsRes.data) setHomeCards(cardsRes.data);
+        if (featRes.data) setFeaturedEvents(featRes.data);
+      } catch {
+        /* pre-migration — fall back to defaults */
+      }
       if (user) {
         try {
-          const member = await api.campusCartel.isMember(user.id);
-          setIsCartelMember(member);
+          const mine = await api.events.getMyApplications(user.id);
+          if (mine.data) {
+            setAppliedCategories(
+              mine.data
+                .filter((a) => a.status !== 'withdrawn')
+                .map((a) => a.event?.category)
+                .filter((c): c is string => !!c),
+            );
+          }
         } catch {
-          // silently fail
+          /* non-fatal */
         }
       }
     } catch {
-      /* silently use fallbacks */
+      /* use fallbacks */
     }
     setLoading(false);
   }
 
+  // The recommendation engine orders the Special Events row. userCity stays
+  // undefined until Profile gains a location field — then "near you" switches on.
+  const categoryWeights = useMemo(
+    () => categoryWeightsFromApplications(appliedCategories),
+    [appliedCategories],
+  );
+  const ranked = useMemo(
+    () => rankEvents(events, { appliedCategoryWeights: categoryWeights, userCity: user?.city }),
+    [events, categoryWeights, user?.city],
+  );
+
+  // Special Events = events an admin has starred (is_featured). Until any are
+  // starred (or before migration 030), fall back to the top-ranked events (those
+  // with a banner first). The fallback is capped so the Recommended rail below
+  // always has events left to show whenever there are at least two upcoming.
+  const specialEvents = useMemo(() => {
+    if (featuredEvents.length > 0) return featuredEvents.slice(0, SPECIAL_LIMIT);
+    const withBanner = ranked.filter((e) => !!e.banner_url);
+    const pool = withBanner.length >= 2 ? withBanner : ranked;
+    const cap =
+      ranked.length > SPECIAL_FALLBACK ? SPECIAL_FALLBACK : Math.max(1, ranked.length - 1);
+    return pool.slice(0, cap);
+  }, [featuredEvents, ranked]);
+
+  // Recommended = the recommendation engine's top picks (location + interest
+  // affinity + popularity + recency), minus whatever already shows in Special
+  // Events so the two rails don't repeat.
+  const recommendedEvents = useMemo(() => {
+    const specialIds = new Set(specialEvents.map((e) => e.id));
+    return ranked.filter((e) => !specialIds.has(e.id)).slice(0, SPECIAL_LIMIT);
+  }, [ranked, specialEvents]);
+
+  const go = (path: string) => router.push(path as any);
+  const openLink = (link: string) => {
+    if (/^https?:\/\//i.test(link)) Linking.openURL(link).catch(() => {});
+    else go(link);
+  };
+
+  // Admin-managed Featured Experiences cards override the built-in defaults when
+  // present (cover image, title, redirect link and CTA all come from the admin).
+  const defaultSlides: FeaturedSlide[] = [
+    {
+      key: 'host',
+      badge: 'Featured Event',
+      title: 'Host Your\nEvent on ',
+      accent: 'Upshot',
+      description: 'Bring your idea to life and connect with the right audience.',
+      cta: 'Create Event',
+      image: FEAT_CONCERT,
+      onPress: () => go('/(people)/host-event'),
+    },
+    {
+      key: 'campus',
+      badge: 'Community',
+      title: 'Campus ',
+      accent: 'Cartel',
+      description: "Join India's student ambassador network.",
+      cta: 'Explore Community',
+      image: FEAT_CAMPUS,
+      onPress: () =>
+        go(user?.role === 'ambassador' ? '/(ambassador)/dashboard' : '/(people)/campus-cartel'),
+    },
+    {
+      key: 'workshops',
+      badge: 'Workshops',
+      title: 'Discover\nWorkshops',
+      description: 'Find experiences, learn new skills and meet new people.',
+      cta: 'Explore Events',
+      image: FEAT_WORKSHOP,
+      onPress: () => go('/(people)/opportunities?vertical=all'),
+    },
+    {
+      key: 'unfiltered',
+      badge: 'Unfiltered',
+      title: 'Unfiltered',
+      description: 'Discover leadership conversations and inspiring stories.',
+      cta: 'Explore More',
+      image: FEAT_UNFILTERED,
+      onPress: () => go('/(shared)/vertical/unfiltered'),
+    },
+  ];
+
+  const featuredSlides: FeaturedSlide[] =
+    homeCards.length > 0
+      ? homeCards.map((c) => ({
+          key: c.id,
+          badge: c.badge ?? 'Featured',
+          title: c.title,
+          description: c.subtitle ?? '',
+          cta: c.cta ?? 'Explore',
+          image: c.cover_url ? { uri: c.cover_url } : FEAT_CONCERT,
+          onPress: () => openLink(c.link),
+        }))
+      : defaultSlides;
+
+  const quickAccess = [
+    { key: 'events', label: 'Events', icon: 'calendar' as const, tint: '#EDF6D6', color: '#6AA62E', onPress: () => go('/(people)/opportunities?vertical=all') },
+    { key: 'campus', label: 'Campus Cartel', icon: 'people' as const, tint: '#E1F0D4', color: '#3E7B1E', onPress: () => go('/(people)/campus-cartel') },
+    { key: 'tasks', label: 'Tasks', icon: 'checkbox' as const, tint: '#E6EEFB', color: '#3B6FD4', onPress: () => go('/(people)/my-tasks') },
+    { key: 'rewards', label: 'Rewards', icon: 'gift' as const, tint: '#FCEBD8', color: '#E8833A', onPress: () => go('/(people)/wallet') },
+  ];
+
   if (loading) {
     return <LoadingScreen />;
   }
-
-  const timeOfDay = getTimeOfDay();
-  const compactStats = windowWidth < 360;
-
-  const podcastTitle = featuredVideo?.title ?? PLACEHOLDER_PODCAST.title;
-  const podcastSubtitle = featuredVideo
-    ? featuredVideo.description
-    : PLACEHOLDER_PODCAST.description;
-  const podcastThumb = featuredVideo
-    ? featuredVideo.thumbnail_url ?? youtubeThumb(featuredVideo.youtube_url)
-    : PLACEHOLDER_PODCAST.thumbnail_url;
-  const podcastUrl = featuredVideo?.youtube_url ?? PLACEHOLDER_PODCAST.youtube_url;
-  const isNewEpisode =
-    !!featuredVideo &&
-    Date.now() - new Date(featuredVideo.created_at).getTime() < NEW_EPISODE_WINDOW_MS;
 
   return (
     <ScrollView
       style={styles.root}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.ink}
-        />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
       }
     >
       <StatusBar barStyle="dark-content" />
 
-      {/* ─── Hero ────────────────────────────────────────────── */}
+      <View style={[styles.inner, { maxWidth: r.contentWidth }]}>
+
+      {/* ─── Hero (liquid green) ─────────────────────────────── */}
       <View style={styles.hero}>
+        <Image source={HERO_LIQUID} style={styles.heroBg} resizeMode="cover" />
         <View style={styles.heroTopRow}>
-          <View style={styles.heroLogoBadge}>
-            <Image source={LOGO} style={styles.heroLogoImage} resizeMode="contain" />
+          <View style={styles.logoPill}>
+            <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
           </View>
-          <Text style={styles.timeText}>{timeOfDay}</Text>
-        </View>
-
-        <View style={styles.heroHeadlineBlock}>
-          <Text style={styles.heroHeadlineLine}>
-            Conversations,{'\n'}communities,{' '}
-            <Text style={styles.heroHeadlineAccent}>experience.</Text>
-          </Text>
-        </View>
-
-        <Text style={styles.heroSubtitle}>
-          India's media and community network
-        </Text>
-
-        {/* Accent bar */}
-        <View style={styles.heroGradientBar}>
-          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.9)', flex: 1 }]} />
-          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.65)', flex: 1 }]} />
-          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.45)', flex: 1 }]} />
-          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.28)', flex: 1 }]} />
-          <View style={[styles.heroGradientSegment, { backgroundColor: 'rgba(14,14,14,0.15)', flex: 1 }]} />
-        </View>
-
-        {/* The track record closes the hero. Ink on lime — the numbers carry
-            at size without a second colour, and lime on lime would vanish.
-            All five sit in one row, equal-width, separated by hairlines so
-            the eye reads them as a single strip rather than a grid. */}
-        <View style={styles.heroStatsRow}>
-          {TRACK_RECORD.map((stat, index) => (
-            <React.Fragment key={stat.label}>
-              {index > 0 && <View style={styles.heroStatDivider} />}
-              <View style={styles.heroStatCell}>
-                <Text
-                  style={[styles.heroStatValue, compactStats && styles.heroStatValueCompact]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
-                >
-                  {stat.value}
-                </Text>
-                <Text
-                  style={[styles.heroStatLabel, compactStats && styles.heroStatLabelCompact]}
-                  numberOfLines={3}
-                >
-                  {stat.label}
-                </Text>
-              </View>
-            </React.Fragment>
-          ))}
-        </View>
-      </View>
-
-      {/* ─── Featured Podcast (Unfiltered) ───────────────────── */}
-      <View style={styles.section}>
-        <SectionHeader
-          title="Featured Podcast"
-          action
-          actionLabel="See all"
-          onAction={() => router.push('/(shared)/vertical/unfiltered' as any)}
-        />
-        <FeaturedPodcastCard
-          title={podcastTitle}
-          subtitle={podcastSubtitle}
-          thumbnailUrl={podcastThumb}
-          isNew={isNewEpisode}
-          onPress={() => Linking.openURL(podcastUrl)}
-        />
-
-        {/* The pitch form already existed behind the Unfiltered page and the
-            applications screen; this is the way in from the home screen, next
-            to the episode it is about. Kept quieter than the lime buttons
-            further down so it reads as an invitation, not a third shout. */}
-        <TouchableOpacity
-          style={styles.featureCta}
-          onPress={() => router.push('/unfiltered-feature' as any)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.featureCtaIcon}>
-            <Ionicons name="mic-outline" size={16} color={colors.ink} />
+          <View style={styles.heroActions}>
+            <TouchableOpacity style={styles.bell} activeOpacity={0.8} onPress={() => {}}>
+              <View style={styles.bellDot} />
+              <Ionicons name="notifications-outline" size={20} color={colors.ink} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.avatar}
+              activeOpacity={0.8}
+              onPress={() => go('/(people)/profile')}
+            >
+              <Text style={styles.avatarText}>
+                {(user?.full_name ?? 'U').trim().charAt(0).toUpperCase()}
+              </Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.featureCtaText}>
-            <Text style={styles.featureCtaTitle}>Apply to get featured</Text>
-            <Text style={styles.featureCtaSub}>Pitch yourself as a guest on the show</Text>
-          </View>
-          <Ionicons name="arrow-forward" size={16} color={colors.ink} />
-        </TouchableOpacity>
-      </View>
+        </View>
 
-      <View style={styles.divider} />
+        <Text style={styles.headline}>Conversations,{'\n'}Communities, Experience.</Text>
+        <Text style={styles.subtitle}>India's media and community network.</Text>
 
-      {/* ─── Join Our Community (Campus Cartel) ──────────────── */}
-      <View style={styles.section}>
-        <SectionHeader title="Join Our Community" />
-        <CommunityBanner
-          image={CAMPUS_CARTEL_IMG}
-          title="Campus Cartel"
-          subtitle="India's largest student ambassador community."
-          ctaLabel={isCartelMember ? 'Go to Campus Cartel' : 'Join Community'}
-          onPress={() =>
-            router.push(
-              user?.role === 'ambassador'
-                ? ('/(ambassador)/dashboard' as any)
-                : ('/(people)/campus-cartel' as any),
-            )
-          }
-        />
-      </View>
-
-      <View style={styles.divider} />
-
-      {/* ─── Upcoming Events (Events + Growth Solutions) ────── */}
-      <View style={styles.section}>
-        <SectionHeader title="Upcoming Events" />
-        <View style={styles.workshopList}>
-          <WorkshopCard
-            image={IRISE_IMG}
-            title="Events"
-            subtitle="Conferences, summits and meetups across India."
-            onPress={() => router.push('/(people)/opportunities?vertical=irise' as any)}
+        <View style={styles.search}>
+          <Ionicons name="search" size={18} color={colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search for events, communities..."
+            placeholderTextColor={colors.textSecondary}
+            value={search}
+            onChangeText={setSearch}
+            onSubmitEditing={() =>
+              go(`/(people)/opportunities?vertical=all${search ? `&q=${encodeURIComponent(search)}` : ''}`)
+            }
+            returnKeyType="search"
           />
-          <WorkshopCard
-            image={IBELIEVE_IMG}
-            title="Growth Solutions"
-            subtitle="Programmes that help businesses and founders grow."
-            onPress={() => router.push('/(people)/opportunities?vertical=ibelieve' as any)}
-          />
-          {/* Opens the same Workshops screen with the All filter — vertical=all is
-              passed explicitly so it resets a filter left over from the cards above. */}
-          <WorkshopCard
-            image={ALL_WORKSHOPS_IMG}
-            title="All Workshops"
-            subtitle="Browse every workshop happening across India."
-            onPress={() => router.push('/(people)/opportunities?vertical=all' as any)}
-          />
-        </View>
-      </View>
-
-      {/* ─── Host an Event Banner ──────────────────────────────── */}
-      <View style={styles.bannerWrapper}>
-        <View style={styles.hostBanner}>
-          <View style={styles.hostBannerIcon}>
-            <Ionicons name="megaphone-outline" size={22} color={colors.ink} />
-          </View>
-          <Text style={styles.hostBannerEyebrow}>HOST AN EVENT</Text>
-          <Text style={styles.hostBannerHeadline}>
-            Got an idea? Bring your event to life
-          </Text>
-          <Text style={styles.hostBannerBody}>
-            Share your requirements & reach the right audience for your brand.
-          </Text>
           <TouchableOpacity
-            style={styles.hostBannerBtn}
-            onPress={() => router.push('/(people)/host-event' as any)}
-            activeOpacity={0.85}
+            style={styles.filterBtn}
+            activeOpacity={0.8}
+            onPress={() => go('/(people)/opportunities?vertical=all')}
           >
-            <Text style={styles.hostBannerBtnText}>Get started</Text>
-            <Ionicons name="arrow-forward" size={14} color={colors.onPrimary} />
+            <Ionicons name="options-outline" size={18} color={colors.ink} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.divider} />
+      {/* ─── Performance at a glance ─────────────────────────── */}
+      <View style={styles.section}>
+        <View style={styles.perf}>
+          <Text style={styles.perfLabel}>Performance at a glance</Text>
+          {TRACK_RECORD.map((s) => (
+            <React.Fragment key={s.label}>
+              <View style={styles.perfDivider} />
+              <View style={styles.perfStat}>
+                <Ionicons name={s.icon} size={17} color={s.color} />
+                <Text style={styles.perfValue}>{s.value}</Text>
+                <Text style={styles.perfStatLabel}>{s.label}</Text>
+              </View>
+            </React.Fragment>
+          ))}
+          <TouchableOpacity
+            style={styles.perfGo}
+            activeOpacity={0.8}
+            onPress={() => go('/(people)/opportunities?vertical=all')}
+          >
+            <Ionicons name="arrow-forward" size={15} color={colors.ink} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-      {/* ─── Footer ───────────────────────────────────────────── */}
+      {/* ─── Quick access ────────────────────────────────────── */}
+      <View style={[styles.section, styles.sectionTight]}>
+        <View style={styles.quickRow}>
+          {quickAccess.map((q) => (
+            <TouchableOpacity key={q.key} style={styles.quickCard} activeOpacity={0.85} onPress={q.onPress}>
+              <View style={[styles.quickIcon, { backgroundColor: q.tint }]}>
+                <Ionicons name={q.icon} size={22} color={q.color} />
+              </View>
+              <Text style={styles.quickLabel} numberOfLines={2}>
+                {q.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* ─── Featured Experiences ────────────────────────────── */}
+      <View style={styles.sectionNarrow}>
+        <View style={styles.headerPadded}>
+          <Text style={styles.sectionTitle}>Featured Experiences</Text>
+        </View>
+        <FeaturedCarousel slides={featuredSlides} horizontalPadding={r.gutter} containerWidth={r.contentWidth} />
+      </View>
+
+      {/* ─── Special Events ──────────────────────────────────── */}
+      {specialEvents.length > 0 && (
+        <View style={styles.sectionNarrow}>
+          <View style={[styles.headerPadded, styles.headerRow]}>
+            <Text style={styles.sectionTitle}>Special Events</Text>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => go('/(people)/opportunities?vertical=all')}>
+              <Text style={styles.seeAll}>See all →</Text>
+            </TouchableOpacity>
+          </View>
+          <SpecialEventsCarousel
+            events={specialEvents}
+            horizontalPadding={r.gutter}
+            onPressEvent={(id) => go(`/(people)/apply/${id}`)}
+          />
+        </View>
+      )}
+
+      {/* ─── Recommended for You (recommendation engine) ─────── */}
+      {recommendedEvents.length > 0 && (
+        <View style={styles.sectionNarrow}>
+          <View style={[styles.headerPadded, styles.headerRow]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>Recommended for You</Text>
+              <Text style={styles.sectionSub}>
+                {user?.city ? `Events near ${user.city} & your interests` : 'Picked by your interests & what’s popular'}
+              </Text>
+            </View>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => go('/(people)/opportunities?vertical=all')}>
+              <Text style={styles.seeAll}>See all →</Text>
+            </TouchableOpacity>
+          </View>
+          <SpecialEventsCarousel
+            events={recommendedEvents}
+            horizontalPadding={r.gutter}
+            onPressEvent={(id) => go(`/(people)/apply/${id}`)}
+          />
+        </View>
+      )}
+
+      {/* ─── Promo cards: Campus Cartel + Earn Rewards ───────── */}
+      <View style={styles.section}>
+        <View style={styles.promoRow}>
+          <TouchableOpacity
+            style={[styles.promo, styles.promoCampus]}
+            activeOpacity={0.9}
+            onPress={() =>
+              go(user?.role === 'ambassador' ? '/(ambassador)/dashboard' : '/(people)/campus-cartel')
+            }
+          >
+            <View style={styles.promoIconLime}>
+              <Ionicons name="people" size={22} color="#3E7B1E" />
+            </View>
+            <Text style={styles.promoTitle}>Campus Cartel</Text>
+            <Text style={styles.promoBody}>Join India's student ambassador network.</Text>
+            <View style={styles.promoGo}>
+              <Ionicons name="arrow-forward" size={15} color={colors.ink} />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.promo, styles.promoRewards]}
+            activeOpacity={0.9}
+            onPress={() => go('/(people)/wallet')}
+          >
+            <View style={styles.promoIconCream}>
+              <Ionicons name="gift" size={22} color="#E8833A" />
+            </View>
+            <Text style={styles.promoTitle}>Earn Rewards</Text>
+            <Text style={styles.promoBody}>Complete tasks, earn coins & level up.</Text>
+            <Image source={COINS} style={styles.promoCoins} resizeMode="contain" />
+            <View style={styles.promoGo}>
+              <Ionicons name="arrow-forward" size={15} color={colors.ink} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ─── Unfiltered editorial ────────────────────────────── */}
+      <View style={styles.section}>
+        <View style={[styles.headerRow, { marginBottom: 14 }]}>
+          <Text style={styles.sectionTitle}>Unfiltered</Text>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => go('/(shared)/vertical/unfiltered')}>
+            <Text style={styles.seeAll}>Explore →</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          style={styles.unf}
+          activeOpacity={0.92}
+          onPress={() => go('/(shared)/vertical/unfiltered')}
+        >
+          <Image source={FEAT_UNFILTERED} style={styles.unfImg} resizeMode="cover" />
+          <View style={styles.unfOverlay} />
+          <View style={styles.unfInner}>
+            <View style={styles.unfPlay}>
+              <Ionicons name="play" size={22} color={colors.ink} />
+            </View>
+            <View style={styles.unfText}>
+              <Text style={styles.unfTitle}>Leadership. Conversations. Ideas.</Text>
+              <Text style={styles.unfSub}>Listen to inspiring stories on Unfiltered.</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+
       <HomeFooter paddingHorizontal={PAGE_H} />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  contentContainer: {
-    paddingBottom: 24,
-  },
+  root: { flex: 1, backgroundColor: colors.background },
+  contentContainer: { paddingBottom: 24 },
+  /** Centres + caps the content so tablets don't stretch the phone layout. */
+  inner: { width: '100%', alignSelf: 'center' },
 
-  // ── Shared layout primitives ───────────────────────────────
-  /** Every content section uses this — consistent H-pad + V-pad */
-  section: {
-    paddingHorizontal: PAGE_H,
-    paddingVertical: SECTION_V,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: PAGE_H,
-  },
-  // ── "Apply to get featured" row under the podcast card ────
-  featureCta: {
+  section: { paddingHorizontal: PAGE_H, paddingTop: SECTION_V },
+  sectionTight: { paddingTop: 14 },
+  sectionNarrow: { paddingTop: SECTION_V },
+  headerPadded: { paddingHorizontal: PAGE_H },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Gap.md,
-    marginTop: Gap.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: Gap.md,
-    paddingHorizontal: Gap.base,
-    ...shadow.sm,
+    justifyContent: 'space-between',
   },
-  featureCtaIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureCtaText: { flex: 1 },
-  featureCtaTitle: {
-    fontSize: FontSize.body,
-    fontWeight: Font.bold,
+  sectionTitle: {
+    fontSize: FontSize.h1,
+    fontWeight: Font.black,
     color: colors.ink,
+    letterSpacing: -0.6,
+    marginBottom: 14,
   },
-  featureCtaSub: {
-    fontSize: FontSize.xs,
+  sectionSub: {
+    fontSize: FontSize.small,
     color: colors.textSecondary,
-    marginTop: 1,
+    fontWeight: Font.medium,
+    marginTop: -10,
+    marginBottom: 14,
   },
-  // ── Hero ──────────────────────────────────────────────────
+  seeAll: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.textSecondary,
+    marginBottom: 14,
+  },
+
+  // ── Hero ──
   hero: {
-    paddingBottom: Gap.xl + Gap.xs,
     backgroundColor: colors.primary,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingBottom: Gap.xl,
+    overflow: 'hidden',
+  },
+  heroBg: {
+    ...StyleSheet.absoluteFillObject,
+    width: undefined,
+    height: undefined,
   },
   heroTopRow: {
     paddingTop: 56,
@@ -406,165 +509,267 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  // A capsule rather than a box, matching the auth headers: the wordmark is
-  // roughly 2.6:1, so fully rounded ends hug it where a circle would leave dead
-  // space above and below. White ground keeps it off the lime hero.
-  heroLogoBadge: {
+  logoPill: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 999,
-    paddingHorizontal: 18,
+    borderRadius: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     ...shadow.md,
   },
-  heroLogoImage: {
-    width: 96,
-    height: 26,
+  logoImg: { width: 92, height: 28 },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: Gap.sm },
+  bell: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.sm,
   },
-  timeText: {
-    fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.55)',
-    fontWeight: Font.medium,
+  bellDot: {
+    position: 'absolute',
+    top: 12,
+    right: 13,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    zIndex: 2,
   },
-  heroHeadlineBlock: {
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: '#FFFFFF', fontSize: FontSize.h3, fontWeight: Font.bold },
+  headline: {
     paddingHorizontal: PAGE_H,
-    marginTop: Gap.xl,
-  },
-  heroHeadlineLine: {
-    fontSize: FontSize.h1,
+    marginTop: Gap.lg,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
-    letterSpacing: -0.5,
-    lineHeight: 30,
+    letterSpacing: -0.9,
+    lineHeight: 34,
     color: colors.ink,
   },
-  heroHeadlineAccent: {
-    color: colors.ink,
-    fontStyle: 'italic',
-  },
-  heroSubtitle: {
+  subtitle: {
     paddingHorizontal: PAGE_H,
     marginTop: Gap.sm,
-    fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    fontWeight: Font.medium,
-    lineHeight: 18,
+    fontSize: FontSize.body,
+    fontWeight: Font.semibold,
+    color: '#2c3326',
   },
-  heroGradientBar: {
+  search: {
     flexDirection: 'row',
-    height: 3,
-    marginHorizontal: PAGE_H,
-    marginTop: Gap.xl,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  heroGradientSegment: {
-    height: 3,
-  },
-  heroStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: PAGE_H,
-    marginTop: Gap.xl,
-  },
-  heroStatCell: {
-    flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 2,
+    gap: Gap.sm,
+    marginHorizontal: PAGE_H,
+    marginTop: Gap.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.full,
+    height: 54,
+    paddingLeft: 18,
+    paddingRight: 8,
+    ...shadow.md,
   },
-  heroStatDivider: {
-    width: StyleSheet.hairlineWidth,
+  searchInput: { flex: 1, fontSize: FontSize.body, color: colors.ink, paddingVertical: 0 },
+  filterBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Performance panel ──
+  perf: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    ...shadow.sm,
+  },
+  perfLabel: {
+    fontSize: 12,
+    fontWeight: Font.black,
+    color: colors.ink,
+    lineHeight: 15,
+    letterSpacing: -0.2,
+    width: 104,
+    paddingRight: 6,
+  },
+  perfDivider: {
+    width: 1,
     alignSelf: 'stretch',
-    marginVertical: 2,
-    backgroundColor: 'rgba(14,14,14,0.18)',
+    backgroundColor: colors.border,
+    marginVertical: 4,
+    marginHorizontal: 2,
   },
-  heroStatValue: {
+  perfStat: { flex: 1, alignItems: 'center', gap: 3, paddingHorizontal: 2 },
+  perfValue: {
     fontSize: FontSize.h2,
-    lineHeight: 24,
     fontWeight: Font.black,
     color: colors.ink,
     letterSpacing: -0.4,
-    fontVariant: ['tabular-nums'],
   },
-  heroStatValueCompact: {
-    fontSize: FontSize.h3,
-    lineHeight: 20,
-  },
-  heroStatLabel: {
-    fontSize: FontSize.micro,
-    lineHeight: 13,
-    fontWeight: Font.medium,
-    color: 'rgba(14,14,14,0.62)',
-    textAlign: 'center',
-    marginTop: 4,
-    letterSpacing: 0.1,
-  },
-  heroStatLabelCompact: {
-    fontSize: 9,
-    lineHeight: 12,
-  },
-  // ── Upcoming Events ───────────────────────────────────────
-  workshopList: {
-    gap: Gap.md,
+  perfStatLabel: { fontSize: FontSize.micro, color: colors.textSecondary, fontWeight: Font.semibold },
+  perfGo: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
   },
 
-  // ── Host an Event Banner (white card, lime CTA) ───────────
-  hostBanner: {
+  // ── Quick access ──
+  quickRow: { flexDirection: 'row', gap: Gap.sm },
+  quickCard: {
+    flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: radius.xxl,
-    padding: Gap.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    gap: 8,
     ...shadow.sm,
   },
-  hostBannerIcon: {
+  quickIcon: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Gap.md,
   },
-  hostBannerEyebrow: {
+  quickLabel: {
     fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: colors.textSecondary,
-    letterSpacing: 2,
-    marginBottom: Gap.sm,
-  },
-  hostBannerHeadline: {
-    fontSize: FontSize.h1,
     fontWeight: Font.black,
     color: colors.ink,
-    lineHeight: 28,
-    letterSpacing: -0.5,
-    marginBottom: Gap.xs,
+    textAlign: 'center',
+    lineHeight: 13,
   },
-  hostBannerBody: {
-    fontSize: FontSize.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: Gap.base,
+
+  // ── Promo cards ──
+  promoRow: { flexDirection: 'row', gap: Gap.base },
+  promo: {
+    flex: 1,
+    borderRadius: radius.xl,
+    padding: Gap.base,
+    minHeight: 150,
+    overflow: 'hidden',
   },
-  hostBannerBtn: {
+  promoCampus: { backgroundColor: '#C8E68C' },
+  promoRewards: { backgroundColor: '#F8DcC0' },
+  promoIconLime: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  promoIconCream: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  promoTitle: {
+    fontSize: FontSize.h3,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.3,
+  },
+  promoBody: {
+    fontSize: FontSize.xs,
+    color: '#49503f',
+    marginTop: 6,
+    lineHeight: 16,
+    maxWidth: 120,
+  },
+  promoGo: {
+    position: 'absolute',
+    right: 14,
+    bottom: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.sm,
+  },
+  promoCoins: {
+    position: 'absolute',
+    right: 4,
+    bottom: 2,
+    width: 66,
+    height: 82,
+  },
+
+  // ── Unfiltered ──
+  unf: {
+    height: 132,
+    borderRadius: radius.xxl,
+    overflow: 'hidden',
+    backgroundColor: '#121410',
+    ...shadow.md,
+  },
+  unfImg: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '62%',
+    height: '100%',
+    opacity: 0.85,
+  },
+  unfOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(17,19,9,0.5)',
+  },
+  unfInner: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Gap.xs,
-    height: 42,
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-    paddingHorizontal: Gap.lg,
-    alignSelf: 'flex-start',
+    gap: Gap.base,
+    paddingHorizontal: 18,
   },
-  hostBannerBtnText: {
-    fontSize: FontSize.body,
-    fontWeight: Font.bold,
-    color: colors.onPrimary,
+  unfPlay: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  // ── Banner wrapper (Host an Event) ────────────────────────
-  bannerWrapper: {
-    paddingHorizontal: PAGE_H,
-    paddingVertical: SECTION_V,
+  unfText: { flex: 1 },
+  unfTitle: {
+    color: '#FFFFFF',
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
+    letterSpacing: -0.3,
   },
-
+  unfSub: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: FontSize.xs,
+    marginTop: 3,
+  },
 });

@@ -2,20 +2,24 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  spacing,
+  Font,
+  FontSize,
+  Gap,
   radius,
   shadow,
+  useResponsive,
 } from '../../src/constants/theme';
 import {
   Badge,
@@ -54,6 +58,10 @@ function formatDate(dateStr: string): string {
 export default function Projects() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
+
   const [company, setCompany] = useState<Company | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,51 +110,56 @@ export default function Projects() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Dark editorial header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Projects</Text>
-        <Text style={styles.headerSubtitle}>Track your submissions</Text>
+    <View style={styles.container}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <Text style={styles.headerTitle}>My Projects</Text>
+          <Text style={styles.headerSubtitle}>Track your submissions</Text>
+        </View>
       </View>
 
       {/* Filter pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersRow}
-        style={styles.filtersScroll}
-      >
-        {FILTERS.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterPill,
-              activeFilter === filter ? styles.filterPillActive : styles.filterPillInactive,
-            ]}
-            onPress={() => setActiveFilter(filter)}
-            activeOpacity={0.7}
-          >
-            <Text
+      <View style={[styles.filterArea, columnStyle]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersRow}
+        >
+          {FILTERS.map((filter) => (
+            <TouchableOpacity
+              key={filter}
               style={[
-                styles.filterPillText,
-                activeFilter === filter ? styles.filterPillTextActive : styles.filterPillTextInactive,
+                styles.filterPill,
+                activeFilter === filter ? styles.filterPillActive : styles.filterPillInactive,
               ]}
+              onPress={() => setActiveFilter(filter)}
+              activeOpacity={0.7}
             >
-              {filter === 'All' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text
+                style={[
+                  styles.filterPillText,
+                  activeFilter === filter ? styles.filterPillTextActive : styles.filterPillTextInactive,
+                ]}
+              >
+                {filter === 'All' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
       >
         {sortedEvents.length === 0 ? (
           <EmptyState
+            iconName="folder-open-outline"
             title={activeFilter === 'All' ? 'No projects yet' : `No ${activeFilter} projects`}
             subtitle={
               activeFilter === 'All'
@@ -177,7 +190,7 @@ export default function Projects() {
                 </View>
 
                 {/* Type chip + date */}
-                <View style={[styles.row, { marginTop: 6 }]}>
+                <View style={[styles.row, { marginTop: 8 }]}>
                   {event.project_type ? (
                     <Badge label={event.project_type} color={colors.textSecondary} size="sm" />
                   ) : null}
@@ -234,11 +247,13 @@ export default function Projects() {
           ))
         )}
 
-        <View style={{ height: spacing.xl }} />
+        <View style={{ height: Gap.xl }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
+
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const styles = StyleSheet.create({
   container: {
@@ -247,142 +262,148 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 52,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '900',
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 4,
-    fontWeight: '500',
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
-  filtersScroll: {
-    maxHeight: 52,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  filterArea: {
+    paddingTop: Gap.md,
   },
   filtersRow: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    gap: 8,
+    paddingHorizontal: Gap.base,
+    gap: Gap.sm,
     alignItems: 'center',
   },
   filterPill: {
     borderRadius: radius.full,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
   },
   filterPillActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterPillInactive: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
   },
   filterPillText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: Font.semibold,
   },
   filterPillTextActive: {
     color: colors.onPrimary,
-    fontWeight: '700',
+    fontWeight: Font.black,
   },
   filterPillTextInactive: {
     color: colors.textSecondary,
   },
   scrollContent: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.base,
     paddingBottom: 40,
     flexGrow: 1,
   },
   eventCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
     overflow: 'hidden',
-    marginBottom: 14,
+    marginBottom: Gap.base,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderLeftWidth: 4,
-    ...shadow.md,
+    ...shadow.sm,
   },
   cardInner: {
-    padding: 14,
+    padding: Gap.base,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    gap: Gap.sm,
   },
   eventTitle: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: FontSize.h3,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.3,
   },
   dateText: {
-    fontSize: 12,
-    color: colors.textSecondary,
+    fontSize: FontSize.xs,
+    color: colors.textLight,
+    fontWeight: Font.medium,
   },
   applicantsText: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.textSecondary,
-    marginTop: 6,
+    fontWeight: Font.medium,
+    marginTop: 8,
   },
   approvedBox: {
     backgroundColor: colors.success + '15',
-    borderRadius: radius.md,
-    padding: 10,
-    marginTop: 8,
+    borderRadius: radius.lg,
+    padding: Gap.md,
+    marginTop: Gap.md,
   },
   approvedText: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.success,
-    fontWeight: '600',
+    fontWeight: Font.bold,
   },
   viewTeamLink: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.ink,
     marginTop: 4,
-    fontWeight: '700',
+    fontWeight: Font.black,
   },
   rejectedBox: {
     backgroundColor: colors.error + '15',
-    borderRadius: radius.md,
-    padding: 10,
-    marginTop: 8,
+    borderRadius: radius.lg,
+    padding: Gap.md,
+    marginTop: Gap.md,
   },
   rejectedTitle: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.error,
-    fontWeight: '700',
+    fontWeight: Font.bold,
   },
   rejectedReason: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: colors.error,
     fontStyle: 'italic',
     marginTop: 2,
   },
   resubmitBtn: {
-    marginTop: 8,
+    marginTop: Gap.sm,
+    alignSelf: 'flex-start',
   },
   pendingBox: {
     backgroundColor: colors.warning + '15',
-    borderRadius: radius.md,
-    padding: 8,
-    marginTop: 8,
+    borderRadius: radius.lg,
+    padding: Gap.md,
+    marginTop: Gap.md,
   },
   pendingText: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: colors.warning,
-    fontWeight: '600',
+    fontWeight: Font.bold,
   },
 });

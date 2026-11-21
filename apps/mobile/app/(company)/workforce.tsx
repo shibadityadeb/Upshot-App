@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   FlatList,
   ScrollView,
   Switch,
@@ -10,14 +11,18 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  spacing,
+  Font,
+  FontSize,
+  Gap,
   radius,
   shadow,
+  useResponsive,
 } from '../../src/constants/theme';
 import {
   Input,
@@ -29,6 +34,7 @@ import {
 import type { WorkforceProfile } from '@upshot/types';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 function LockedCard() {
   return (
@@ -42,6 +48,10 @@ function LockedCard() {
 
 export default function WorkforceDiscover() {
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
+
   const [workforce, setWorkforce] = useState<WorkforceProfile[]>([]);
   const [cityFilter, setCityFilter] = useState('');
   const [availableOnly, setAvailableOnly] = useState(true);
@@ -88,10 +98,10 @@ export default function WorkforceDiscover() {
   const renderWorkerCard = ({ item }: { item: WorkforceProfile }) => (
     <Card style={styles.workerCard}>
       <View style={styles.workerRow}>
-        <AvatarCircle name={item.user?.full_name ?? 'Worker'} size={44} />
+        <AvatarCircle name={item.user?.full_name ?? 'Worker'} size={48} />
         <View style={styles.workerInfo}>
           <View style={styles.nameRow}>
-            <Text style={styles.workerName}>{item.user?.full_name ?? 'Unknown'}</Text>
+            <Text style={styles.workerName} numberOfLines={1}>{item.user?.full_name ?? 'Unknown'}</Text>
             <View
               style={[
                 styles.availDot,
@@ -99,10 +109,16 @@ export default function WorkforceDiscover() {
               ]}
             />
           </View>
-          <Text style={styles.workerCity}>
-            {item.city}{item.state ? `, ${item.state}` : ''}
-          </Text>
-          <Text style={styles.workerExp}>{item.experience_years} years experience</Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.workerCity} numberOfLines={1}>
+              {item.city}{item.state ? `, ${item.state}` : ''}
+            </Text>
+          </View>
+          <View style={styles.metaRow}>
+            <Ionicons name="briefcase-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.workerExp}>{item.experience_years} years experience</Text>
+          </View>
         </View>
       </View>
 
@@ -129,15 +145,18 @@ export default function WorkforceDiscover() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Dark editorial header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Find talent</Text>
-        <Text style={styles.headerSubtitle}>Browse UBM's verified on-ground workforce</Text>
+    <View style={styles.container}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <Text style={styles.headerTitle}>Find talent</Text>
+          <Text style={styles.headerSubtitle}>Browse UBM's verified on-ground workforce</Text>
+        </View>
       </View>
 
       {!canDiscover ? (
-        <View style={styles.lockedContainer}>
+        <View style={[styles.lockedContainer, columnStyle]}>
           {/* Blurred placeholder cards */}
           <FlatList
             data={[0, 1, 2]}
@@ -150,7 +169,9 @@ export default function WorkforceDiscover() {
           {/* Overlay */}
           <View style={styles.lockOverlay}>
             <View style={styles.lockCard}>
-              <Text style={styles.lockEmoji}>🔒</Text>
+              <View style={styles.lockIcon}>
+                <Ionicons name="lock-closed" size={26} color={colors.ink} />
+              </View>
               <Text style={styles.lockTitle}>Unlock workforce discovery</Text>
               <Text style={styles.lockSubtitle}>
                 Contact UBM to activate workforce discovery for your account
@@ -168,7 +189,7 @@ export default function WorkforceDiscover() {
       ) : (
         <>
           {/* Filter row */}
-          <View style={styles.filterRow}>
+          <View style={[styles.filterRow, columnStyle]}>
             <Input
               placeholder="Filter by city..."
               value={cityFilter}
@@ -190,7 +211,7 @@ export default function WorkforceDiscover() {
             data={workforce}
             keyExtractor={(item) => item.id}
             renderItem={renderWorkerCard}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, columnStyle]}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -200,6 +221,7 @@ export default function WorkforceDiscover() {
             }
             ListEmptyComponent={
               <EmptyState
+                iconName="people-outline"
                 title="No workers found"
                 subtitle={
                   cityFilter
@@ -212,7 +234,7 @@ export default function WorkforceDiscover() {
           />
         </>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -223,38 +245,41 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 52,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '900',
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 4,
-    fontWeight: '500',
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
+
   // Locked state
   lockedContainer: {
     flex: 1,
     position: 'relative',
   },
   lockedList: {
-    paddingTop: spacing.md,
+    paddingTop: Gap.base,
+    paddingHorizontal: Gap.base,
   },
   lockedCard: {
     opacity: 0.3,
-    marginHorizontal: spacing.md,
-    marginBottom: 12,
+    marginBottom: Gap.md,
     height: 100,
     justifyContent: 'center',
+    padding: Gap.base,
   },
   lockedLine: {
     height: 12,
@@ -264,49 +289,59 @@ const styles = StyleSheet.create({
   },
   lockOverlay: {
     position: 'absolute',
-    top: 80,
-    left: spacing.lg,
-    right: spacing.lg,
+    top: 70,
+    left: Gap.base,
+    right: Gap.base,
   },
   lockCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.xl,
-    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.lg,
     alignItems: 'center',
     ...shadow.lg,
   },
-  lockEmoji: {
-    fontSize: 40,
-    textAlign: 'center',
+  lockIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.md,
   },
   lockTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
+    color: colors.ink,
     textAlign: 'center',
-    marginTop: 8,
+    letterSpacing: -0.3,
   },
   lockSubtitle: {
-    fontSize: 14,
+    fontSize: FontSize.body,
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
+    lineHeight: 20,
   },
   contactRow: {
-    marginTop: 16,
+    marginTop: Gap.base,
   },
   contactEmail: {
-    fontSize: 14,
+    fontSize: FontSize.body,
     color: colors.ink,
+    fontWeight: Font.bold,
     textDecorationLine: 'underline',
   },
+
   // Discover state
   filterRow: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.base,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Gap.md,
   },
   cityInput: {
     flex: 1,
@@ -318,17 +353,19 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   switchLabel: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.text,
+    fontWeight: Font.semibold,
   },
   listContent: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: 40,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.base,
+    paddingBottom: 110,
     flexGrow: 1,
   },
   workerCard: {
-    marginBottom: 12,
+    marginBottom: Gap.md,
+    padding: Gap.base,
   },
   workerRow: {
     flexDirection: 'row',
@@ -336,52 +373,62 @@ const styles = StyleSheet.create({
   },
   workerInfo: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: Gap.md,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Gap.sm,
   },
   workerName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
+    flex: 1,
+    fontSize: FontSize.h3,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.3,
   },
   availDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
   },
   workerCity: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: FontSize.small,
     color: colors.textSecondary,
-    marginTop: 2,
+    fontWeight: Font.medium,
   },
   workerExp: {
-    fontSize: 12,
+    fontSize: FontSize.small,
     color: colors.textSecondary,
-    marginTop: 2,
+    fontWeight: Font.medium,
   },
   skillsRow: {
-    marginTop: 8,
+    marginTop: Gap.md,
     paddingBottom: 2,
+    gap: 6,
   },
   skillChip: {
     backgroundColor: colors.primaryTint,
     borderRadius: radius.full,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginRight: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
   },
   skillText: {
-    fontSize: 11,
+    fontSize: FontSize.xs,
     color: colors.ink,
-    fontWeight: '600',
+    fontWeight: Font.bold,
   },
   workerBio: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.textSecondary,
-    marginTop: 6,
+    marginTop: Gap.md,
+    lineHeight: 19,
   },
 });

@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -9,18 +10,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { createApiClient } from '@upshot/api-client';
 import type { TaskTargetGroup } from '@upshot/types';
-import { colors, Font, FontSize, Gap } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { Button, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const TARGET_GROUPS: { value: TaskTargetGroup; label: string }[] = [
   { value: 'campus_cartel', label: 'Campus Cartel' },
@@ -39,6 +41,9 @@ function formatDateDisplay(date: Date): string {
 export default function AdminCreateTask() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -96,98 +101,113 @@ export default function AdminCreateTask() {
   }, [user, title, description, targetGroup, coinReward, dueDate, router]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={22} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.screenTitle}>Create Task</Text>
-          <View style={styles.placeholder} />
+        {/* Lime liquid header */}
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+          <View style={[styles.headerRow, columnStyle]}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={20} color={colors.ink} />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>Create Task</Text>
+              <Text style={styles.headerSubtitle}>Assign a new task and reward</Text>
+            </View>
+          </View>
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, columnStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Input
-            label="Title *"
-            placeholder="Task title"
-            value={title}
-            onChangeText={setTitle}
-            autoCapitalize="sentences"
-          />
-          <Input
-            label="Description *"
-            placeholder="Describe what needs to be done..."
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={4}
-          />
+          {/* Task details */}
+          <Text style={styles.sectionLabel}>Task Details</Text>
+          <View style={styles.card}>
+            <Input
+              label="Title *"
+              placeholder="Task title"
+              value={title}
+              onChangeText={setTitle}
+              autoCapitalize="sentences"
+            />
+            <Input
+              label="Description *"
+              placeholder="Describe what needs to be done..."
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
 
-          {/* Target Group Picker */}
-          <View style={styles.pickerWrapper}>
-            <Text style={styles.pickerLabel}>Assign To *</Text>
-            <View style={styles.pickerRow}>
-              {TARGET_GROUPS.map((group) => (
-                <TouchableOpacity
-                  key={group.value}
-                  style={[
-                    styles.pickerOption,
-                    targetGroup === group.value && styles.pickerOptionActive,
-                  ]}
-                  onPress={() => setTargetGroup(group.value)}
-                  activeOpacity={0.7}
-                >
-                  <Text
+          {/* Audience */}
+          <Text style={styles.sectionLabel}>Assign To</Text>
+          <View style={styles.card}>
+            <View style={styles.pickerWrapper}>
+              <Text style={styles.pickerLabel}>Assign To *</Text>
+              <View style={styles.pickerRow}>
+                {TARGET_GROUPS.map((group) => (
+                  <TouchableOpacity
+                    key={group.value}
                     style={[
-                      styles.pickerOptionText,
-                      targetGroup === group.value && styles.pickerOptionTextActive,
+                      styles.pickerOption,
+                      targetGroup === group.value && styles.pickerOptionActive,
                     ]}
+                    onPress={() => setTargetGroup(group.value)}
+                    activeOpacity={0.7}
                   >
-                    {group.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.pickerOptionText,
+                        targetGroup === group.value && styles.pickerOptionTextActive,
+                      ]}
+                    >
+                      {group.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </View>
 
-          <Input
-            label="Coin Reward *"
-            placeholder="e.g. 50"
-            value={coinReward}
-            onChangeText={setCoinReward}
-            keyboardType="numeric"
-          />
+          {/* Reward & date */}
+          <Text style={styles.sectionLabel}>Reward & Due Date</Text>
+          <View style={styles.card}>
+            <Input
+              label="Coin Reward *"
+              placeholder="e.g. 50"
+              value={coinReward}
+              onChangeText={setCoinReward}
+              keyboardType="numeric"
+            />
 
-          {/* Date Picker */}
-          <View style={styles.pickerWrapper}>
-            <Text style={styles.pickerLabel}>Due Date *</Text>
-            <TouchableOpacity
-              style={styles.dateBtn}
-              onPress={() => setShowDatePicker(!showDatePicker)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
-              <Text style={styles.dateBtnText}>{formatDateDisplay(dueDate)}</Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={dueDate}
-                mode="date"
-                display="spinner"
-                minimumDate={new Date()}
-                onChange={(_event: any, selectedDate: Date | undefined) => {
-                  if (selectedDate) setDueDate(selectedDate);
-                }}
-              />
-            )}
+            <View style={styles.pickerWrapperLast}>
+              <Text style={styles.pickerLabel}>Due Date *</Text>
+              <TouchableOpacity
+                style={styles.dateBtn}
+                onPress={() => setShowDatePicker(!showDatePicker)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+                <Text style={styles.dateBtnText}>{formatDateDisplay(dueDate)}</Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={dueDate}
+                  mode="date"
+                  display="spinner"
+                  minimumDate={new Date()}
+                  onChange={(_event: any, selectedDate: Date | undefined) => {
+                    if (selectedDate) setDueDate(selectedDate);
+                  }}
+                />
+              )}
+            </View>
           </View>
 
           <Button
@@ -199,7 +219,7 @@ export default function AdminCreateTask() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -209,36 +229,68 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   flex: { flex: 1 },
+  header: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Gap.base,
-    paddingVertical: Gap.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: Gap.md,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(14,14,14,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  screenTitle: {
-    fontSize: FontSize.h2,
-    fontWeight: Font.bold,
-    color: colors.text,
+  headerText: { flex: 1 },
+  headerTitle: {
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.7,
   },
-  placeholder: {
-    width: 36,
+  headerSubtitle: {
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
   scrollContent: {
     padding: Gap.base,
     paddingBottom: 100,
   },
+  sectionLabel: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
+    color: colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: Gap.sm,
+    marginLeft: 2,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.base,
+    marginBottom: Gap.lg,
+    ...shadow.sm,
+  },
   pickerWrapper: {
     marginBottom: Gap.base,
+  },
+  pickerWrapperLast: {
+    marginBottom: 0,
   },
   pickerLabel: {
     fontSize: FontSize.small,
@@ -252,12 +304,12 @@ const styles = StyleSheet.create({
     gap: Gap.sm,
   },
   pickerOption: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAlt,
   },
   pickerOptionActive: {
     backgroundColor: colors.primary,
@@ -276,10 +328,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
     paddingVertical: 13,
   },

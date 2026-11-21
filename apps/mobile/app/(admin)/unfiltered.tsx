@@ -10,14 +10,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { UnfilteredVideo, UnfilteredFeatureRequest, UnfilteredFeatureRequestStatus } from '@upshot/types';
-import { colors, verticalColors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, verticalColors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { FilterPills } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
+
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const REQUEST_STATUS_STYLE: Record<UnfilteredFeatureRequestStatus, { bg: string; fg: string; label: string }> = {
   pending: { bg: '#FEF3C7', fg: '#92400E', label: 'Pending' },
@@ -52,6 +54,9 @@ function getThumbnailUrl(youtubeUrl: string): string {
 
 export default function AdminUnfilteredScreen() {
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [tab, setTab] = useState<'videos' | 'requests'>('videos');
   const [videos, setVideos] = useState<UnfilteredVideo[]>([]);
@@ -169,11 +174,12 @@ export default function AdminUnfilteredScreen() {
   }, [loadVideos]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Lime hero header */}
-      <View style={styles.hero}>
-        <View style={styles.heroRow}>
-          <View>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.heroRow, columnStyle]}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.heroTitle}>Unfiltered</Text>
             <Text style={styles.heroSub}>
               {tab === 'videos'
@@ -205,7 +211,7 @@ export default function AdminUnfilteredScreen() {
 
       <ScrollView
         style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -215,7 +221,9 @@ export default function AdminUnfilteredScreen() {
             <ActivityIndicator size="large" color={UNFILTERED_COLOR} style={{ marginTop: 40 }} />
           ) : visibleRequests.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="mic-outline" size={48} color={colors.textLight} />
+              <View style={styles.emptyIcon}>
+                <Ionicons name="mic-outline" size={34} color={colors.textLight} />
+              </View>
               <Text style={styles.emptyTitle}>No requests yet</Text>
               <Text style={styles.emptySubtitle}>Guest feature requests will appear here</Text>
             </View>
@@ -381,7 +389,9 @@ export default function AdminUnfilteredScreen() {
           <ActivityIndicator size="large" color={UNFILTERED_COLOR} style={{ marginTop: 40 }} />
         ) : videos.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="videocam-outline" size={48} color={colors.textLight} />
+            <View style={styles.emptyIcon}>
+              <Ionicons name="videocam-outline" size={34} color={colors.textLight} />
+            </View>
             <Text style={styles.emptyTitle}>No videos yet</Text>
             <Text style={styles.emptySubtitle}>Tap "Add Video" to add your first Unfiltered episode</Text>
           </View>
@@ -391,7 +401,9 @@ export default function AdminUnfilteredScreen() {
             return (
               <View key={video.id} style={styles.videoCard}>
                 <View style={styles.videoRow}>
-                  <Text style={styles.videoIndex}>{index + 1}</Text>
+                  <View style={styles.videoIndexWrap}>
+                    <Text style={styles.videoIndex}>{index + 1}</Text>
+                  </View>
                   {!!thumb && (
                     <Image source={{ uri: thumb }} style={styles.videoThumb} resizeMode="cover" />
                   )}
@@ -441,62 +453,66 @@ export default function AdminUnfilteredScreen() {
         </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   scrollArea: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  hero: {
+
+  // ── Header (lime liquid) ──
+  header: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: Gap.sm,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 2,
-    fontWeight: Font.medium,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
   addBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
   },
   scrollContent: {
     padding: Gap.base,
     paddingBottom: 100,
-    backgroundColor: colors.background,
   },
 
   // Form
   formCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
     padding: Gap.base,
     marginBottom: Gap.base,
     borderWidth: 1,
@@ -505,7 +521,7 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     fontSize: FontSize.small,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: colors.text,
     marginTop: Gap.md,
     marginBottom: Gap.xs,
@@ -535,22 +551,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: UNFILTERED_COLOR,
-    borderRadius: radius.md,
-    paddingVertical: 12,
+    borderRadius: radius.full,
+    paddingVertical: 14,
     marginTop: Gap.base,
     ...shadow.sm,
   },
   submitBtnText: {
     fontSize: FontSize.body,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: '#fff',
   },
 
   // Video card
   videoCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 0.5,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
     borderColor: colors.border,
     marginBottom: Gap.sm,
     overflow: 'hidden',
@@ -559,20 +575,27 @@ const styles = StyleSheet.create({
   videoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: Gap.md,
     gap: 10,
+  },
+  videoIndexWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: UNFILTERED_COLOR + '14',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   videoIndex: {
     fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: colors.textLight,
-    width: 20,
+    fontWeight: Font.black,
+    color: UNFILTERED_COLOR,
     textAlign: 'center',
   },
   videoThumb: {
     width: 80,
     height: 50,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   videoInfo: {
     flex: 1,
@@ -580,7 +603,7 @@ const styles = StyleSheet.create({
   },
   videoTitle: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: colors.text,
     lineHeight: 18,
   },
@@ -594,7 +617,7 @@ const styles = StyleSheet.create({
   },
   videoActions: {
     flexDirection: 'row',
-    borderTopWidth: 0.5,
+    borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   actionBtn: {
@@ -603,24 +626,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   actionBtnActive: {
     backgroundColor: '#FEF3C7',
   },
   actionText: {
     fontSize: FontSize.small,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: colors.textSecondary,
   },
   hiddenBadge: {
     backgroundColor: colors.warning + '15',
-    paddingVertical: 4,
+    paddingVertical: 5,
     alignItems: 'center',
   },
   hiddenBadgeText: {
     fontSize: FontSize.xs,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: colors.warning,
   },
 
@@ -630,9 +653,20 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
     gap: 8,
   },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.xs,
+  },
   emptyTitle: {
     fontSize: FontSize.h3,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.text,
   },
   emptySubtitle: {
@@ -644,7 +678,7 @@ const styles = StyleSheet.create({
   // Feature request card
   requestCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     padding: Gap.base,
@@ -658,24 +692,25 @@ const styles = StyleSheet.create({
     marginBottom: Gap.md,
   },
   requestName: {
-    fontSize: FontSize.h3,
+    fontSize: FontSize.h2,
     fontWeight: Font.black,
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.3,
   },
   requestRole: {
     fontSize: FontSize.small,
     color: colors.textSecondary,
     marginTop: 2,
+    fontWeight: Font.medium,
   },
   statusPill: {
     borderRadius: radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
   },
   statusPillText: {
     fontSize: FontSize.xs,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     letterSpacing: 0.3,
   },
   requestField: {
@@ -683,7 +718,7 @@ const styles = StyleSheet.create({
   },
   requestFieldLabel: {
     fontSize: FontSize.micro,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.textLight,
     letterSpacing: 1.5,
     marginBottom: 2,
@@ -716,7 +751,7 @@ const styles = StyleSheet.create({
   },
   reqActionBtn: {
     flex: 1,
-    height: 42,
+    height: 44,
     borderRadius: radius.full,
     flexDirection: 'row',
     alignItems: 'center',
@@ -728,7 +763,7 @@ const styles = StyleSheet.create({
   },
   reqActionApproveText: {
     fontSize: FontSize.small,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.onPrimary,
   },
   reqActionReject: {
@@ -738,7 +773,7 @@ const styles = StyleSheet.create({
   },
   reqActionRejectText: {
     fontSize: FontSize.small,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.error,
   },
   approvedRow: {
@@ -747,8 +782,8 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: Gap.md,
     backgroundColor: '#DCF5E1',
-    borderRadius: radius.md,
-    paddingVertical: 10,
+    borderRadius: radius.lg,
+    paddingVertical: 11,
     paddingHorizontal: Gap.md,
   },
   approvedRowText: {

@@ -14,11 +14,12 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { HostedEvent, HostingApplication } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -139,6 +140,8 @@ export default function HostEvents() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [events, setEvents] = useState<HostedEvent[]>([]);
   const [proposals, setProposals] = useState<HostingApplication[]>([]);
@@ -181,18 +184,21 @@ export default function HostEvents() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerEyebrow}>HOSTING</Text>
-          <Text style={styles.headerTitle}>My Events</Text>
-        </View>
-        <View style={styles.headerStat}>
-          <Text style={styles.headerStatValue}>{totalJoined}</Text>
-          <Text style={styles.headerStatLabel}>participants</Text>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.headerRow, columnStyle]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerEyebrow}>HOSTING</Text>
+            <Text style={styles.headerTitle}>My Events</Text>
+          </View>
+          <View style={styles.headerStat}>
+            <Text style={styles.headerStatValue}>{totalJoined}</Text>
+            <Text style={styles.headerStatLabel}>participants</Text>
+          </View>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -261,48 +267,59 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingBottom: Gap.lg,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
   },
   headerEyebrow: {
     fontSize: FontSize.xs,
     fontWeight: Font.bold,
-    color: 'rgba(14,14,14,0.6)',
+    color: '#2c3326',
     letterSpacing: 1.5,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   headerTitle: {
-    fontSize: FontSize.h1,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
-  headerStat: { alignItems: 'flex-end' },
-  headerStatValue: { fontSize: 26, fontWeight: Font.black, color: colors.ink },
-  headerStatLabel: { fontSize: FontSize.xs, color: 'rgba(14,14,14,0.6)', fontWeight: Font.semibold },
+  headerStat: {
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+    borderRadius: radius.xl,
+    paddingHorizontal: Gap.base,
+    paddingVertical: Gap.md,
+    minWidth: 92,
+  },
+  headerStatValue: { fontSize: 26, fontWeight: Font.black, color: colors.primary },
+  headerStatLabel: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.7)', fontWeight: Font.semibold, marginTop: 1 },
 
-  scrollContent: { paddingHorizontal: Gap.base, paddingTop: Gap.md, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: Gap.base, paddingTop: Gap.base, paddingBottom: 110 },
 
   newBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
     padding: Gap.base,
     marginBottom: Gap.base,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: colors.primary + '55',
     ...shadow.md,
   },
   newBtnIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
@@ -317,18 +334,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: Gap.sm,
+    marginLeft: 2,
   },
 
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    marginBottom: Gap.sm,
+    borderRadius: radius.xxl,
+    marginBottom: Gap.base,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
     ...shadow.sm,
   },
-  cardBanner: { width: '100%', height: 130, resizeMode: 'cover' },
+  cardBanner: { width: '100%', height: 150, resizeMode: 'cover' },
   cardBody: { padding: Gap.base },
   cardHeader: {
     flexDirection: 'row',
@@ -338,23 +356,24 @@ const styles = StyleSheet.create({
     marginBottom: Gap.sm,
   },
   cardTitle: {
-    fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
+    color: colors.ink,
     flex: 1,
-    lineHeight: 22,
+    lineHeight: 24,
+    letterSpacing: -0.3,
   },
 
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
-  metaText: { fontSize: FontSize.small, color: colors.textSecondary, flex: 1 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  metaText: { fontSize: FontSize.small, color: colors.textSecondary, fontWeight: Font.medium, flex: 1 },
 
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.lg,
-    paddingVertical: Gap.md,
-    marginTop: Gap.md,
+    paddingVertical: Gap.base,
+    marginTop: Gap.base,
   },
   stat: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: FontSize.h2, fontWeight: Font.black, color: colors.text },

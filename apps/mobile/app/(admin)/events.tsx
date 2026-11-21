@@ -14,12 +14,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event, HostingApplication, Vertical } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, verticalColors, useResponsive } from '../../src/constants/theme';
 import {
   Button,
   Card,
@@ -32,6 +32,7 @@ import { useDebounce } from '../../src/hooks/useDebounce';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 interface VerticalOption {
   id: string | null;
@@ -61,6 +62,9 @@ type TabKey = 'events' | 'hosting';
 export default function AdminEvents() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [activeTab, setActiveTab] = useState<TabKey>('events');
   const [events, setEvents] = useState<Event[]>([]);
@@ -386,6 +390,16 @@ export default function AdminEvents() {
     );
   };
 
+  const handleToggleFeatured = useCallback(async (eventId: string, next: boolean) => {
+    setActionLoading(eventId);
+    try {
+      await api.events.toggleFeatured(eventId, next);
+      await loadEvents();
+    } finally {
+      setActionLoading(null);
+    }
+  }, [loadEvents]);
+
   const renderEvent = ({ item }: { item: Event }) => {
     const isPending = item.status === 'pending';
     const isApproved = item.status === 'approved';
@@ -468,15 +482,34 @@ export default function AdminEvents() {
           )}
 
           {isApproved && (
-            <TouchableOpacity
-              style={styles.changeVerticalLink}
-              onPress={() => handleChangeVerticalPress(item.id, item.vertical_id)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.changeVerticalLinkText}>
-                {item.vertical_id ? 'Change vertical' : 'Assign vertical'}
-              </Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Gap.md, gap: Gap.sm }}>
+              <TouchableOpacity
+                style={styles.changeVerticalLink}
+                onPress={() => handleChangeVerticalPress(item.id, item.vertical_id)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.changeVerticalLinkText}>
+                  {item.vertical_id ? 'Change vertical' : 'Assign vertical'}
+                </Text>
+              </TouchableOpacity>
+              {/* Star → shows in the home "Special Events" rail. */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, height: 34,
+                  borderRadius: radius.full, borderWidth: 1,
+                  borderColor: item.is_featured ? colors.primary : colors.border,
+                  backgroundColor: item.is_featured ? colors.primary : colors.surface,
+                }}
+                onPress={() => handleToggleFeatured(item.id, !item.is_featured)}
+                activeOpacity={0.8}
+                disabled={isActioning}
+              >
+                <Ionicons name={item.is_featured ? 'star' : 'star-outline'} size={14} color={colors.ink} />
+                <Text style={{ fontSize: FontSize.xs, fontWeight: Font.black, color: colors.ink }}>
+                  {item.is_featured ? 'Featured' : 'Feature'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </Card>
@@ -492,22 +525,25 @@ export default function AdminEvents() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Dark hero header */}
-      <View style={styles.hero}>
-        <View style={styles.heroRow}>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.hero, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.heroBg} resizeMode="cover" />
+        <View style={[styles.heroRow, columnStyle]}>
           <View>
             <Text style={styles.heroTitle}>Events</Text>
             <Text style={styles.heroSub}>{events.length} total</Text>
           </View>
         </View>
+      </View>
 
-        {/* Search inside hero */}
+      {/* Search — overlapping the header */}
+      <View style={[styles.searchArea, columnStyle]}>
         <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color="rgba(14,14,14,0.5)" />
+          <Ionicons name="search" size={18} color={colors.textSecondary} />
           <TextInput
             placeholder="Search events..."
-            placeholderTextColor="rgba(14,14,14,0.4)"
+            placeholderTextColor={colors.textSecondary}
             value={search}
             onChangeText={setSearch}
             style={styles.searchInput}
@@ -517,21 +553,21 @@ export default function AdminEvents() {
       </View>
 
       {/* Tab Switcher */}
-      <View style={styles.tabRow}>
+      <View style={[styles.tabRow, columnStyle]}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'events' && styles.tabActive]}
           onPress={() => setActiveTab('events')}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
-          <Ionicons name="calendar-outline" size={16} color={activeTab === 'events' ? colors.primary : colors.textSecondary} />
+          <Ionicons name="calendar-outline" size={16} color={activeTab === 'events' ? colors.ink : colors.textSecondary} />
           <Text style={[styles.tabText, activeTab === 'events' && styles.tabTextActive]}>Events</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'hosting' && styles.tabActive]}
           onPress={() => setActiveTab('hosting')}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
-          <Ionicons name="document-text-outline" size={16} color={activeTab === 'hosting' ? colors.primary : colors.textSecondary} />
+          <Ionicons name="document-text-outline" size={16} color={activeTab === 'hosting' ? colors.ink : colors.textSecondary} />
           <Text style={[styles.tabText, activeTab === 'hosting' && styles.tabTextActive]}>Host Applications</Text>
           {(() => {
             const pendingCount = hostApps.filter(a => a.status === 'pending').length;
@@ -550,7 +586,7 @@ export default function AdminEvents() {
             data={filteredEvents}
             keyExtractor={(item) => item.id}
             renderItem={renderEvent}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, columnStyle]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -575,7 +611,7 @@ export default function AdminEvents() {
               data={filteredHostApps}
               keyExtractor={(item) => item.id}
               renderItem={renderHostApp}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, columnStyle]}
               showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -701,14 +737,14 @@ export default function AdminEvents() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   centered: {
     flex: 1,
@@ -717,32 +753,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // Hero
+  // Hero (lime liquid)
   hero: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xxl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  heroBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: Gap.sm,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 2,
-    fontWeight: Font.medium,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
   addBtn: {
     width: 40,
@@ -752,28 +788,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  searchArea: {
+    paddingHorizontal: Gap.base,
+  },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(14,14,14,0.08)',
+    marginTop: -26,
+    backgroundColor: colors.surface,
     borderRadius: radius.full,
-    paddingHorizontal: 14,
-    gap: 8,
-    height: 44,
+    paddingHorizontal: 18,
+    gap: Gap.sm,
+    height: 52,
+    ...shadow.md,
   },
   searchInput: {
     flex: 1,
     color: colors.ink,
     fontSize: FontSize.body,
-    height: 44,
+    paddingVertical: 0,
   },
 
   // Tabs
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: Gap.sm,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.base,
+    paddingBottom: Gap.sm,
   },
   tab: {
     flex: 1,
@@ -781,21 +823,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: 11,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   tabActive: {
-    borderBottomColor: colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   tabText: {
     fontSize: FontSize.small,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: colors.textSecondary,
   },
   tabTextActive: {
     color: colors.ink,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
   },
   tabBadge: {
     backgroundColor: colors.error,
@@ -819,9 +864,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   eventCard: {
-    marginBottom: Gap.sm,
+    marginBottom: Gap.base,
     padding: 0,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: 'hidden',
     ...shadow.sm,
   },
@@ -847,10 +894,11 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     flex: 1,
-    fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: colors.text,
-    lineHeight: 22,
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
+    color: colors.ink,
+    lineHeight: 24,
+    letterSpacing: -0.3,
   },
   eventMeta: {
     fontSize: FontSize.small,

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Platform,
   RefreshControl,
   StyleSheet,
@@ -10,12 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { CampusCartelMember, CampusCartelStatus } from '@upshot/api-client';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, verticalColors, useResponsive } from '../../src/constants/theme';
 import {
   AvatarCircle,
   Button,
@@ -27,6 +28,8 @@ import {
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const GREEN = verticalColors.campusCartel;
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 type Filter = 'pending' | 'approved' | 'rejected' | 'all';
 
@@ -41,6 +44,9 @@ type MemberWithProfile = CampusCartelMember & { profile?: { id: string; full_nam
 
 export default function AdminCampusCartel() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [applications, setApplications] = useState<MemberWithProfile[]>([]);
   const [filter, setFilter] = useState<Filter>('pending');
@@ -135,7 +141,7 @@ export default function AdminCampusCartel() {
       <Card style={styles.appCard}>
         <View style={styles.appHeader}>
           <View style={styles.appUser}>
-            <AvatarCircle name={name} size={36} avatarUrl={item.profile?.avatar_url} />
+            <AvatarCircle name={name} size={44} avatarUrl={item.profile?.avatar_url} />
             <View style={styles.appUserInfo}>
               <Text style={styles.appName}>{name}</Text>
               {item.profile?.email && (
@@ -220,11 +226,12 @@ export default function AdminCampusCartel() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header */}
-      <View style={styles.hero}>
-        <View style={styles.heroRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.heroRow, columnStyle]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -254,7 +261,7 @@ export default function AdminCampusCartel() {
         data={applications}
         keyExtractor={(item) => item.id}
         renderItem={renderApplication}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, columnStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.campusCartelGreen} />
@@ -267,14 +274,14 @@ export default function AdminCampusCartel() {
           />
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   listArea: {
     flex: 1,
@@ -287,52 +294,53 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // Hero
-  hero: {
+  // ── Header (lime liquid) ──
+  header: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(14,14,14,0.1)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 2,
-    fontWeight: Font.medium,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
 
   // List
   listContent: {
     paddingHorizontal: Gap.base,
-    paddingTop: Gap.md,
+    paddingTop: Gap.base,
     paddingBottom: 80,
     flexGrow: 1,
   },
   appCard: {
     marginBottom: Gap.sm,
     padding: Gap.base,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
     ...shadow.sm,
   },
   appHeader: {
@@ -351,9 +359,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   appName: {
-    fontSize: FontSize.body,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontSize: FontSize.h3,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.2,
   },
   appEmail: {
     fontSize: FontSize.xs,
@@ -362,12 +371,12 @@ const styles = StyleSheet.create({
   },
   statusDot: {
     borderRadius: radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
   },
   statusDotText: {
     fontSize: FontSize.xs,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: '#fff',
   },
   detailRow: {
@@ -384,6 +393,7 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: FontSize.small,
     color: colors.textSecondary,
+    fontWeight: Font.medium,
   },
   dateText: {
     fontSize: FontSize.xs,

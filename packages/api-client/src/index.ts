@@ -10,6 +10,8 @@ export { HostingService } from './hosting.service';
 export { UnfilteredService } from './unfiltered.service';
 export { CampusCartelService } from './campus-cartel.service';
 export { SponsorsService } from './sponsors.service';
+export { HomeCardsService } from './home-cards.service';
+export { EventSourcesService } from './event-sources.service';
 export { StatsService } from './stats.service';
 export type { AudienceStats } from './stats.service';
 export type { CampusCartelStats, CampusCartelMember, CampusCartelStatus } from './campus-cartel.service';
@@ -26,6 +28,8 @@ import { HostingService } from './hosting.service';
 import { UnfilteredService } from './unfiltered.service';
 import { CampusCartelService } from './campus-cartel.service';
 import { SponsorsService } from './sponsors.service';
+import { HomeCardsService } from './home-cards.service';
+import { EventSourcesService } from './event-sources.service';
 import { StatsService } from './stats.service';
 
 export function createApiClient(supabaseUrl?: string, supabaseAnonKey?: string) {
@@ -43,6 +47,8 @@ export function createApiClient(supabaseUrl?: string, supabaseAnonKey?: string) 
     unfiltered: new UnfilteredService(supabase),
     campusCartel: new CampusCartelService(supabase),
     sponsors: new SponsorsService(supabase),
+    homeCards: new HomeCardsService(supabase),
+    eventSources: new EventSourcesService(supabase),
     stats: new StatsService(supabase),
   };
 }

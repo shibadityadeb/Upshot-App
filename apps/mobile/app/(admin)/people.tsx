@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
+  Image,
   RefreshControl,
   StyleSheet,
   Text,
@@ -10,16 +10,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import {
   AvatarCircle,
   Badge,
-  Divider,
   EmptyState,
   FilterPills,
   RoleTag,
@@ -30,6 +29,7 @@ import { useDebounce } from '../../src/hooks/useDebounce';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 type ActiveTab = 'all' | 'ambassadors' | 'campus-cartel' | 'codes';
 
@@ -70,6 +70,9 @@ export default function AdminPeople() {
   const router = useRouter();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
   const [activeTab, setActiveTab] = useState<ActiveTab>((tab as ActiveTab) || 'all');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [ambassadors, setAmbassadors] = useState<Ambassador[]>([]);
@@ -312,10 +315,11 @@ export default function AdminPeople() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Dark hero header */}
-      <View style={styles.hero}>
-        <View style={styles.heroRow}>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.hero, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.heroBg} resizeMode="cover" />
+        <View style={[styles.heroRow, columnStyle]}>
           <View>
             <Text style={styles.heroTitle}>People</Text>
             <Text style={styles.heroSub}>{profiles.length} members</Text>
@@ -324,11 +328,11 @@ export default function AdminPeople() {
 
         {/* Search — hidden on Codes tab */}
         {activeTab !== 'codes' && (
-          <View style={styles.searchWrap}>
-            <Ionicons name="search-outline" size={16} color="rgba(14,14,14,0.5)" />
+          <View style={[styles.searchWrap, columnStyle]}>
+            <Ionicons name="search" size={18} color={colors.textSecondary} />
             <TextInput
               placeholder="Search by name or email..."
-              placeholderTextColor="rgba(14,14,14,0.4)"
+              placeholderTextColor={colors.textSecondary}
               value={search}
               onChangeText={setSearch}
               style={styles.searchInput}
@@ -339,11 +343,13 @@ export default function AdminPeople() {
       </View>
 
       {/* Tabs */}
-      <FilterPills
-        options={TABS.map(t => ({ label: t.label, value: t.key }))}
-        activeValue={activeTab}
-        onChange={(v) => { setActiveTab(v as ActiveTab); setSearch(''); }}
-      />
+      <View style={columnStyle}>
+        <FilterPills
+          options={TABS.map(t => ({ label: t.label, value: t.key }))}
+          activeValue={activeTab}
+          onChange={(v) => { setActiveTab(v as ActiveTab); setSearch(''); }}
+        />
+      </View>
 
       {/* List / Panel */}
       <View style={styles.contentArea}>
@@ -352,12 +358,12 @@ export default function AdminPeople() {
           data={filteredProfiles}
           keyExtractor={(item) => item.id}
           renderItem={renderProfile}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, columnStyle]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
-          ItemSeparatorComponent={() => <Divider />}
+          ItemSeparatorComponent={() => <View style={styles.rowGap} />}
           ListEmptyComponent={
             <EmptyState
               iconName="people-outline"
@@ -371,12 +377,12 @@ export default function AdminPeople() {
           data={filteredCampusCartel}
           keyExtractor={(item) => item.id}
           renderItem={renderProfile}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, columnStyle]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
-          ItemSeparatorComponent={() => <Divider />}
+          ItemSeparatorComponent={() => <View style={styles.rowGap} />}
           ListEmptyComponent={
             <EmptyState
               iconName="school-outline"
@@ -390,12 +396,12 @@ export default function AdminPeople() {
           data={filteredAmbassadors}
           keyExtractor={(item) => item.id}
           renderItem={renderAmbassador}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, columnStyle]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
-          ItemSeparatorComponent={() => <Divider />}
+          ItemSeparatorComponent={() => <View style={styles.rowGap} />}
           ListEmptyComponent={
             <EmptyState
               iconName="ribbon-outline"
@@ -411,14 +417,14 @@ export default function AdminPeople() {
         ) : null
       )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   contentArea: {
     flex: 1,
@@ -430,52 +436,58 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
-  // Hero
+  // Hero (lime liquid)
   hero: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  heroBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: Gap.base,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 2,
-    fontWeight: Font.medium,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(14,14,14,0.08)',
+    backgroundColor: colors.surface,
     borderRadius: radius.full,
-    paddingHorizontal: 14,
-    gap: 8,
-    height: 44,
+    paddingHorizontal: 18,
+    gap: Gap.sm,
+    height: 52,
+    ...shadow.md,
   },
   searchInput: {
     flex: 1,
     color: colors.ink,
     fontSize: FontSize.body,
-    height: 42,
+    paddingVertical: 0,
   },
   listContent: {
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.base,
     paddingBottom: Gap.xl,
     flexGrow: 1,
-    backgroundColor: colors.surface,
+  },
+  rowGap: {
+    height: Gap.sm,
   },
   personRow: {
     flexDirection: 'row',
@@ -483,7 +495,11 @@ const styles = StyleSheet.create({
     paddingVertical: Gap.md,
     paddingHorizontal: Gap.base,
     backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
     gap: Gap.md,
+    ...shadow.sm,
   },
   personInfo: {
     flex: 1,

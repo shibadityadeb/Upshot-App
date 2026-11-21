@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -9,18 +10,24 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
-import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { AvatarCircle, Button, Divider, Input, RoleTag } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 export default function AdminSettings() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
+
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
   const refreshUser = useAuthStore((s) => s.refreshUser);
@@ -80,19 +87,15 @@ export default function AdminSettings() {
   if (!user) return null;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          style={styles.scrollArea}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Identity header */}
-          <View style={styles.identitySection}>
+        {/* Lime liquid header */}
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+          <View style={[styles.identityInner, columnStyle]}>
             <AvatarCircle name={user.full_name ?? 'Admin'} size={80} avatarUrl={user.avatar_url} />
             <Text style={styles.identityName}>{user.full_name ?? 'Admin User'}</Text>
             <Text style={styles.identityEmail}>{user.email}</Text>
@@ -100,7 +103,14 @@ export default function AdminSettings() {
               <Text style={styles.adminPillText}>ADMINISTRATOR</Text>
             </View>
           </View>
+        </View>
 
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={[styles.scrollContent, columnStyle]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Profile section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
@@ -138,38 +148,68 @@ export default function AdminSettings() {
             ) : (
               <View style={styles.detailCard}>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Full Name</Text>
+                  <View style={styles.detailLeft}>
+                    <View style={styles.rowIcon}>
+                      <Ionicons name="person-outline" size={16} color={colors.ink} />
+                    </View>
+                    <Text style={styles.detailLabel}>Full Name</Text>
+                  </View>
                   <Text style={styles.detailValue}>{user.full_name ?? '—'}</Text>
                 </View>
                 <Divider />
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Email</Text>
+                  <View style={styles.detailLeft}>
+                    <View style={styles.rowIcon}>
+                      <Ionicons name="mail-outline" size={16} color={colors.ink} />
+                    </View>
+                    <Text style={styles.detailLabel}>Email</Text>
+                  </View>
                   <Text style={styles.detailValue} numberOfLines={1}>{user.email}</Text>
                 </View>
                 <Divider />
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Role</Text>
+                  <View style={styles.detailLeft}>
+                    <View style={styles.rowIcon}>
+                      <Ionicons name="shield-outline" size={16} color={colors.ink} />
+                    </View>
+                    <Text style={styles.detailLabel}>Role</Text>
+                  </View>
                   <RoleTag role={user.role} />
                 </View>
                 {!!user.phone && (
                   <>
                     <Divider />
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Phone</Text>
+                      <View style={styles.detailLeft}>
+                        <View style={styles.rowIcon}>
+                          <Ionicons name="call-outline" size={16} color={colors.ink} />
+                        </View>
+                        <Text style={styles.detailLabel}>Phone</Text>
+                      </View>
                       <Text style={styles.detailValue}>{user.phone}</Text>
                     </View>
                   </>
                 )}
                 <Divider />
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Status</Text>
+                  <View style={styles.detailLeft}>
+                    <View style={styles.rowIcon}>
+                      <Ionicons name="pulse-outline" size={16} color={colors.ink} />
+                    </View>
+                    <Text style={styles.detailLabel}>Status</Text>
+                  </View>
                   <Text style={[styles.detailValue, { color: user.is_active ? colors.success : colors.error }]}>
                     {user.is_active ? 'Active' : 'Inactive'}
                   </Text>
                 </View>
                 <Divider />
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Member since</Text>
+                  <View style={styles.detailLeft}>
+                    <View style={styles.rowIcon}>
+                      <Ionicons name="time-outline" size={16} color={colors.ink} />
+                    </View>
+                    <Text style={styles.detailLabel}>Member since</Text>
+                  </View>
                   <Text style={styles.detailValue}>
                     {new Date(user.created_at).toLocaleDateString('en-IN', {
                       year: 'numeric',
@@ -187,12 +227,22 @@ export default function AdminSettings() {
             <Text style={styles.sectionLabel}>ABOUT</Text>
             <View style={styles.detailCard}>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>App</Text>
+                <View style={styles.detailLeft}>
+                  <View style={styles.rowIcon}>
+                    <Ionicons name="phone-portrait-outline" size={16} color={colors.ink} />
+                  </View>
+                  <Text style={styles.detailLabel}>App</Text>
+                </View>
                 <Text style={styles.detailValue}>Upshot Brand Media</Text>
               </View>
               <Divider />
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Version</Text>
+                <View style={styles.detailLeft}>
+                  <View style={styles.rowIcon}>
+                    <Ionicons name="git-branch-outline" size={16} color={colors.ink} />
+                  </View>
+                  <Text style={styles.detailLabel}>Version</Text>
+                </View>
                 <Text style={styles.detailValue}>1.0.0</Text>
               </View>
             </View>
@@ -204,14 +254,14 @@ export default function AdminSettings() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   flex: { flex: 1 },
   scrollArea: {
@@ -221,42 +271,50 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
-  identitySection: {
+
+  // ── Header (lime liquid) ──
+  header: {
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    paddingTop: Gap.xl,
-    paddingBottom: Gap.xxl,
     paddingHorizontal: Gap.base,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xxl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  identityInner: {
+    alignItems: 'center',
+    paddingTop: Gap.sm,
   },
   identityName: {
-    fontSize: FontSize.h1,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
     marginTop: Gap.md,
     textAlign: 'center',
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   identityEmail: {
-    fontSize: FontSize.body,
-    color: 'rgba(14,14,14,0.6)',
+    fontSize: FontSize.small,
+    color: '#2c3326',
     marginTop: 3,
     textAlign: 'center',
+    fontWeight: Font.semibold,
   },
   adminPill: {
     marginTop: Gap.md,
     backgroundColor: colors.ink,
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    borderRadius: radius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
   adminPillText: {
     fontSize: FontSize.xs,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: '#FFFFFF',
     letterSpacing: 1.5,
   },
+
   section: {
     paddingHorizontal: Gap.base,
     paddingTop: Gap.xl,
@@ -269,28 +327,31 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: FontSize.xs,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.textSecondary,
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
+    marginBottom: Gap.sm,
   },
   editToggleText: {
     fontSize: FontSize.body,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.ink,
   },
   editCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
     padding: Gap.base,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadow.sm,
   },
   detailCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
+    ...shadow.sm,
   },
   detailRow: {
     flexDirection: 'row',
@@ -298,16 +359,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Gap.base,
     paddingVertical: Gap.md,
+    gap: Gap.sm,
+  },
+  detailLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.sm,
+  },
+  rowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   detailLabel: {
     fontSize: FontSize.body,
     color: colors.text,
+    fontWeight: Font.semibold,
   },
   detailValue: {
     fontSize: FontSize.body,
     color: colors.textSecondary,
     fontWeight: Font.medium,
-    maxWidth: '55%',
+    maxWidth: '45%',
     textAlign: 'right',
   },
   signOutSection: {

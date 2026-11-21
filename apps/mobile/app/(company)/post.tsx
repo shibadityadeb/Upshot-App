@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
@@ -9,20 +10,25 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  spacing,
+  Font,
+  FontSize,
+  Gap,
   radius,
+  shadow,
+  useResponsive,
 } from '../../src/constants/theme';
 import { Button, Input } from '../../src/components/common';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const PROJECT_TYPES = [
   'Society activation',
@@ -39,6 +45,9 @@ const PROJECT_TYPES = [
 export default function PostRequirement() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [title, setTitle] = useState('');
   const [projectType, setProjectType] = useState('');
@@ -129,16 +138,18 @@ export default function PostRequirement() {
 
   if (submitted) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.successContainer}>
-          <Text style={styles.successEmoji}>✅</Text>
+      <View style={styles.container}>
+        <View style={[styles.successContainer, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}>
+          <View style={styles.successIcon}>
+            <Text style={styles.successEmoji}>✅</Text>
+          </View>
           <Text style={styles.successTitle}>Requirement submitted!</Text>
           <Text style={styles.successSubtitle}>
             Our team will review this and reach out within 24 hours.
           </Text>
           <Button
             title="View my projects"
-            variant="outline"
+            variant="primary"
             style={styles.successBtn}
             onPress={() => router.push('/(company)/projects')}
           />
@@ -149,157 +160,168 @@ export default function PostRequirement() {
             onPress={resetForm}
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backRow} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={20} color={colors.accent} />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Post a requirement</Text>
-        <Text style={styles.headerSubtitle}>UBM will match you with the right team</Text>
-      </View>
-
+    <View style={styles.container}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {/* Lime liquid header */}
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+          <View style={[styles.headerRow, columnStyle]}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={20} color={colors.ink} />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>Post a requirement</Text>
+              <Text style={styles.headerSubtitle}>UBM will match you with the right team</Text>
+            </View>
+          </View>
+        </View>
+
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, columnStyle]}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.sectionHeader}>PROJECT DETAILS</Text>
+          <Text style={styles.sectionLabel}>PROJECT DETAILS</Text>
+          <View style={styles.card}>
+            <Input
+              label="Project title *"
+              placeholder="e.g. Mall activation in Connaught Place"
+              value={title}
+              onChangeText={setTitle}
+              error={errors.title}
+            />
 
-          <Input
-            label="Project title *"
-            placeholder="e.g. Mall activation in Connaught Place"
-            value={title}
-            onChangeText={setTitle}
-            error={errors.title}
-          />
-
-          <Text style={styles.fieldLabel}>Project type *</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.pillsRow}
-          >
-            {PROJECT_TYPES.map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.pill,
-                  projectType === type ? styles.pillSelected : styles.pillUnselected,
-                ]}
-                onPress={() => setProjectType(type)}
-                activeOpacity={0.7}
-              >
-                <Text
+            <Text style={styles.fieldLabel}>Project type *</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillsRow}
+            >
+              {PROJECT_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type}
                   style={[
-                    styles.pillText,
-                    projectType === type ? styles.pillTextSelected : styles.pillTextUnselected,
+                    styles.pill,
+                    projectType === type ? styles.pillSelected : styles.pillUnselected,
                   ]}
+                  onPress={() => setProjectType(type)}
+                  activeOpacity={0.7}
                 >
-                  {type}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          {errors.projectType ? (
-            <Text style={styles.fieldError}>{errors.projectType}</Text>
-          ) : null}
+                  <Text
+                    style={[
+                      styles.pillText,
+                      projectType === type ? styles.pillTextSelected : styles.pillTextUnselected,
+                    ]}
+                  >
+                    {type}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {errors.projectType ? (
+              <Text style={styles.fieldError}>{errors.projectType}</Text>
+            ) : null}
 
-          <Input
-            label="Description *"
-            placeholder="Describe what you need..."
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={5}
-            error={errors.description}
-          />
+            <View style={styles.fieldSpacer} />
 
-          <Text style={styles.sectionHeader}>EVENT DETAILS</Text>
+            <Input
+              label="Description *"
+              placeholder="Describe what you need..."
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={5}
+              error={errors.description}
+            />
+          </View>
 
-          <Input
-            label="Event date *"
-            placeholder="DD/MM/YYYY"
-            value={eventDate}
-            onChangeText={setEventDate}
-            error={errors.eventDate}
-          />
+          <Text style={styles.sectionLabel}>EVENT DETAILS</Text>
+          <View style={styles.card}>
+            <Input
+              label="Event date *"
+              placeholder="DD/MM/YYYY"
+              value={eventDate}
+              onChangeText={setEventDate}
+              error={errors.eventDate}
+            />
 
-          <Input
-            label="Event time"
-            placeholder="HH:MM AM/PM"
-            value={eventTime}
-            onChangeText={setEventTime}
-          />
+            <Input
+              label="Event time"
+              placeholder="HH:MM AM/PM"
+              value={eventTime}
+              onChangeText={setEventTime}
+            />
 
-          <Input
-            label="City / Location *"
-            placeholder="e.g. Delhi, Mumbai"
-            value={location}
-            onChangeText={setLocation}
-            error={errors.location}
-          />
+            <Input
+              label="City / Location *"
+              placeholder="e.g. Delhi, Mumbai"
+              value={location}
+              onChangeText={setLocation}
+              error={errors.location}
+            />
 
-          <Input
-            label="Venue name or address"
-            placeholder="e.g. Select Citywalk, Saket"
-            value={venueName}
-            onChangeText={setVenueName}
-          />
+            <Input
+              label="Venue name or address"
+              placeholder="e.g. Select Citywalk, Saket"
+              value={venueName}
+              onChangeText={setVenueName}
+            />
 
-          <Input
-            label="Maps URL (optional)"
-            placeholder="https://maps.google.com/..."
-            value={mapsUrl}
-            onChangeText={setMapsUrl}
-            autoCapitalize="none"
-          />
+            <Input
+              label="Maps URL (optional)"
+              placeholder="https://maps.google.com/..."
+              value={mapsUrl}
+              onChangeText={setMapsUrl}
+              autoCapitalize="none"
+            />
+          </View>
 
-          <Text style={styles.sectionHeader}>TEAM &amp; BUDGET</Text>
+          <Text style={styles.sectionLabel}>TEAM &amp; BUDGET</Text>
+          <View style={styles.card}>
+            <Input
+              label="Team size needed"
+              placeholder="e.g. 10"
+              value={teamSize}
+              onChangeText={setTeamSize}
+              keyboardType="numeric"
+            />
 
-          <Input
-            label="Team size needed"
-            placeholder="e.g. 10"
-            value={teamSize}
-            onChangeText={setTeamSize}
-            keyboardType="numeric"
-          />
+            <Input
+              label="Budget range"
+              placeholder="e.g. ₹50,000 – ₹1,00,000"
+              value={budgetRange}
+              onChangeText={setBudgetRange}
+            />
 
-          <Input
-            label="Budget range"
-            placeholder="e.g. ₹50,000 – ₹1,00,000"
-            value={budgetRange}
-            onChangeText={setBudgetRange}
-          />
+            <Input
+              label="Coin reward per participant *"
+              placeholder="e.g. 100"
+              value={coinReward}
+              onChangeText={setCoinReward}
+              keyboardType="numeric"
+              error={errors.coinReward}
+            />
+          </View>
 
-          <Input
-            label="Coin reward per participant *"
-            placeholder="e.g. 100"
-            value={coinReward}
-            onChangeText={setCoinReward}
-            keyboardType="numeric"
-            error={errors.coinReward}
-          />
-
-          <Text style={styles.sectionHeader}>REQUIREMENTS</Text>
-
-          <Input
-            label="Special requirements or notes"
-            placeholder="Any dress code, language skills, etc."
-            value={requirements}
-            onChangeText={setRequirements}
-            multiline
-            numberOfLines={4}
-          />
+          <Text style={styles.sectionLabel}>REQUIREMENTS</Text>
+          <View style={styles.card}>
+            <Input
+              label="Special requirements or notes"
+              placeholder="Any dress code, language skills, etc."
+              value={requirements}
+              onChangeText={setRequirements}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
 
           <Button
             title="Submit to UBM"
@@ -310,7 +332,7 @@ export default function PostRequirement() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -319,122 +341,154 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  flex: { flex: 1 },
+
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 52,
-    paddingBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xl,
+    paddingHorizontal: Gap.base,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Gap.md },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(14,14,14,0.08)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  backText: {
-    fontSize: 14,
-    color: colors.ink,
-    marginLeft: 2,
-    fontWeight: '600',
-  },
+  headerText: { flex: 1 },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
     color: colors.ink,
-    marginTop: 12,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 4,
-    fontWeight: '500',
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
+
   scrollContent: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.base,
     paddingBottom: 40,
   },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    letterSpacing: 1,
-    marginBottom: 12,
-    marginTop: spacing.lg,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '500',
+
+  sectionLabel: {
+    fontSize: FontSize.small,
+    fontWeight: Font.bold,
     color: colors.text,
-    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: Gap.sm,
+    marginTop: Gap.md,
+    marginLeft: 2,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.base,
+    ...shadow.sm,
+  },
+
+  fieldLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: Font.bold,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    color: colors.textSecondary,
+    marginBottom: 8,
   },
   pillsRow: {
-    paddingBottom: 8,
-    gap: 8,
+    paddingBottom: 4,
+    gap: Gap.sm,
   },
   pill: {
     borderRadius: radius.full,
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
+    borderWidth: 1,
   },
   pillSelected: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   pillUnselected: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
   },
   pillText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: Font.semibold,
   },
   pillTextSelected: {
     color: colors.onPrimary,
-    fontWeight: '700',
+    fontWeight: Font.bold,
   },
   pillTextUnselected: {
     color: colors.textSecondary,
   },
   fieldError: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: colors.error,
     marginTop: 4,
-    marginBottom: 8,
+    fontWeight: Font.medium,
   },
+  fieldSpacer: { height: Gap.base },
+
   submitBtn: {
-    marginTop: spacing.lg,
+    marginTop: Gap.lg,
     marginBottom: 0,
   },
+
+  // ── Success ──
   successContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: Gap.xl,
+  },
+  successIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 30,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   successEmoji: {
-    fontSize: 64,
+    fontSize: 44,
     textAlign: 'center',
   },
   successTitle: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: FontSize.h1,
+    fontWeight: Font.black,
     textAlign: 'center',
-    color: colors.text,
-    marginTop: 16,
+    color: colors.ink,
+    marginTop: Gap.base,
+    letterSpacing: -0.4,
   },
   successSubtitle: {
-    fontSize: 15,
+    fontSize: FontSize.body,
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 32,
+    lineHeight: 20,
   },
   successBtn: {
-    marginTop: 32,
+    marginTop: Gap.xl,
     marginHorizontal: 32,
     alignSelf: 'stretch',
   },
   anotherBtn: {
-    marginTop: 12,
+    marginTop: Gap.md,
   },
 });

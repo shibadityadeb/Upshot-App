@@ -1,26 +1,12 @@
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/auth.store';
-
-const TAB_BAR_STYLE = {
-  backgroundColor: '#FFFFFF',
-  borderTopWidth: 1,
-  borderTopColor: '#E7E7E0',
-  height: 66,
-  paddingBottom: 10,
-  paddingTop: 8,
-};
-
-const LABEL_STYLE = {
-  fontSize: 10,
-  fontWeight: '700' as const,
-  letterSpacing: 0.3,
-  marginTop: 3,
-};
+import { useTabBarStyle, TAB_LABEL_STYLE } from '../../src/hooks/useTabBarStyle';
 
 export default function AdminLayout() {
   const user = useAuthStore((s) => s.user);
   const status = useAuthStore((s) => s.status);
+  const tabBarStyle = useTabBarStyle();
 
   // Hold while the persisted session is still being restored. Redirecting here
   // on a not-yet-populated user is what bounced signed-in people to the login
@@ -36,8 +22,8 @@ export default function AdminLayout() {
         headerShown: false,
         tabBarActiveTintColor: '#0E0E0E',
         tabBarInactiveTintColor: '#9AA09A',
-        tabBarStyle: TAB_BAR_STYLE,
-        tabBarLabelStyle: LABEL_STYLE,
+        tabBarStyle,
+        tabBarLabelStyle: TAB_LABEL_STYLE,
       }}
     >
       <Tabs.Screen
@@ -90,6 +76,8 @@ export default function AdminLayout() {
         }}
       />
       {/* Hidden screens — navigable via router.push() but not shown in tab bar */}
+      <Tabs.Screen name="home-cards" options={{ href: null }} />
+      <Tabs.Screen name="event-sources" options={{ href: null }} />
       <Tabs.Screen name="ambassador-codes" options={{ href: null }} />
       <Tabs.Screen name="create-task" options={{ href: null }} />
       <Tabs.Screen name="event-detail/[id]" options={{ href: null }} />

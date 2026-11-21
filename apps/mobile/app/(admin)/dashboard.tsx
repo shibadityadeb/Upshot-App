@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -8,16 +8,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
 import type { AudienceStats } from '@upshot/api-client';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { LoadingScreen } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
+
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const api = createApiClient();
 
@@ -70,6 +72,8 @@ interface QuickAction {
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
+  { label: 'Home Cards', iconName: 'albums-outline', route: '/(admin)/home-cards', description: 'Featured home cards', color: colors.primaryDark },
+  { label: 'Event Sources', iconName: 'globe-outline', route: '/(admin)/event-sources', description: 'Import free events', color: '#3B6FD4' },
   { label: 'New Task', iconName: 'add-circle-outline', route: '/(admin)/create-task', description: 'Assign to team', color: colors.ink },
   { label: 'Campus Cartel', iconName: 'shield-checkmark-outline', route: '/(admin)/campus-cartel', description: 'Review applications', color: colors.campusCartelGreen },
   { label: 'Manage Codes', iconName: 'key-outline', route: '/(admin)/people', description: 'Ambassador codes', color: colors.warning, params: { tab: 'codes' } },
@@ -79,6 +83,9 @@ const QUICK_ACTIONS: QuickAction[] = [
 export default function AdminDashboard() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -146,67 +153,75 @@ export default function AdminDashboard() {
 
   if (loading) return <LoadingScreen />;
 
+  const STAT_CARDS = [
+    {
+      key: 'pending',
+      label: 'Pending',
+      value: stats.pendingApprovals,
+      icon: 'hourglass-outline' as const,
+      accent: colors.warning,
+      onPress: () => router.push('/(admin)/events' as any),
+    },
+    {
+      key: 'events',
+      label: 'Events',
+      value: stats.totalEvents,
+      icon: 'calendar-outline' as const,
+      accent: colors.info,
+      onPress: () => router.push('/(admin)/events' as any),
+    },
+    {
+      key: 'ambassadors',
+      label: 'Ambassadors',
+      value: stats.ambassadors,
+      icon: 'star-outline' as const,
+      accent: colors.success,
+      onPress: () => router.push('/(admin)/people' as any),
+    },
+  ];
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.container}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.heroTop, columnStyle]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.userName}>{getFirstName(user?.full_name)}</Text>
+          </View>
+          <View style={styles.avatarWrap}>
+            <Text style={styles.avatarText}>
+              {getFirstName(user?.full_name).charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero header with stats */}
-        <View style={styles.hero}>
-          <View style={styles.heroTop}>
-            <View>
-              <Text style={styles.greeting}>{getGreeting()}</Text>
-              <Text style={styles.userName}>{getFirstName(user?.full_name)}</Text>
-            </View>
-            <View style={styles.avatarWrap}>
-              <Text style={styles.avatarText}>
-                {getFirstName(user?.full_name).charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.statsRow}>
+        {/* Stat tiles — premium surface cards, overlapping the header */}
+        <View style={styles.statsRow}>
+          {STAT_CARDS.map((s) => (
             <TouchableOpacity
-              style={[styles.statCard, styles.statCardAccent]}
-              onPress={() => router.push('/(admin)/events' as any)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.statTop}>
-                <View style={[styles.statDot, { backgroundColor: '#FCD34D' }]} />
-                <Text style={styles.statLabelLight}>Pending</Text>
-              </View>
-              <Text style={styles.statValueLight}>{stats.pendingApprovals}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
+              key={s.key}
               style={styles.statCard}
-              onPress={() => router.push('/(admin)/events' as any)}
-              activeOpacity={0.8}
+              onPress={s.onPress}
+              activeOpacity={0.85}
             >
-              <View style={styles.statTop}>
-                <View style={[styles.statDot, { backgroundColor: '#60A5FA' }]} />
-                <Text style={styles.statLabelLight}>Events</Text>
+              <View style={[styles.statIcon, { backgroundColor: s.accent + '14' }]}>
+                <Ionicons name={s.icon} size={18} color={s.accent} />
               </View>
-              <Text style={styles.statValueLight}>{stats.totalEvents}</Text>
+              <Text style={styles.statValue}>{s.value}</Text>
+              <Text style={styles.statLabel} numberOfLines={1}>{s.label}</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.statCard}
-              onPress={() => router.push('/(admin)/people' as any)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.statTop}>
-                <View style={[styles.statDot, { backgroundColor: '#34D399' }]} />
-                <Text style={styles.statLabelLight}>Ambassadors</Text>
-              </View>
-              <Text style={styles.statValueLight}>{stats.ambassadors}</Text>
-            </TouchableOpacity>
-          </View>
+          ))}
         </View>
 
         {/* Users & activity */}
@@ -304,14 +319,14 @@ export default function AdminDashboard() {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   scroll: {
     flex: 1,
@@ -321,85 +336,84 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  // Hero
-  hero: {
+  // Hero (lime liquid)
+  header: {
     backgroundColor: colors.primary,
-    paddingTop: 32,
     paddingHorizontal: Gap.base,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xxl + Gap.lg,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   heroTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
   },
   greeting: {
     fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    fontWeight: Font.medium,
+    color: '#2c3326',
+    fontWeight: Font.semibold,
   },
   userName: {
-    fontSize: 28,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
     marginTop: 2,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   avatarWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: FontSize.h3,
     fontWeight: Font.bold,
     color: '#FFFFFF',
   },
 
-  // Stats
+  // Stats — premium surface cards overlapping the header
   statsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: Gap.sm,
+    paddingHorizontal: Gap.base,
+    marginTop: -Gap.xxl,
   },
   statCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: radius.xxl,
+    paddingVertical: Gap.base,
+    paddingHorizontal: Gap.md,
     borderWidth: 1,
-    borderColor: 'rgba(14,14,14,0.06)',
-  },
-  statCardAccent: {
-    borderColor: 'rgba(229,148,27,0.35)',
-  },
-  statTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: colors.border,
+    alignItems: 'flex-start',
     gap: 6,
-    marginBottom: 8,
+    ...shadow.sm,
   },
-  statDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+  statIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statLabelLight: {
-    fontSize: 11,
+  statValue: {
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.7,
+  },
+  statLabel: {
+    fontSize: FontSize.xs,
     fontWeight: Font.bold,
     color: colors.textSecondary,
     letterSpacing: 0.3,
-  },
-  statValueLight: {
-    fontSize: 26,
-    fontWeight: Font.black,
-    color: colors.ink,
-    letterSpacing: -0.5,
   },
 
   // Users & activity
@@ -412,18 +426,19 @@ const styles = StyleSheet.create({
     width: '31%',
     flexGrow: 1,
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    borderRadius: radius.xl,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadow.sm,
   },
   audienceTileAccent: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   audienceValue: {
-    fontSize: 22,
+    fontSize: FontSize.h1,
     fontWeight: Font.black,
     color: colors.ink,
     letterSpacing: -0.5,
@@ -466,8 +481,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: radius.xxl,
+    padding: Gap.base,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.border,
@@ -475,7 +490,7 @@ const styles = StyleSheet.create({
   },
   eventDateBadge: {
     backgroundColor: colors.primaryTint,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     paddingHorizontal: 10,
     paddingVertical: 6,
     marginRight: 12,
@@ -524,17 +539,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: radius.xxl,
+    padding: Gap.base,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadow.sm,
   },
   actionIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,

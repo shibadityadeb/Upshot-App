@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { createApiClient } from '@upshot/api-client';
 import type { HostingApplication } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { StatusBadge, DatePickerModal, TimePickerModal } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { uploadEventImage } from '../../src/utils/uploadEventImage';
@@ -30,6 +30,7 @@ import { INDIAN_STATES } from '../../src/constants/india';
 import { SECTORS, EVENT_CATEGORIES } from '../../src/constants/host';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 /* ── Picker Modal ─────────────────────────────────────────────────────────── */
 
@@ -157,6 +158,8 @@ export default function HostEvent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   // View mode: 'list' shows submitted applications, 'form' shows the creation form
   const [mode, setMode] = useState<'list' | 'form'>('list');
@@ -394,17 +397,20 @@ export default function HostEvent() {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={20} color={colors.ink} />
-          </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.headerEyebrow}>HOST AN EVENT</Text>
-            <Text style={styles.headerTitle}>My Proposals</Text>
+          <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+          <View style={[styles.headerRow, columnStyle]}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={20} color={colors.ink} />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>My Proposals</Text>
+              <Text style={styles.headerSubtitle}>Host an event on Upshot</Text>
+            </View>
           </View>
         </View>
 
         <ScrollView
-          contentContainerStyle={listStyles.scrollContent}
+          contentContainerStyle={[listStyles.scrollContent, columnStyle]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         >
@@ -451,87 +457,93 @@ export default function HostEvent() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={20} color={colors.ink} />
-          </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.headerEyebrow}>HOST AN EVENT</Text>
-            <Text style={styles.headerTitle}>{getStepTitle()}</Text>
+          <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+          <View style={[styles.headerRow, columnStyle]}>
+            <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={20} color={colors.ink} />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>{getStepTitle()}</Text>
+              <Text style={styles.headerSubtitle}>Step {displayStep} of {displayTotal}</Text>
+            </View>
+            <View style={styles.stepPill}>
+              <Text style={styles.stepPillText}>{displayStep}/{displayTotal}</Text>
+            </View>
           </View>
-          <Text style={styles.stepIndicator}>Step {displayStep}/{displayTotal}</Text>
-        </View>
-
-        {/* Progress bar */}
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${(displayStep / displayTotal) * 100}%` }]} />
+          <View style={[styles.progressTrack, columnStyle]}>
+            <View style={[styles.progressFill, { width: `${(displayStep / displayTotal) * 100}%` }]} />
+          </View>
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, columnStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Step 1: Personal Details ─────────────────────────────────── */}
           {step === 1 && (
             <>
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Full Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your full name"
-                  placeholderTextColor={colors.textLight}
-                  value={applicantName}
-                  onChangeText={setApplicantName}
-                  returnKeyType="next"
-                />
-              </View>
+              <Text style={styles.sectionLabel}>Your Details</Text>
+              <View style={styles.card}>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Full Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your full name"
+                    placeholderTextColor={colors.textLight}
+                    value={applicantName}
+                    onChangeText={setApplicantName}
+                    returnKeyType="next"
+                  />
+                </View>
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Phone Number *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your phone number"
-                  placeholderTextColor={colors.textLight}
-                  value={applicantPhone}
-                  onChangeText={setApplicantPhone}
-                  keyboardType="phone-pad"
-                  returnKeyType="next"
-                />
-              </View>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Phone Number *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your phone number"
+                    placeholderTextColor={colors.textLight}
+                    value={applicantPhone}
+                    onChangeText={setApplicantPhone}
+                    keyboardType="phone-pad"
+                    returnKeyType="next"
+                  />
+                </View>
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Email *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email address"
-                  placeholderTextColor={colors.textLight}
-                  value={applicantEmail}
-                  onChangeText={setApplicantEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  returnKeyType="next"
-                />
-              </View>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Email *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your email address"
+                    placeholderTextColor={colors.textLight}
+                    value={applicantEmail}
+                    onChangeText={setApplicantEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    returnKeyType="next"
+                  />
+                </View>
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Event Type *</Text>
-                <View style={styles.pillRow}>
-                  <TouchableOpacity
-                    style={[styles.typePill, eventType === 'personal' && styles.typePillActive]}
-                    onPress={() => setEventType('personal')}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="person-outline" size={16} color={eventType === 'personal' ? '#fff' : colors.textSecondary} />
-                    <Text style={[styles.typePillText, eventType === 'personal' && styles.typePillTextActive]}>Personal</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.typePill, eventType === 'organisation' && styles.typePillActive]}
-                    onPress={() => setEventType('organisation')}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="business-outline" size={16} color={eventType === 'organisation' ? '#fff' : colors.textSecondary} />
-                    <Text style={[styles.typePillText, eventType === 'organisation' && styles.typePillTextActive]}>Organisation</Text>
-                  </TouchableOpacity>
+                <View style={styles.fieldGroupLast}>
+                  <Text style={styles.fieldLabel}>Event Type *</Text>
+                  <View style={styles.pillRow}>
+                    <TouchableOpacity
+                      style={[styles.typePill, eventType === 'personal' && styles.typePillActive]}
+                      onPress={() => setEventType('personal')}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="person-outline" size={16} color={eventType === 'personal' ? colors.onPrimary : colors.textSecondary} />
+                      <Text style={[styles.typePillText, eventType === 'personal' && styles.typePillTextActive]}>Personal</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.typePill, eventType === 'organisation' && styles.typePillActive]}
+                      onPress={() => setEventType('organisation')}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="business-outline" size={16} color={eventType === 'organisation' ? colors.onPrimary : colors.textSecondary} />
+                      <Text style={[styles.typePillText, eventType === 'organisation' && styles.typePillTextActive]}>Organisation</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </>
@@ -540,43 +552,46 @@ export default function HostEvent() {
           {/* ── Step 2: Organisation Details (only for org type) ──────────── */}
           {step === 2 && isOrg && (
             <>
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Legal Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Registered organisation name"
-                  placeholderTextColor={colors.textLight}
-                  value={orgLegalName}
-                  onChangeText={setOrgLegalName}
-                  returnKeyType="next"
-                />
-              </View>
+              <Text style={styles.sectionLabel}>Organisation</Text>
+              <View style={styles.card}>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Legal Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Registered organisation name"
+                    placeholderTextColor={colors.textLight}
+                    value={orgLegalName}
+                    onChangeText={setOrgLegalName}
+                    returnKeyType="next"
+                  />
+                </View>
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>City *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Organisation city"
-                  placeholderTextColor={colors.textLight}
-                  value={orgCity}
-                  onChangeText={setOrgCity}
-                  returnKeyType="next"
-                />
-              </View>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>City *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Organisation city"
+                    placeholderTextColor={colors.textLight}
+                    value={orgCity}
+                    onChangeText={setOrgCity}
+                    returnKeyType="next"
+                  />
+                </View>
 
-              <SelectorField label="State" value={orgState} placeholder="Select state" onPress={() => setShowOrgState(true)} required />
-              <SelectorField label="Sector" value={orgSector} placeholder="Select sector" onPress={() => setShowOrgSector(true)} required />
+                <SelectorField label="State" value={orgState} placeholder="Select state" onPress={() => setShowOrgState(true)} required />
+                <SelectorField label="Sector" value={orgSector} placeholder="Select sector" onPress={() => setShowOrgSector(true)} required />
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Your Designation *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Founder, Manager, Coordinator"
-                  placeholderTextColor={colors.textLight}
-                  value={orgDesignation}
-                  onChangeText={setOrgDesignation}
-                  returnKeyType="done"
-                />
+                <View style={styles.fieldGroupLast}>
+                  <Text style={styles.fieldLabel}>Your Designation *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Founder, Manager, Coordinator"
+                    placeholderTextColor={colors.textLight}
+                    value={orgDesignation}
+                    onChangeText={setOrgDesignation}
+                    returnKeyType="done"
+                  />
+                </View>
               </View>
 
               <PickerModal visible={showOrgState} title="Select State" options={INDIAN_STATES} selected={orgState} onSelect={setOrgState} onClose={() => setShowOrgState(false)} />
@@ -587,105 +602,113 @@ export default function HostEvent() {
           {/* ── Event Details ────────────────────────────────────────────── */}
           {showEventDetails && (
             <>
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Event Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Product Launch Workshop"
-                  placeholderTextColor={colors.textLight}
-                  value={title}
-                  onChangeText={setTitle}
-                  returnKeyType="next"
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Category</Text>
-                <View style={styles.pillRow}>
-                  {EVENT_CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.pill, category === cat && styles.pillActive]}
-                      onPress={() => setCategory(cat)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>{cat}</Text>
-                    </TouchableOpacity>
-                  ))}
+              <Text style={styles.sectionLabel}>About the Event</Text>
+              <View style={styles.card}>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Event Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Product Launch Workshop"
+                    placeholderTextColor={colors.textLight}
+                    value={title}
+                    onChangeText={setTitle}
+                    returnKeyType="next"
+                  />
                 </View>
-              </View>
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Description</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Tell people about this event..."
-                  placeholderTextColor={colors.textLight}
-                  value={description}
-                  onChangeText={setDescription}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              <View style={styles.row}>
-                <View style={[styles.fieldGroup, styles.flex]}>
-                  <Text style={styles.fieldLabel}>Capacity</Text>
-                  <TextInput style={styles.input} placeholder="e.g. 50" placeholderTextColor={colors.textLight} value={maxAttendees} onChangeText={setMaxAttendees} keyboardType="number-pad" />
-                </View>
-                <View style={[styles.fieldGroup, styles.flex]}>
-                  <Text style={styles.fieldLabel}>Fees (₹)</Text>
-                  <TextInput style={styles.input} placeholder="0 for free" placeholderTextColor={colors.textLight} value={fees} onChangeText={setFees} keyboardType="number-pad" />
-                </View>
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>City *</Text>
-                <TextInput style={styles.input} placeholder="Event city" placeholderTextColor={colors.textLight} value={eventCity} onChangeText={setEventCity} returnKeyType="next" />
-              </View>
-
-              <SelectorField label="State" value={eventState} placeholder="Select state" onPress={() => setShowEventState(true)} required />
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Date *</Text>
-                <TouchableOpacity style={styles.selectorBtn} onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
-                  <Text style={[styles.selectorText, !eventDate && { color: colors.textLight }]}>{eventDate || 'Select date'}</Text>
-                  <Ionicons name="calendar-outline" size={16} color={colors.textLight} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Time</Text>
-                <TouchableOpacity style={styles.selectorBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.7}>
-                  <Text style={[styles.selectorText, !eventTime && { color: colors.textLight }]}>{eventTime || 'Select time'}</Text>
-                  <Ionicons name="time-outline" size={16} color={colors.textLight} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Google Maps Link</Text>
-                <TextInput style={styles.input} placeholder="Google Maps URL (optional)" placeholderTextColor={colors.textLight} value={locationUrl} onChangeText={setLocationUrl} autoCapitalize="none" keyboardType="url" />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Cover Photo</Text>
-                {imageUri ? (
-                  <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
-                    <View style={styles.imagePreview}>
-                      <Image source={{ uri: imageUri }} style={styles.previewImg} />
-                      <TouchableOpacity style={styles.removeImageBtn} onPress={() => setImageUri(null)} activeOpacity={0.7}>
-                        <Ionicons name="close-circle" size={24} color="#fff" />
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Category</Text>
+                  <View style={styles.pillRow}>
+                    {EVENT_CATEGORIES.map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[styles.pill, category === cat && styles.pillActive]}
+                        onPress={() => setCategory(cat)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>{cat}</Text>
                       </TouchableOpacity>
-                    </View>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.fieldGroupLast}>
+                  <Text style={styles.fieldLabel}>Description</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Tell people about this event..."
+                    placeholderTextColor={colors.textLight}
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.sectionLabel}>Where & When</Text>
+              <View style={styles.card}>
+                <View style={styles.row}>
+                  <View style={[styles.fieldGroup, styles.flex]}>
+                    <Text style={styles.fieldLabel}>Capacity</Text>
+                    <TextInput style={styles.input} placeholder="e.g. 50" placeholderTextColor={colors.textLight} value={maxAttendees} onChangeText={setMaxAttendees} keyboardType="number-pad" />
+                  </View>
+                  <View style={[styles.fieldGroup, styles.flex]}>
+                    <Text style={styles.fieldLabel}>Fees (₹)</Text>
+                    <TextInput style={styles.input} placeholder="0 for free" placeholderTextColor={colors.textLight} value={fees} onChangeText={setFees} keyboardType="number-pad" />
+                  </View>
+                </View>
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>City *</Text>
+                  <TextInput style={styles.input} placeholder="Event city" placeholderTextColor={colors.textLight} value={eventCity} onChangeText={setEventCity} returnKeyType="next" />
+                </View>
+
+                <SelectorField label="State" value={eventState} placeholder="Select state" onPress={() => setShowEventState(true)} required />
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Date *</Text>
+                  <TouchableOpacity style={styles.selectorBtn} onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
+                    <Text style={[styles.selectorText, !eventDate && { color: colors.textLight }]}>{eventDate || 'Select date'}</Text>
+                    <Ionicons name="calendar-outline" size={16} color={colors.textLight} />
                   </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.7}>
-                    <Ionicons name="camera-outline" size={28} color={colors.textLight} />
-                    <Text style={styles.imagePickerText}>Add event cover photo (optional)</Text>
-                    <Text style={styles.imagePickerHint}>Tap to select from your gallery</Text>
+                </View>
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Time</Text>
+                  <TouchableOpacity style={styles.selectorBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.7}>
+                    <Text style={[styles.selectorText, !eventTime && { color: colors.textLight }]}>{eventTime || 'Select time'}</Text>
+                    <Ionicons name="time-outline" size={16} color={colors.textLight} />
                   </TouchableOpacity>
-                )}
+                </View>
+
+                <View style={styles.fieldGroupLast}>
+                  <Text style={styles.fieldLabel}>Google Maps Link</Text>
+                  <TextInput style={styles.input} placeholder="Google Maps URL (optional)" placeholderTextColor={colors.textLight} value={locationUrl} onChangeText={setLocationUrl} autoCapitalize="none" keyboardType="url" />
+                </View>
+              </View>
+
+              <Text style={styles.sectionLabel}>Cover Photo</Text>
+              <View style={styles.card}>
+                <View style={styles.fieldGroupLast}>
+                  {imageUri ? (
+                    <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
+                      <View style={styles.imagePreview}>
+                        <Image source={{ uri: imageUri }} style={styles.previewImg} />
+                        <TouchableOpacity style={styles.removeImageBtn} onPress={() => setImageUri(null)} activeOpacity={0.7}>
+                          <Ionicons name="close-circle" size={24} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.7}>
+                      <Ionicons name="camera-outline" size={28} color={colors.textLight} />
+                      <Text style={styles.imagePickerText}>Add event cover photo (optional)</Text>
+                      <Text style={styles.imagePickerHint}>Tap to select from your gallery</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               <PickerModal visible={showEventState} title="Select State" options={INDIAN_STATES} selected={eventState} onSelect={setEventState} onClose={() => setShowEventState(false)} />
@@ -697,28 +720,30 @@ export default function HostEvent() {
 
         {/* Bottom button */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          {!showEventDetails ? (
-            <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.85}>
-              <Text style={styles.nextBtnText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={16} color={colors.onPrimary} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.nextBtn, submitting && { opacity: 0.6 }]}
-              onPress={handleSubmit}
-              activeOpacity={0.8}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color={colors.onPrimary} />
-              ) : (
-                <>
-                  <Text style={styles.nextBtnText}>Submit for Review</Text>
-                  <Ionicons name="checkmark" size={16} color={colors.onPrimary} />
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+          <View style={columnStyle}>
+            {!showEventDetails ? (
+              <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.85}>
+                <Text style={styles.nextBtnText}>Continue</Text>
+                <Ionicons name="arrow-forward" size={16} color={colors.onPrimary} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.nextBtn, submitting && { opacity: 0.6 }]}
+                onPress={handleSubmit}
+                activeOpacity={0.8}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
+                ) : (
+                  <>
+                    <Text style={styles.nextBtnText}>Submit for Review</Text>
+                    <Ionicons name="checkmark" size={16} color={colors.onPrimary} />
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -734,43 +759,59 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingBottom: Gap.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Gap.md,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Gap.md },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(14,14,14,0.1)',
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(14,14,14,0.08)',
     alignItems: 'center', justifyContent: 'center',
   },
   headerText: { flex: 1 },
-  headerEyebrow: {
-    fontSize: FontSize.xs, fontWeight: Font.bold,
-    color: 'rgba(14,14,14,0.6)', letterSpacing: 1.5, marginBottom: 2,
+  headerTitle: { fontSize: FontSize.display, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.7 },
+  headerSubtitle: { fontSize: FontSize.small, color: '#2c3326', marginTop: 3, fontWeight: Font.semibold },
+  stepPill: {
+    backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: 12, paddingVertical: 7,
   },
-  headerTitle: { fontSize: FontSize.h1, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.5 },
-  stepIndicator: {
-    fontSize: FontSize.small, fontWeight: Font.semibold,
-    color: 'rgba(14,14,14,0.6)',
-  },
+  stepPillText: { fontSize: FontSize.small, fontWeight: Font.black, color: '#fff' },
 
-  progressBar: { height: 4, backgroundColor: colors.border },
-  progressFill: { height: 4, backgroundColor: colors.ink },
+  progressTrack: {
+    height: 5, backgroundColor: 'rgba(14,14,14,0.12)',
+    borderRadius: radius.full, overflow: 'hidden', marginTop: Gap.base,
+  },
+  progressFill: { height: 5, backgroundColor: colors.ink, borderRadius: radius.full },
 
   scrollContent: { padding: Gap.base, paddingBottom: 40 },
 
+  sectionLabel: {
+    fontSize: FontSize.small, fontWeight: Font.bold,
+    color: colors.text, textTransform: 'uppercase',
+    letterSpacing: 0.8, marginBottom: Gap.sm, marginLeft: 2,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1, borderColor: colors.border,
+    padding: Gap.base, marginBottom: Gap.lg,
+    ...shadow.sm,
+  },
+
   fieldGroup: { marginBottom: Gap.lg },
+  fieldGroupLast: { marginBottom: 0 },
   fieldLabel: {
     fontSize: FontSize.small, fontWeight: Font.semibold,
     color: colors.text, marginBottom: 6,
   },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 14, height: 48,
+    paddingHorizontal: 14, height: 50,
     fontSize: FontSize.body, color: colors.text,
   },
   textArea: { height: 100, paddingTop: 12, paddingBottom: 12 },
@@ -778,26 +819,27 @@ const styles = StyleSheet.create({
 
   pillRow: { flexDirection: 'row', gap: Gap.sm, flexWrap: 'wrap' },
   pill: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.full,
+    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
   },
   pillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   pillText: { fontSize: 13, fontWeight: Font.semibold, color: colors.textSecondary },
   pillTextActive: { color: colors.onPrimary, fontWeight: Font.bold },
 
   typePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 12, borderRadius: radius.full,
+    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
   },
   typePillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   typePillText: { fontSize: 14, fontWeight: Font.semibold, color: colors.textSecondary },
   typePillTextActive: { color: colors.onPrimary, fontWeight: Font.bold },
 
   selectorBtn: {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
+    backgroundColor: colors.surfaceAlt, borderRadius: radius.lg,
     borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 14, height: 48,
+    paddingHorizontal: 14, height: 50,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   selectorText: { fontSize: FontSize.body, color: colors.text },
@@ -806,7 +848,7 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
     borderRadius: radius.lg, height: 160,
     alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAlt,
   },
   imagePickerText: { fontSize: FontSize.body, fontWeight: Font.semibold, color: colors.textSecondary },
   imagePickerHint: { fontSize: FontSize.xs, color: colors.textLight },
@@ -836,13 +878,13 @@ const listStyles = StyleSheet.create({
 
   newBtn: {
     flexDirection: 'row', alignItems: 'center', gap: Gap.md,
-    backgroundColor: colors.surface, borderRadius: radius.xl,
+    backgroundColor: colors.surface, borderRadius: radius.xxl,
     padding: Gap.base, marginBottom: Gap.lg,
-    borderWidth: 1.5, borderColor: colors.primary + '33',
+    borderWidth: 1.5, borderColor: colors.primary + '55',
     ...shadow.md,
   },
   newBtnIcon: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 42, height: 42, borderRadius: 21,
     backgroundColor: colors.ink,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -856,8 +898,8 @@ const listStyles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: colors.surface, borderRadius: radius.xl,
-    padding: Gap.base, marginBottom: Gap.sm,
+    backgroundColor: colors.surface, borderRadius: radius.xxl,
+    padding: Gap.base, marginBottom: Gap.md,
     borderWidth: 1, borderColor: colors.border,
     ...shadow.sm,
   },
