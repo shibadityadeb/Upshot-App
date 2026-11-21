@@ -21,6 +21,8 @@ export interface User {
   avatar_url: string | null;
   role: UserRole;
   phone: string | null;
+  /** The viewer's city — powers location-based "events near you" recommendations. */
+  city?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -66,8 +68,64 @@ export interface Event {
   project_type: string | null;
   budget_range: string | null;
   vertical_id: string | null;
+  /** Admin-starred events surface in the home "Special Events" rail. */
+  is_featured?: boolean;
+  /** Attendee count attached by some admin/ranking queries. */
+  application_count?: number;
+  /** Aggregation: which platform the event came from ('upshot' = native). */
+  source?: string;
+  /** Aggregation: the official registration link for external events. */
+  source_url?: string | null;
+  /** Aggregation: display label for the source, e.g. "Ticketmaster". */
+  source_name?: string | null;
+  /** Aggregation: stable id within the source. */
+  external_id?: string | null;
+  /** True for events pulled from another platform — register via source_url. */
+  is_external?: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** Admin-managed external event source (Ticketmaster, schema.org feeds, …). */
+export interface EventSource {
+  id: string;
+  key: string;
+  name: string;
+  enabled: boolean;
+  cities: string[];
+  categories: string[];
+  config: Record<string, unknown>;
+  last_synced_at: string | null;
+  last_result: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Admin-managed "Featured Experiences" card on the home screen. */
+export interface HomeCard {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  badge: string | null;
+  cover_url: string | null;
+  /** Internal route (e.g. "/(people)/campus-cartel") or external https URL. */
+  link: string;
+  cta: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HomeCardPayload {
+  title: string;
+  subtitle?: string | null;
+  badge?: string | null;
+  cover_url?: string | null;
+  link: string;
+  cta?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
 }
 
 export interface EventApplication {

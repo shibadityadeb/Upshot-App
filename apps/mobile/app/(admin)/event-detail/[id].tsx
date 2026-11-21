@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Platform,
   RefreshControl,
   ScrollView,
@@ -11,12 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event, EventApplication } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../../src/constants/theme';
 import {
   Button,
   Card,
@@ -30,6 +31,7 @@ import { useAuthStore } from '../../../src/store/auth.store';
 import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../../assets/hero-liquid.png');
 
 // Applications approve themselves up to the event's capacity, so there is no
 // queue to work: people are either coming, waiting for a seat to free up, or
@@ -53,6 +55,9 @@ export default function AdminEventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [event, setEvent] = useState<Event | null>(null);
   const [applications, setApplications] = useState<EventApplication[]>([]);
@@ -208,14 +213,17 @@ export default function AdminEventDetail() {
 
   if (error || !event) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </TouchableOpacity>
+      <View style={styles.safeArea}>
+        <View style={[styles.errorBackRow, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity style={styles.backPill} onPress={() => router.back()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={14} color="#fff" />
+            <Text style={styles.backPillText}>Back</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error ?? 'Event not found'}</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -234,37 +242,41 @@ export default function AdminEventDetail() {
   const locationLine = venue ? `${venue}${city ? ', ' + city : ''}` : (event.location ?? '');
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <TouchableOpacity style={styles.backPill} onPress={() => router.back()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={14} color="#fff" />
+            <Text style={styles.backPillText}>Events</Text>
+          </TouchableOpacity>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.headerTitle}>{event.title}</Text>
+            <StatusBadge status={event.status} />
+          </View>
+          <Text style={styles.headerMeta}>{eventDate} · {eventTime}</Text>
+          {!!locationLine && (
+            <View style={styles.headerMetaRow}>
+              <Ionicons name="location-outline" size={14} color="#2c3326" />
+              <Text style={styles.headerMetaText}>{locationLine}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Back button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-          <Text style={styles.backText}>Events</Text>
-        </TouchableOpacity>
-
         {/* Event info card */}
         <Card style={styles.eventCard}>
-          <View style={styles.eventTitleRow}>
-            <Text style={styles.eventTitle}>{event.title}</Text>
-            <StatusBadge status={event.status} />
+          <View style={styles.coinRow}>
+            <CoinBadge amount={event.coin_reward} />
           </View>
-
-          <Text style={styles.dateTime}>{eventDate} · {eventTime}</Text>
-
-          {!!locationLine && (
-            <View style={styles.metaRow}>
-              <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.metaText}>{locationLine}</Text>
-            </View>
-          )}
-
-          <CoinBadge amount={event.coin_reward} />
 
           {!!(event as any).description && (
             <>
@@ -428,7 +440,7 @@ export default function AdminEventDetail() {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -447,54 +459,83 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   scrollContent: {
+    paddingTop: Gap.base,
     paddingBottom: 100,
   },
-  backBtn: {
+  // Lime liquid header
+  header: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  backPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(14,14,14,0.45)',
+    borderRadius: radius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    gap: 6,
+    marginBottom: Gap.md,
+  },
+  backPillText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: '#fff',
+  },
+  errorBackRow: {
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.md,
+    backgroundColor: colors.primary,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Gap.sm,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.7,
+    lineHeight: 34,
+  },
+  headerMeta: {
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    fontWeight: Font.semibold,
+    marginTop: Gap.sm,
+  },
+  headerMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    paddingHorizontal: Gap.base,
-    paddingVertical: Gap.md,
+    marginTop: 4,
   },
-  backText: {
-    fontSize: FontSize.body,
-    color: colors.text,
-    fontWeight: Font.medium,
+  headerMetaText: {
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    fontWeight: Font.semibold,
+    flex: 1,
   },
   eventCard: {
     marginHorizontal: Gap.base,
     padding: Gap.base,
     gap: Gap.sm,
     marginBottom: Gap.xl,
+    borderRadius: radius.xxl,
+    ...shadow.sm,
   },
-  eventTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Gap.sm,
-  },
-  eventTitle: {
-    flex: 1,
-    fontSize: FontSize.h2,
-    fontWeight: Font.bold,
-    color: colors.text,
-    lineHeight: 26,
-  },
-  dateTime: {
-    fontSize: FontSize.small,
-    color: colors.textSecondary,
-    marginTop: Gap.xs,
-  },
-  metaRow: {
+  coinRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Gap.xs,
-    marginTop: 2,
-  },
-  metaText: {
-    fontSize: FontSize.small,
-    color: colors.textSecondary,
-    flex: 1,
   },
   descriptionLabel: {
     fontSize: FontSize.small,
@@ -571,7 +612,9 @@ const styles = StyleSheet.create({
   },
   appCard: {
     padding: Gap.base,
-    marginBottom: Gap.sm,
+    marginBottom: Gap.md,
+    borderRadius: radius.xxl,
+    ...shadow.sm,
   },
   appEmail: {
     fontSize: FontSize.small,

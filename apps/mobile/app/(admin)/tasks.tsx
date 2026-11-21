@@ -12,13 +12,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import { isTaskVisible, taskDueState } from '@upshot/types';
 import type { Task } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import {
   AvatarCircle,
   Button,
@@ -32,6 +32,7 @@ import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 type TaskFilter = 'all' | 'assigned' | 'submitted' | 'approved' | 'rejected';
 
@@ -46,6 +47,9 @@ const TASK_FILTERS: { key: TaskFilter; label: string }[] = [
 export default function AdminTasks() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<TaskFilter>('all');
@@ -313,11 +317,12 @@ export default function AdminTasks() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Dark hero header */}
-      <View style={styles.hero}>
-        <View style={styles.heroRow}>
-          <View>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.hero, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.heroBg} resizeMode="cover" />
+        <View style={[styles.heroRow, columnStyle]}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.heroTitle}>Tasks</Text>
             <Text style={styles.heroSub}>
               {pendingCount > 0 ? `${pendingCount} pending review` : `${tasks.length} total`}
@@ -326,19 +331,22 @@ export default function AdminTasks() {
           <TouchableOpacity
             style={styles.addBtn}
             onPress={() => router.push('/(admin)/create-task' as any)}
-            activeOpacity={0.75}
+            activeOpacity={0.85}
           >
-            <Ionicons name="add" size={22} color="#fff" />
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={styles.addBtnText}>New</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Filter pills */}
-      <FilterPills
-        options={TASK_FILTERS.map(f => ({ label: f.label, value: f.key }))}
-        activeValue={filter}
-        onChange={(v) => setFilter(v as TaskFilter)}
-      />
+      <View style={columnStyle}>
+        <FilterPills
+          options={TASK_FILTERS.map(f => ({ label: f.label, value: f.key }))}
+          activeValue={filter}
+          onChange={(v) => setFilter(v as TaskFilter)}
+        />
+      </View>
 
       {/* List */}
       <FlatList
@@ -346,7 +354,7 @@ export default function AdminTasks() {
         data={filteredTasks}
         keyExtractor={(item) => item.id}
         renderItem={renderTask}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, columnStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -359,14 +367,14 @@ export default function AdminTasks() {
           />
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   listArea: {
     flex: 1,
@@ -379,52 +387,63 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // Hero
+  // Hero (lime liquid)
   hero: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  heroBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: Gap.sm,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   heroSub: {
     fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 2,
-    fontWeight: Font.medium,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
   addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    backgroundColor: colors.ink,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  addBtnText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.black,
+    color: '#fff',
   },
 
   // List
   listContent: {
     paddingHorizontal: Gap.base,
-    paddingTop: Gap.md,
+    paddingTop: Gap.base,
     paddingBottom: 80,
     flexGrow: 1,
   },
   taskCard: {
-    marginBottom: Gap.sm,
+    marginBottom: Gap.base,
     padding: Gap.base,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadow.sm,
   },
   taskHeader: {

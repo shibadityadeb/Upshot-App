@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,17 +16,20 @@ import { createApiClient } from '@upshot/api-client';
 import type { EventApplication, HostingApplication, UnfilteredFeatureRequest } from '@upshot/types';
 import type { CampusCartelMember } from '@upshot/api-client';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, Font, FontSize, Gap, radius, shadow, verticalColors } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, verticalColors, useResponsive } from '../../src/constants/theme';
 import { Button, Card, EmptyState, StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
 const GREEN = verticalColors.campusCartel;
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 export default function PeopleApplications() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   // ─── Campus Cartel application ───────────────────────────────
   const [ccApp, setCcApp] = useState<CampusCartelMember | null>(null);
@@ -131,15 +135,18 @@ export default function PeopleApplications() {
 
   return (
     <View style={styles.safeArea}>
-      {/* Dark header */}
+      {/* Lime liquid header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.headerTitle}>My Applications</Text>
-        <Text style={styles.headerSubtitle}>Track your submissions</Text>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <Text style={styles.headerTitle}>My Applications</Text>
+          <Text style={styles.headerSubtitle}>Track your submissions</Text>
+        </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         {/* ── Campus Cartel Section ── */}
@@ -459,11 +466,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
     paddingBottom: Gap.xl,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
-  headerTitle: { fontSize: FontSize.h1, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.5 },
-  headerSubtitle: { fontSize: FontSize.small, color: 'rgba(14,14,14,0.6)', marginTop: 2, fontWeight: Font.medium },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  headerTitle: { fontSize: FontSize.display, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.7 },
+  headerSubtitle: { fontSize: FontSize.small, color: '#2c3326', marginTop: 3, fontWeight: Font.semibold },
 
   sectionTitle: {
     fontSize: FontSize.small,

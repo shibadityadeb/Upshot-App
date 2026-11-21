@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   RefreshControl,
   StyleSheet,
   Text,
@@ -14,12 +15,13 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event, EventApplication } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
-import { EmptyState, EventBanner, StatusBadge } from '../../src/components/common';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
+import { EmptyState, StatusBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useDebounce } from '../../src/hooks/useDebounce';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const VERTICAL_FILTERS = [
   { label: 'All', slug: null },
@@ -41,6 +43,7 @@ export default function PeopleWorkshops() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
+  const r = useResponsive();
   const params = useLocalSearchParams<{ vertical?: string }>();
 
   const [view, setView] = useState<ViewKey>('discover');
@@ -98,9 +101,6 @@ export default function PeopleWorkshops() {
   // Arriving from an Events/Growth Solutions page pre-selects that vertical
   useEffect(() => {
     if (!params.vertical) return;
-    // 'all' clears the filter. Without this the screen keeps whichever vertical was
-    // last selected — arriving from the Events card and then the All Workshops card
-    // would still show Events, since this tab keeps its state between visits.
     if (params.vertical === 'all') {
       setSelectedVertical(0);
       setView('discover');
@@ -134,23 +134,16 @@ export default function PeopleWorkshops() {
   const joined = applications
     .filter((app) => {
       if (app.status === 'withdrawn') return false;
-      // Events the user created are surfaced separately (joinedCreated) with a
-      // "Created by you" card — don't also list them as a normal application.
       if (user && app.event?.created_by === user.id) return false;
-
-      // 7-day post-event UI window — rows stay in the DB untouched
       const dateStr = app.event?.event_date;
       if (dateStr && now > new Date(dateStr).getTime() + JOINED_GRACE_MS) return false;
-
       const wantedSlug = VERTICAL_FILTERS[selectedVertical].slug;
       if (wantedSlug) {
         const slug = app.event?.vertical_id ? verticalSlugById[app.event.vertical_id] : undefined;
         if (slug !== wantedSlug) return false;
-
         const isPast = !!dateStr && new Date(dateStr).getTime() < now;
         if ((timeFilter === 1) !== isPast) return false;
       }
-
       const q = debouncedSearch.toLowerCase();
       if (!q) return true;
       return (
@@ -159,7 +152,6 @@ export default function PeopleWorkshops() {
       );
     })
     .sort((a, b) => {
-      // Upcoming first (soonest on top), then past (most recent on top)
       const da = a.event?.event_date ?? '';
       const db = b.event?.event_date ?? '';
       const aPast = !!da && new Date(da).getTime() < now;
@@ -168,8 +160,6 @@ export default function PeopleWorkshops() {
       return aPast ? db.localeCompare(da) : da.localeCompare(db);
     });
 
-  // Workshops this user created show up in the Joined tab too, as read-only
-  // "Created by you" cards. Synthesised as applications so they reuse renderJoined.
   const joinedCreated: EventApplication[] = availableEvents
     .filter((ev) => !!user && ev.created_by === user.id)
     .filter((ev) => {
@@ -182,10 +172,7 @@ export default function PeopleWorkshops() {
       }
       const q = debouncedSearch.toLowerCase();
       if (!q) return true;
-      return (
-        ev.title.toLowerCase().includes(q) ||
-        (ev.location ?? '').toLowerCase().includes(q)
-      );
+      return ev.title.toLowerCase().includes(q) || (ev.location ?? '').toLowerCase().includes(q);
     })
     .map((ev) => ({
       id: `created-${ev.id}`,
@@ -207,91 +194,101 @@ export default function PeopleWorkshops() {
     }
     const q = debouncedSearch.toLowerCase();
     if (!q) return true;
-    return (
-      ev.title.toLowerCase().includes(q) ||
-      (ev.location ?? '').toLowerCase().includes(q)
-    );
+    return ev.title.toLowerCase().includes(q) || (ev.location ?? '').toLowerCase().includes(q);
   });
+
+  const verticalLabelFor = (verticalId: string | null | undefined) => {
+    const slug = verticalId ? verticalSlugById[verticalId] : undefined;
+    return slug === 'irise' ? 'Events' : slug === 'ibelieve' ? 'Growth Solutions' : null;
+  };
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const renderAvailable = ({ item: ev }: { item: Event }) => {
     const eventDate = ev.event_date ? new Date(ev.event_date) : null;
-    const slug = ev.vertical_id ? verticalSlugById[ev.vertical_id] : undefined;
-    const verticalLabel = slug === 'irise' ? 'Events' : slug === 'ibelieve' ? 'Growth Solutions' : null;
+    const verticalLabel = verticalLabelFor(ev.vertical_id);
     const isOwner = !!user && ev.created_by === user.id;
     const hasApplied = appliedEventIds.has(ev.id);
 
     return (
       <TouchableOpacity
-        style={styles.joinedCard}
+        style={styles.card}
         onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
-        activeOpacity={0.8}
+        activeOpacity={0.9}
       >
-        {!!ev.banner_url && <EventBanner uri={ev.banner_url} height={170} style={styles.cardBanner} />}
-        <View style={styles.joinedHeader}>
-          <Text style={styles.joinedTitle} numberOfLines={2}>{ev.title}</Text>
+        {!!ev.banner_url && (
+          <View style={styles.banner}>
+            <Image source={{ uri: ev.banner_url }} style={styles.bannerImg} resizeMode="cover" />
+            {!!verticalLabel && (
+              <View style={styles.vtag}>
+                <Text style={styles.vtagText}>{verticalLabel}</Text>
+              </View>
+            )}
+          </View>
+        )}
+        <View style={styles.cardBody}>
+          <View style={styles.cardTop}>
+            <Text style={styles.cardTitle} numberOfLines={2}>{ev.title}</Text>
+            {isOwner ? (
+              <View style={styles.ownerPill}>
+                <Ionicons name="ribbon" size={12} color={colors.ink} />
+                <Text style={styles.ownerPillText}>Created by you</Text>
+              </View>
+            ) : hasApplied ? (
+              <View style={styles.appliedPill}>
+                <Ionicons name="checkmark" size={12} color={colors.success} />
+                <Text style={styles.appliedPillText}>Applied</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {!ev.banner_url && !!verticalLabel && (
+            <View style={styles.vtagInline}>
+              <Text style={styles.vtagText}>{verticalLabel}</Text>
+            </View>
+          )}
+
+          {!!eventDate && (
+            <View style={styles.metaRow}>
+              <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+              <Text style={styles.meta}>{formatDate(eventDate)}</Text>
+            </View>
+          )}
+          {!!ev.location && (
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+              <Text style={styles.meta} numberOfLines={1}>{ev.location}</Text>
+            </View>
+          )}
+
           {isOwner ? (
-            <View style={styles.ownerPill}>
-              <Ionicons name="ribbon" size={12} color={colors.ink} />
-              <Text style={styles.ownerPillText}>Created by you</Text>
+            <View style={styles.goingRow}>
+              <Ionicons name="people-outline" size={14} color={colors.ink} />
+              <Text style={styles.goingText}>
+                {(ev.current_attendees ?? 0)} participant{(ev.current_attendees ?? 0) === 1 ? '' : 's'} coming
+              </Text>
             </View>
-          ) : hasApplied ? (
-            <View style={styles.appliedPill}>
-              <Ionicons name="checkmark" size={12} color={colors.success} />
-              <Text style={styles.appliedPillText}>Applied</Text>
+          ) : (
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={[styles.btn, styles.joinBtn]}
+                onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.joinBtnText}>{hasApplied ? 'View details' : 'View & join'}</Text>
+                <Ionicons name="arrow-forward" size={15} color={colors.onPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, styles.sponsorBtn]}
+                onPress={() => router.push(`/(people)/sponsor/${ev.id}` as any)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.sponsorBtnText}>Sponsor</Text>
+              </TouchableOpacity>
             </View>
-          ) : null}
+          )}
         </View>
-
-        {!!verticalLabel && (
-          <View style={styles.joinedTagRow}>
-            <View style={styles.verticalTag}>
-              <Text style={styles.verticalTagText}>{verticalLabel}</Text>
-            </View>
-          </View>
-        )}
-
-        {!!eventDate && (
-          <View style={styles.joinedMetaRow}>
-            <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-            <Text style={styles.joinedMeta}>
-              {eventDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </Text>
-          </View>
-        )}
-
-        {!!ev.location && (
-          <View style={styles.joinedMetaRow}>
-            <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-            <Text style={styles.joinedMeta} numberOfLines={1}>{ev.location}</Text>
-          </View>
-        )}
-
-        {isOwner ? (
-          <View style={styles.goingRow}>
-            <Ionicons name="people-outline" size={13} color={colors.ink} />
-            <Text style={styles.goingText}>
-              {(ev.current_attendees ?? 0)} participant{(ev.current_attendees ?? 0) === 1 ? '' : 's'} coming
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.cardActions}>
-            <TouchableOpacity
-              style={[styles.cardBtn, styles.joinBtn]}
-              onPress={() => router.push(`/(people)/apply/${ev.id}` as any)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.joinBtnText}>{hasApplied ? 'View details' : 'View & join'}</Text>
-              <Ionicons name="arrow-forward" size={15} color={colors.onPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.cardBtn, styles.sponsorBtn]}
-              onPress={() => router.push(`/(people)/sponsor/${ev.id}` as any)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.sponsorBtnText}>Sponsor</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -300,73 +297,74 @@ export default function PeopleWorkshops() {
     const isOwner = !!user && app.event?.created_by === user.id;
     const eventDate = app.event?.event_date ? new Date(app.event.event_date) : null;
     const isPast = !!eventDate && eventDate.getTime() < Date.now();
-    const slug = app.event?.vertical_id ? verticalSlugById[app.event.vertical_id] : undefined;
-    const verticalLabel = slug === 'irise' ? 'Events' : slug === 'ibelieve' ? 'Growth Solutions' : null;
+    const verticalLabel = verticalLabelFor(app.event?.vertical_id);
 
     return (
       <TouchableOpacity
-        style={styles.joinedCard}
+        style={styles.card}
         onPress={() => router.push(`/(people)/apply/${app.event_id}` as any)}
-        activeOpacity={0.8}
+        activeOpacity={0.9}
       >
         {!!app.event?.banner_url && (
-          <EventBanner uri={app.event.banner_url} height={170} style={styles.cardBanner} />
+          <View style={styles.banner}>
+            <Image source={{ uri: app.event.banner_url }} style={styles.bannerImg} resizeMode="cover" />
+            {!!verticalLabel && (
+              <View style={styles.vtag}>
+                <Text style={styles.vtagText}>{verticalLabel}</Text>
+              </View>
+            )}
+          </View>
         )}
-        <View style={styles.joinedHeader}>
-          <Text style={styles.joinedTitle} numberOfLines={2}>
-            {app.event?.title ?? 'Workshop'}
-          </Text>
-          {isOwner ? (
-            <View style={styles.ownerPill}>
-              <Ionicons name="ribbon" size={12} color={colors.ink} />
-              <Text style={styles.ownerPillText}>Created by you</Text>
+        <View style={styles.cardBody}>
+          <View style={styles.cardTop}>
+            <Text style={styles.cardTitle} numberOfLines={2}>{app.event?.title ?? 'Workshop'}</Text>
+            {isOwner ? (
+              <View style={styles.ownerPill}>
+                <Ionicons name="ribbon" size={12} color={colors.ink} />
+                <Text style={styles.ownerPillText}>Created by you</Text>
+              </View>
+            ) : (
+              <StatusBadge status={app.status} />
+            )}
+          </View>
+
+          {!app.event?.banner_url && !!verticalLabel && (
+            <View style={styles.vtagInline}>
+              <Text style={styles.vtagText}>{verticalLabel}</Text>
             </View>
-          ) : (
-            <StatusBadge status={app.status} />
+          )}
+
+          {!!eventDate && (
+            <View style={styles.metaRow}>
+              <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+              <Text style={styles.meta}>{formatDate(eventDate)}</Text>
+            </View>
+          )}
+          {!!app.event?.location && (
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+              <Text style={styles.meta} numberOfLines={1}>{app.event.location}</Text>
+            </View>
+          )}
+
+          {isOwner && (
+            <View style={styles.goingRow}>
+              <Ionicons name="people-outline" size={14} color={colors.ink} />
+              <Text style={styles.goingText}>
+                {(app.event?.current_attendees ?? 0)} participant{(app.event?.current_attendees ?? 0) === 1 ? '' : 's'} coming
+              </Text>
+            </View>
+          )}
+          {!isOwner && app.status === 'approved' && !isPast && (
+            <Text style={styles.confirmed}>You are confirmed!</Text>
+          )}
+          {!isOwner && isPast && (
+            <View style={styles.doneRow}>
+              <Ionicons name="checkmark-done-outline" size={14} color={colors.textLight} />
+              <Text style={styles.done}>Workshop completed</Text>
+            </View>
           )}
         </View>
-
-        {!!verticalLabel && (
-          <View style={styles.joinedTagRow}>
-            <View style={styles.verticalTag}>
-              <Text style={styles.verticalTagText}>{verticalLabel}</Text>
-            </View>
-          </View>
-        )}
-
-        {!!eventDate && (
-          <View style={styles.joinedMetaRow}>
-            <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-            <Text style={styles.joinedMeta}>
-              {eventDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </Text>
-          </View>
-        )}
-
-        {!!app.event?.location && (
-          <View style={styles.joinedMetaRow}>
-            <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-            <Text style={styles.joinedMeta} numberOfLines={1}>{app.event.location}</Text>
-          </View>
-        )}
-
-        {isOwner && (
-          <View style={styles.goingRow}>
-            <Ionicons name="people-outline" size={13} color={colors.ink} />
-            <Text style={styles.goingText}>
-              {(app.event?.current_attendees ?? 0)} participant{(app.event?.current_attendees ?? 0) === 1 ? '' : 's'} coming
-            </Text>
-          </View>
-        )}
-        {!isOwner && app.status === 'approved' && !isPast && (
-          <Text style={styles.joinedConfirmed}>You are confirmed!</Text>
-        )}
-        {!isOwner && isPast && (
-          <View style={styles.joinedDoneRow}>
-            <Ionicons name="checkmark-done-outline" size={14} color={colors.textLight} />
-            <Text style={styles.joinedDone}>Workshop completed</Text>
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -379,12 +377,15 @@ export default function PeopleWorkshops() {
     );
   }
 
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
+
   return (
     <View style={styles.container}>
-      {/* Lime header */}
+      {/* Lime liquid header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.headerRow}>
-          <View>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.headerRow, columnStyle]}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Workshops</Text>
             <Text style={styles.headerSubtitle}>
               {view === 'discover' ? 'Find and join workshops' : 'Your joined workshops'}
@@ -402,437 +403,234 @@ export default function PeopleWorkshops() {
       </View>
 
       {/* Search + filters */}
-      <View style={styles.filterBlock}>
-        {/* Discover / Joined toggle */}
-        <View style={styles.viewToggleRow}>
+      <View style={[styles.filterArea, columnStyle]}>
+        <View style={styles.search}>
+          <Ionicons name="search" size={18} color={colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={view === 'discover' ? 'Search workshops...' : 'Search your workshops...'}
+            placeholderTextColor={colors.textSecondary}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+        </View>
+
+        <View style={styles.toggleRow}>
           {VIEWS.map((v) => {
             const active = view === v.key;
             return (
               <TouchableOpacity
                 key={v.key}
                 onPress={() => setView(v.key)}
-                activeOpacity={0.75}
-                style={[styles.viewToggle, active && styles.viewToggleActive]}
+                activeOpacity={0.8}
+                style={[styles.toggle, active && styles.toggleActive]}
               >
-                <Text style={[styles.viewToggleLabel, active && styles.viewToggleLabelActive]}>
-                  {v.label}
-                </Text>
+                <Text style={[styles.toggleLabel, active && styles.toggleLabelActive]}>{v.label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <TextInput
-          style={styles.searchInput}
-          placeholder={view === 'discover' ? 'Search workshops...' : 'Search your workshops...'}
-          placeholderTextColor={colors.textLight}
-          value={search}
-          onChangeText={setSearch}
-        />
-        <View style={styles.pillRow}>
+        <View style={styles.chipRow}>
           {VERTICAL_FILTERS.map((v, i) => {
             const active = selectedVertical === i;
             return (
               <TouchableOpacity
                 key={v.label}
                 onPress={() => setSelectedVertical(i)}
-                activeOpacity={0.75}
-                style={[styles.pill, active && styles.pillActive]}
+                activeOpacity={0.8}
+                style={[styles.chip, active && styles.chipActive]}
               >
-                <Text style={[styles.pillLabel, active && styles.pillLabelActive]}>
-                  {v.label}
-                </Text>
+                <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{v.label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
+
         {view === 'joined' && (
-        <View style={styles.subPillRow}>
-          {TIME_FILTERS.map((t, i) => {
-            const active = subFilterEnabled && timeFilter === i;
-            return (
-              <TouchableOpacity
-                key={t}
-                onPress={() => subFilterEnabled && setTimeFilter(i)}
-                activeOpacity={subFilterEnabled ? 0.75 : 1}
-                disabled={!subFilterEnabled}
-                style={[
-                  styles.subPill,
-                  active && styles.subPillActive,
-                  !subFilterEnabled && styles.subPillDisabled,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.subPillLabel,
-                    active && styles.subPillLabelActive,
-                    !subFilterEnabled && styles.subPillLabelDisabled,
-                  ]}
+          <View style={styles.subChipRow}>
+            {TIME_FILTERS.map((t, i) => {
+              const active = subFilterEnabled && timeFilter === i;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => subFilterEnabled && setTimeFilter(i)}
+                  activeOpacity={subFilterEnabled ? 0.8 : 1}
+                  disabled={!subFilterEnabled}
+                  style={[styles.subChip, active && styles.subChipActive, !subFilterEnabled && styles.subChipDisabled]}
                 >
-                  {t}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  <Text style={[styles.subChipLabel, active && styles.subChipLabelActive, !subFilterEnabled && styles.subChipLabelDisabled]}>
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         )}
       </View>
 
-      {view === 'discover' ? (
-        <FlatList
-          data={available}
-          keyExtractor={(item) => item.id}
-          renderItem={renderAvailable}
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-          }
-          ListEmptyComponent={
+      <FlatList
+        data={(view === 'discover' ? available : joinedData) as any[]}
+        keyExtractor={(item) => item.id}
+        renderItem={view === 'discover' ? (renderAvailable as any) : (renderJoined as any)}
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.listContent, columnStyle]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        ListEmptyComponent={
+          view === 'discover' ? (
             <EmptyState
               iconName="compass-outline"
               title={debouncedSearch ? 'No results found' : 'No workshops available'}
-              subtitle={
-                debouncedSearch
-                  ? 'Try a different search term'
-                  : 'New workshops will appear here as soon\nas they are announced.'
-              }
+              subtitle={debouncedSearch ? 'Try a different search term' : 'New workshops will appear here as soon as they are announced.'}
             />
-          }
-        />
-      ) : (
-        <FlatList
-          data={joinedData}
-          keyExtractor={(item) => item.id}
-          renderItem={renderJoined}
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-          }
-          ListEmptyComponent={
+          ) : (
             <EmptyState
               iconName="ribbon-outline"
               title={debouncedSearch ? 'No results found' : 'No joined workshops yet'}
-              subtitle={
-                debouncedSearch
-                  ? 'Try a different search term'
-                  : 'Join a workshop from the Discover tab\nand it will show up here.'
-              }
+              subtitle={debouncedSearch ? 'Try a different search term' : 'Join a workshop from the Discover tab and it will show up here.'}
             />
-          }
-        />
-      )}
+          )
+        }
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+
+  // ── Header (lime liquid) ──
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingBottom: Gap.xl,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xxl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.black,
-    color: colors.ink,
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 2,
-    fontWeight: Font.medium,
-  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Gap.sm },
+  headerTitle: { fontSize: FontSize.display, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.7 },
+  headerSubtitle: { fontSize: FontSize.small, color: '#2c3326', marginTop: 3, fontWeight: Font.semibold },
   hostBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.ink,
-    borderRadius: radius.full,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  hostBtnText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: '#fff',
-  },
-  viewToggleRow: {
-    flexDirection: 'row',
-    gap: Gap.sm,
-    marginBottom: 10,
-  },
-  viewToggle: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 9,
-    borderRadius: radius.full,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  viewToggleActive: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
-  },
-  viewToggleLabel: {
-    fontSize: FontSize.small,
-    fontWeight: Font.semibold,
-    color: colors.textSecondary,
-  },
-  viewToggleLabelActive: {
-    color: '#FFFFFF',
-    fontWeight: Font.bold,
-  },
-  appliedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.success + '1A',
-    borderRadius: radius.full,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-  appliedPillText: {
-    fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: colors.success,
-  },
-  ownerPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.primaryTint,
-    borderRadius: radius.full,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-  ownerPillText: {
-    fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: colors.ink,
-  },
-  goingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 5,
-    marginTop: Gap.sm,
-  },
-  goingText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: colors.ink,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: Gap.sm,
-    marginTop: Gap.md,
-  },
-  cardBtn: {
-    flex: 1,
-    height: 42,
-    borderRadius: radius.full,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  joinBtn: {
-    backgroundColor: colors.primary,
-  },
-  joinBtnText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: colors.onPrimary,
-  },
-  sponsorBtn: {
     backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 4,
   },
-  sponsorBtnText: {
-    fontSize: FontSize.small,
-    fontWeight: Font.bold,
-    color: '#FFFFFF',
+  hostBtnText: { fontSize: FontSize.small, fontWeight: Font.black, color: '#fff' },
+
+  // ── Filter area ──
+  filterArea: { paddingHorizontal: Gap.base },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap.sm,
+    marginTop: -26,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.full,
+    height: 52,
+    paddingHorizontal: 18,
+    ...shadow.md,
   },
-  filterBlock: {
+  searchInput: { flex: 1, fontSize: FontSize.body, color: colors.ink, paddingVertical: 0 },
+  toggleRow: { flexDirection: 'row', gap: Gap.sm, marginTop: Gap.base },
+  toggle: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderRadius: radius.full,
     backgroundColor: colors.surface,
-    paddingHorizontal: Gap.base,
-    paddingTop: 10,
-    paddingBottom: Gap.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  searchInput: {
-    fontSize: FontSize.body,
-    color: colors.text,
-    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    height: 40,
   },
-  pillRow: {
-    paddingTop: 10,
-    gap: Gap.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pill: {
-    paddingHorizontal: 14,
+  toggleActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  toggleLabel: { fontSize: FontSize.small, fontWeight: Font.bold, color: colors.textSecondary },
+  toggleLabelActive: { color: '#FFFFFF' },
+  chipRow: { flexDirection: 'row', gap: Gap.sm, marginTop: Gap.md, flexWrap: 'wrap' },
+  chip: {
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.background,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  pillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  pillLabel: {
-    fontSize: 13,
-    fontWeight: Font.semibold,
-    color: colors.textSecondary,
-  },
-  pillLabelActive: {
-    color: colors.onPrimary,
-    fontWeight: Font.bold,
-  },
-  subPillRow: {
-    paddingTop: Gap.sm,
-    gap: Gap.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  subPill: {
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipLabel: { fontSize: 13, fontWeight: Font.semibold, color: colors.textSecondary },
+  chipLabelActive: { color: colors.onPrimary, fontWeight: Font.black },
+  subChipRow: { flexDirection: 'row', gap: Gap.sm, marginTop: Gap.sm },
+  subChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  subPillActive: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
-  },
-  subPillDisabled: {
-    opacity: 0.35,
-  },
-  subPillLabel: {
-    fontSize: 12,
-    fontWeight: Font.semibold,
-    color: colors.textSecondary,
-  },
-  subPillLabelActive: {
-    color: '#FFFFFF',
-    fontWeight: Font.bold,
-  },
-  subPillLabelDisabled: {
-    color: colors.textLight,
-  },
-  listContent: {
-    paddingHorizontal: Gap.base,
-    paddingTop: Gap.md,
-    paddingBottom: 100,
-    flexGrow: 1,
-  },
-
-  // ── Joined workshop cards ───────────────────────────────────
-  joinedCard: {
+    borderRadius: radius.full,
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: Gap.base,
-    marginBottom: Gap.sm,
+  },
+  subChipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  subChipDisabled: { opacity: 0.35 },
+  subChipLabel: { fontSize: 12, fontWeight: Font.semibold, color: colors.textSecondary },
+  subChipLabelActive: { color: '#FFFFFF', fontWeight: Font.bold },
+  subChipLabelDisabled: { color: colors.textLight },
+
+  // ── List + cards ──
+  listContent: { paddingHorizontal: Gap.base, paddingTop: Gap.base, paddingBottom: 110, flexGrow: 1 },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    marginBottom: Gap.base,
     ...shadow.sm,
   },
-  cardBanner: {
-    // Bleed to the card edges, above the padded content.
-    marginTop: -Gap.base,
-    marginHorizontal: -Gap.base,
-    marginBottom: Gap.md,
-    width: 'auto',
-    borderTopLeftRadius: radius.xl - 1,
-    borderTopRightRadius: radius.xl - 1,
-  },
-  joinedHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Gap.sm,
-  },
-  joinedTitle: {
-    fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: colors.text,
-    flex: 1,
-    lineHeight: 22,
-  },
-  joinedTagRow: {
-    flexDirection: 'row',
-    marginTop: 4,
-    marginBottom: Gap.sm,
-  },
-  joinedMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 3,
-  },
-  joinedMeta: {
-    fontSize: FontSize.small,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  joinedConfirmed: {
-    marginTop: Gap.sm,
-    fontSize: FontSize.body,
-    fontWeight: Font.semibold,
-    color: colors.success,
-  },
-  joinedDoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: Gap.sm,
-  },
-  joinedDone: {
-    fontSize: FontSize.small,
-    color: colors.textLight,
-    fontWeight: Font.medium,
-  },
-  verticalTag: {
-    backgroundColor: colors.primaryTint,
+  banner: { height: 168, position: 'relative', backgroundColor: colors.surfaceAlt },
+  bannerImg: { width: '100%', height: '100%' },
+  vtag: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
   },
-  verticalTagText: {
-    fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: colors.ink,
+  vtagInline: { alignSelf: 'flex-start', backgroundColor: colors.primaryTint, borderRadius: radius.full, paddingHorizontal: 11, paddingVertical: 5, marginTop: 8 },
+  vtagText: { fontSize: FontSize.xs, fontWeight: Font.black, color: colors.ink },
+  cardBody: { padding: Gap.base },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Gap.sm },
+  cardTitle: { flex: 1, fontSize: FontSize.h2, fontWeight: Font.black, color: colors.ink, lineHeight: 24, letterSpacing: -0.3 },
+  ownerPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.primaryTint, borderRadius: radius.full, paddingHorizontal: 9, paddingVertical: 5,
   },
+  ownerPillText: { fontSize: FontSize.xs, fontWeight: Font.black, color: colors.ink },
+  appliedPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.success + '1A', borderRadius: radius.full, paddingHorizontal: 9, paddingVertical: 5,
+  },
+  appliedPillText: { fontSize: FontSize.xs, fontWeight: Font.black, color: colors.success },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  meta: { fontSize: FontSize.small, color: colors.textSecondary, fontWeight: Font.medium, flex: 1 },
+  goingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Gap.md },
+  goingText: { fontSize: FontSize.small, fontWeight: Font.bold, color: colors.ink },
+  confirmed: { marginTop: Gap.md, fontSize: FontSize.body, fontWeight: Font.bold, color: colors.success },
+  doneRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Gap.md },
+  done: { fontSize: FontSize.small, color: colors.textLight, fontWeight: Font.medium },
+  actions: { flexDirection: 'row', gap: Gap.sm, marginTop: Gap.base },
+  btn: { height: 44, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  joinBtn: { flex: 2, backgroundColor: colors.primary },
+  joinBtnText: { fontSize: FontSize.small, fontWeight: Font.black, color: colors.onPrimary },
+  sponsorBtn: { flex: 1, backgroundColor: colors.ink },
+  sponsorBtnText: { fontSize: FontSize.small, fontWeight: Font.black, color: '#FFFFFF' },
 });

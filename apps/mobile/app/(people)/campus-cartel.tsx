@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,19 +10,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createApiClient } from '@upshot/api-client';
 import type { CampusCartelStats, CampusCartelStatus, CampusCartelMember } from '@upshot/api-client';
 import type { Task } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, verticalColors, useResponsive } from '../../src/constants/theme';
 import { Button, Input, SelectField, CoinBadge } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 import { INDIAN_STATES } from '../../src/constants/india';
 
 const api = createApiClient();
+const GREEN = verticalColors.campusCartel;
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 type ScreenState = 'loading' | 'not_applied' | 'pending' | 'rejected' | 'approved';
 
@@ -34,6 +37,9 @@ const HOW_IT_WORKS = [
 export default function CampusCartelScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [screenState, setScreenState] = useState<ScreenState>('loading');
   const [refreshing, setRefreshing] = useState(false);
@@ -209,17 +215,12 @@ export default function CampusCartelScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
-        }
-      >
-        {/* ── Lime header ── */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+    <View style={styles.safeArea}>
+      {/* ── Lime liquid header ── */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </TouchableOpacity>
           <Text style={styles.headerEyebrow}>CAMPUS CARTEL</Text>
@@ -243,7 +244,15 @@ export default function CampusCartelScreen() {
             </View>
           )}
         </View>
+      </View>
 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+      >
         {/* ── Main content ── */}
         <View style={styles.cardSection}>
           {screenState === 'not_applied' && (
@@ -437,7 +446,7 @@ export default function CampusCartelScreen() {
                 activeOpacity={0.85}
               >
                 <View style={styles.assignmentsIcon}>
-                  <Ionicons name="checkbox-outline" size={18} color={colors.primary} />
+                  <Ionicons name="checkbox-outline" size={18} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.assignmentsTitle}>My Assignments</Text>
@@ -478,7 +487,7 @@ export default function CampusCartelScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -497,37 +506,38 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  // Header
+  // ── Header (lime liquid) ──
   header: {
     backgroundColor: colors.primary,
-    paddingTop: Gap.sm,
-    paddingBottom: Gap.xxl,
     paddingHorizontal: Gap.base,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   backBtn: {
     marginBottom: Gap.md,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(14,14,14,0.1)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerEyebrow: {
     fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: 'rgba(14,14,14,0.6)',
+    fontWeight: Font.black,
+    color: '#2c3326',
     letterSpacing: 2.5,
-    marginBottom: Gap.sm,
+    marginBottom: Gap.xs,
   },
   headerTitle: {
     fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
     lineHeight: 34,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   statsRow: {
     flexDirection: 'row',
@@ -539,37 +549,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    backgroundColor: 'rgba(14,14,14,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
     borderRadius: radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
   },
   statText: {
     fontSize: FontSize.xs,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.ink,
   },
 
-  // Card section
+  // ── Card section ──
   cardSection: {
     paddingHorizontal: Gap.base,
-    marginTop: Gap.base,
+    marginTop: Gap.lg,
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: Gap.lg,
-    ...shadow.md,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.base,
+    ...shadow.sm,
   },
   cardTitle: {
     fontSize: FontSize.h1,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.4,
     marginBottom: Gap.xs,
   },
   cardSubtitle: {
     fontSize: FontSize.body,
     color: colors.textSecondary,
+    fontWeight: Font.medium,
     marginBottom: Gap.lg,
   },
   formError: {
@@ -579,7 +593,7 @@ const styles = StyleSheet.create({
     marginBottom: Gap.md,
   },
 
-  // Success banner
+  // ── Success banner ──
   successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -591,20 +605,27 @@ const styles = StyleSheet.create({
   },
   successText: {
     fontSize: FontSize.body,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: colors.campusCartelText,
   },
 
-  // Pending state
+  // ── Pending / rejected state ──
   pendingIconWrap: {
+    alignSelf: 'center',
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: colors.background,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Gap.base,
-    marginTop: Gap.md,
+    marginTop: Gap.sm,
   },
   pendingTitle: {
     fontSize: FontSize.h2,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.3,
     textAlign: 'center',
     marginBottom: Gap.sm,
   },
@@ -620,10 +641,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Gap.xs,
     justifyContent: 'center',
+    backgroundColor: colors.background,
+    borderRadius: radius.full,
+    paddingHorizontal: Gap.md,
+    paddingVertical: Gap.sm,
+    alignSelf: 'center',
   },
   pendingTipText: {
     fontSize: FontSize.small,
     color: colors.textSecondary,
+    fontWeight: Font.medium,
   },
   pendingActions: {
     marginTop: Gap.lg,
@@ -634,7 +661,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Gap.xs,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: radius.full,
     borderWidth: 1.5,
     borderColor: colors.ink,
@@ -642,7 +669,7 @@ const styles = StyleSheet.create({
   },
   editAppBtnText: {
     fontSize: FontSize.body,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.ink,
   },
   withdrawBtn: {
@@ -658,7 +685,7 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 
-  // Member view
+  // ── Member view ──
   memberBadgeRow: {
     marginBottom: Gap.lg,
   },
@@ -666,16 +693,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    backgroundColor: colors.primaryTint,
+    backgroundColor: colors.campusCartelTint,
     borderRadius: radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     alignSelf: 'flex-start',
   },
   memberBadgeText: {
     fontSize: FontSize.xs,
-    fontWeight: Font.bold,
-    color: colors.ink,
+    fontWeight: Font.black,
+    color: colors.campusCartelText,
     letterSpacing: 1.5,
   },
   memberStatsRow: {
@@ -693,11 +720,13 @@ const styles = StyleSheet.create({
   memberStatValue: {
     fontSize: FontSize.display,
     fontWeight: Font.black,
-    color: colors.text,
+    color: colors.ink,
+    letterSpacing: -0.4,
   },
   memberStatLabel: {
     fontSize: FontSize.xs,
     color: colors.textSecondary,
+    fontWeight: Font.semibold,
     marginTop: 2,
   },
   memberStatDivider: {
@@ -706,7 +735,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
 
-  // Tasks preview
+  // ── Tasks preview / assignments ──
   assignmentsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -716,17 +745,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: GREEN + '55',
   },
   assignmentsIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.ink,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: GREEN,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  assignmentsTitle: { fontSize: FontSize.body, fontWeight: Font.bold, color: colors.text },
+  assignmentsTitle: { fontSize: FontSize.body, fontWeight: Font.black, color: colors.ink },
   assignmentsSub: { fontSize: FontSize.xs, color: colors.textSecondary, marginTop: 2 },
 
   tasksPreview: {
@@ -734,8 +763,9 @@ const styles = StyleSheet.create({
   },
   tasksPreviewTitle: {
     fontSize: FontSize.h3,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.2,
     marginBottom: Gap.md,
   },
   taskRow: {
@@ -754,27 +784,30 @@ const styles = StyleSheet.create({
   },
   taskName: {
     fontSize: FontSize.body,
-    fontWeight: Font.medium,
-    color: colors.text,
+    fontWeight: Font.semibold,
+    color: colors.ink,
     flex: 1,
     marginRight: Gap.sm,
   },
 
-  // How it works
+  // ── How it works ──
   howSection: {
     paddingHorizontal: Gap.base,
     paddingTop: Gap.xl,
   },
   howTitle: {
     fontSize: FontSize.h2,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.3,
     marginBottom: Gap.base,
   },
   howCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: Gap.lg,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.base,
     ...shadow.sm,
   },
   howRow: {
@@ -792,14 +825,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.primaryTint,
+    backgroundColor: colors.campusCartelTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   howStepNumber: {
     fontSize: FontSize.body,
     fontWeight: Font.black,
-    color: colors.ink,
+    color: colors.campusCartelText,
   },
   howConnector: {
     flex: 1,
@@ -816,7 +849,7 @@ const styles = StyleSheet.create({
   howStepTitle: {
     fontSize: FontSize.body,
     fontWeight: Font.bold,
-    color: colors.text,
+    color: colors.ink,
   },
   howStepDesc: {
     fontSize: FontSize.small,

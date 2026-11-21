@@ -2,22 +2,27 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import { useAuthStore } from '../../src/store/auth.store';
 import {
   colors,
-  spacing,
+  Font,
+  FontSize,
+  Gap,
+  radius,
   shadow,
+  useResponsive,
 } from '../../src/constants/theme';
 import {
-  Card,
   Badge,
   StatusBadge,
   Button,
@@ -28,6 +33,7 @@ import {
 import type { Event, Company } from '@upshot/types';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -49,6 +55,10 @@ function borderColorForStatus(status: string): string {
 export default function CompanyDashboard() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
+
   const [company, setCompany] = useState<Company | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,16 +111,15 @@ export default function CompanyDashboard() {
     .slice(0, 3);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Dark editorial header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          {/* Left: greeting + company name */}
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.headerRow, columnStyle]}>
           <View style={styles.headerLeft}>
             <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.companyName}>{company?.name ?? 'Your Company'}</Text>
+            <Text style={styles.companyName} numberOfLines={1}>{company?.name ?? 'Your Company'}</Text>
           </View>
-          {/* Right: verified / pending pill */}
           {company?.is_verified ? (
             <View style={styles.verifiedPill}>
               <Text style={styles.verifiedText}>Verified ✓</Text>
@@ -121,8 +130,6 @@ export default function CompanyDashboard() {
             </View>
           )}
         </View>
-        {/* UBM watermark */}
-        <Text style={styles.watermark}>UBM</Text>
       </View>
 
       <ScrollView
@@ -130,23 +137,24 @@ export default function CompanyDashboard() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
       >
         {/* No company — onboarding */}
         {noCompany ? (
-          <View style={styles.onboardingWrapper}>
-            <Card style={styles.onboardingCard}>
-              <Text style={styles.onboardingTitle}>Complete your company profile</Text>
-              <Text style={styles.onboardingSubtitle}>
-                Set up your company details so UBM can start matching you with the right talent.
-              </Text>
-              <Button
-                title="Go to profile"
-                variant="primary"
-                style={{ marginTop: spacing.md }}
-                onPress={() => router.push('/(company)/profile')}
-              />
-            </Card>
+          <View style={styles.onboardingCard}>
+            <View style={styles.onboardingIcon}>
+              <Ionicons name="business-outline" size={26} color={colors.ink} />
+            </View>
+            <Text style={styles.onboardingTitle}>Complete your company profile</Text>
+            <Text style={styles.onboardingSubtitle}>
+              Set up your company details so UBM can start matching you with the right talent.
+            </Text>
+            <Button
+              title="Go to profile"
+              variant="primary"
+              style={styles.onboardingBtn}
+              onPress={() => router.push('/(company)/profile')}
+            />
           </View>
         ) : (
           <>
@@ -168,7 +176,7 @@ export default function CompanyDashboard() {
 
               {events.length === 0 ? (
                 <EmptyState
-                  icon="📋"
+                  iconName="briefcase-outline"
                   title="Post your first project"
                   subtitle="Tell UBM what you need and we'll make it happen"
                   action={
@@ -248,7 +256,7 @@ export default function CompanyDashboard() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -258,64 +266,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // ── Header ────────────────────────────────────────────────
+  // ── Header (lime liquid) ──────────────────────────────────
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 52,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: Gap.sm,
   },
   headerLeft: {
     flex: 1,
   },
   greeting: {
-    fontSize: 13,
-    color: 'rgba(14,14,14,0.6)',
-    fontWeight: '700',
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    fontWeight: Font.semibold,
   },
   companyName: {
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
     color: colors.ink,
     marginTop: 2,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   verifiedPill: {
-    backgroundColor: 'rgba(34,197,94,0.15)',
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    borderRadius: radius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: 4,
   },
   verifiedText: {
-    fontSize: 11,
+    fontSize: FontSize.xs,
     color: colors.success,
-    fontWeight: '700',
+    fontWeight: Font.black,
   },
   pendingPill: {
-    backgroundColor: 'rgba(245,158,11,0.15)',
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    borderRadius: radius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: 4,
   },
   pendingText: {
-    fontSize: 11,
+    fontSize: FontSize.xs,
     color: colors.warning,
-    fontWeight: '700',
-  },
-  watermark: {
-    position: 'absolute',
-    right: 20,
-    bottom: 16,
-    fontSize: 48,
-    fontWeight: '900',
-    color: 'rgba(14,14,14,0.06)',
+    fontWeight: Font.black,
   },
 
   // ── Scroll ────────────────────────────────────────────────
@@ -325,136 +329,157 @@ const styles = StyleSheet.create({
 
   // ── Stats grid ────────────────────────────────────────────
   statsSection: {
-    backgroundColor: colors.background,
-    paddingTop: 20,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingTop: Gap.lg,
+    paddingHorizontal: Gap.base,
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
+    gap: Gap.md,
+    marginBottom: Gap.md,
   },
 
   // ── Recent projects ───────────────────────────────────────
   projectsSection: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
+    fontSize: FontSize.h1,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.6,
+    marginBottom: 14,
   },
   projectCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: radius.xxl,
+    padding: Gap.base,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 8,
+    marginBottom: Gap.md,
     overflow: 'hidden',
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
+    ...shadow.sm,
     // borderLeftColor is set inline
   },
   projectRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: Gap.sm,
   },
   projectRowMeta: {
-    marginTop: 6,
+    marginTop: 8,
   },
   projectTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: FontSize.h3,
+    fontWeight: Font.black,
+    color: colors.ink,
     flex: 1,
+    letterSpacing: -0.3,
   },
   projectDate: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: colors.textLight,
+    fontWeight: Font.medium,
   },
   applicantsText: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.textSecondary,
-    marginTop: 4,
+    fontWeight: Font.medium,
+    marginTop: 8,
   },
   rejectionReason: {
-    fontSize: 12,
+    fontSize: FontSize.small,
     color: colors.error,
     fontStyle: 'italic',
-    marginTop: 4,
+    marginTop: 6,
   },
   viewTeamLink: {
-    fontSize: 13,
+    fontSize: FontSize.small,
     color: colors.ink,
-    marginTop: 6,
-    fontWeight: '700',
+    marginTop: 8,
+    fontWeight: Font.black,
   },
 
   // ── Post requirement CTA ──────────────────────────────────
   ctaSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 100,
-    backgroundColor: colors.surface,
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.base,
   },
   ctaCard: {
     backgroundColor: colors.primary,
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: radius.xxl,
+    padding: Gap.lg,
+    overflow: 'hidden',
+    ...shadow.sm,
   },
   ctaTitle: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: FontSize.h2,
+    fontWeight: Font.black,
     color: colors.ink,
     letterSpacing: -0.3,
   },
   ctaSubtitle: {
-    fontSize: 13,
-    color: 'rgba(14,14,14,0.65)',
+    fontSize: FontSize.small,
+    color: '#49503f',
     marginTop: 4,
-    fontWeight: '500',
+    fontWeight: Font.medium,
+    lineHeight: 18,
   },
   ctaButton: {
     alignSelf: 'flex-start',
-    marginTop: 16,
+    marginTop: Gap.base,
     backgroundColor: colors.ink,
-    borderRadius: 9999,
-    height: 42,
+    borderRadius: radius.full,
+    height: 44,
     paddingHorizontal: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ctaButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: FontSize.body,
+    fontWeight: Font.black,
     color: '#FFFFFF',
   },
 
   // ── No company onboarding ─────────────────────────────────
-  onboardingWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-  },
   onboardingCard: {
-    padding: 20,
+    marginHorizontal: Gap.base,
+    marginTop: Gap.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: Gap.lg,
     alignItems: 'center',
+    ...shadow.sm,
+  },
+  onboardingIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.md,
   },
   onboardingTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: FontSize.h3,
+    fontWeight: Font.black,
+    color: colors.ink,
     textAlign: 'center',
+    letterSpacing: -0.3,
   },
   onboardingSubtitle: {
-    fontSize: 14,
+    fontSize: FontSize.body,
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 6,
+    lineHeight: 20,
+  },
+  onboardingBtn: {
+    marginTop: Gap.base,
+    alignSelf: 'stretch',
   },
 });

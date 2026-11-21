@@ -1,25 +1,32 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
-import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { AvatarCircle, Button, Input, roleBadgeMeta } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 export default function AmbassadorProfile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
 
@@ -68,7 +75,7 @@ export default function AmbassadorProfile() {
   if (!user) return null;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -78,78 +85,89 @@ export default function AmbassadorProfile() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Dark identity header — matches ambassador dashboard style */}
-          <View style={styles.identitySection}>
-            <AvatarCircle name={user.full_name ?? 'Ambassador'} size={72} avatarUrl={user.avatar_url} />
-            <Text style={styles.identityName}>{user.full_name ?? 'Ambassador'}</Text>
-            <Text style={styles.identityEmail}>{user.email}</Text>
-            {/* Being an ambassador is something a community member does, not a
-                category of its own — the label comes from the shared map. */}
-            <View style={styles.ambassadorChip}>
-              <Text style={styles.ambassadorChipText}>
-                {roleBadgeMeta(user.role).label.toUpperCase()}
-              </Text>
+          {/* ── Lime liquid identity header ── */}
+          <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+            <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+            <View style={[columnStyle, { alignItems: 'center' }]}>
+              <View style={styles.avatarRing}>
+                <AvatarCircle name={user.full_name ?? 'Ambassador'} size={78} avatarUrl={user.avatar_url} />
+              </View>
+              <Text style={styles.identityName}>{user.full_name ?? 'Ambassador'}</Text>
+              <Text style={styles.identityEmail}>{user.email}</Text>
+              {/* Being an ambassador is something a community member does, not a
+                  category of its own — the label comes from the shared map. */}
+              <View style={styles.ambassadorChip}>
+                <Text style={styles.ambassadorChipText}>
+                  {roleBadgeMeta(user.role).label.toUpperCase()}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Edit form */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Edit Profile</Text>
-            <Input
-              label="Full Name"
-              placeholder="Your full name"
-              value={editName}
-              onChangeText={setEditName}
-              autoCapitalize="words"
-            />
-            <Input
-              label="Phone"
-              placeholder="Your phone number"
-              value={editPhone}
-              onChangeText={setEditPhone}
-              keyboardType="phone-pad"
-            />
-            <Button
-              title="Save Changes"
-              onPress={handleSave}
-              loading={saving}
-              disabled={saving}
-              style={styles.saveBtn}
-            />
-          </View>
+          <View style={columnStyle}>
+            {/* Edit form */}
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Edit Profile</Text>
+              <Input
+                label="Full Name"
+                placeholder="Your full name"
+                value={editName}
+                onChangeText={setEditName}
+                autoCapitalize="words"
+              />
+              <Input
+                label="Phone"
+                placeholder="Your phone number"
+                value={editPhone}
+                onChangeText={setEditPhone}
+                keyboardType="phone-pad"
+              />
+              <Button
+                title="Save Changes"
+                onPress={handleSave}
+                loading={saving}
+                disabled={saving}
+                style={styles.saveBtn}
+              />
+            </View>
 
-          {/* Account details */}
-          <View style={styles.accountSection}>
-            <Text style={styles.sectionTitle}>Account</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Status</Text>
-              <Text style={[styles.detailValue, { color: user.is_active ? colors.success : colors.error }]}>
-                {user.is_active ? 'Active' : 'Inactive'}
-              </Text>
+            {/* Account details */}
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Account</Text>
+              <View style={[styles.detailRow, styles.detailRowBorder]}>
+                <Text style={styles.detailLabel}>Status</Text>
+                <Text style={[styles.detailValue, { color: user.is_active ? colors.success : colors.error }]}>
+                  {user.is_active ? 'Active' : 'Inactive'}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Member since</Text>
+                <Text style={styles.detailValue}>
+                  {new Date(user.created_at).toLocaleDateString('en-IN', {
+                    day: 'numeric', month: 'short', year: 'numeric',
+                  })}
+                </Text>
+              </View>
             </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Member since</Text>
-              <Text style={styles.detailValue}>
-                {new Date(user.created_at).toLocaleDateString('en-IN', {
-                  day: 'numeric', month: 'short', year: 'numeric',
-                })}
-              </Text>
-            </View>
-            <Button
-              title="Sign Out"
-              onPress={handleSignOut}
-              variant="danger"
+
+            {/* Sign out */}
+            <TouchableOpacity
               style={styles.signOutBtn}
-            />
+              onPress={handleSignOut}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="log-out-outline" size={18} color="#991B1B" />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: colors.background,
   },
@@ -160,15 +178,26 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  // Identity header
-  identitySection: {
+  // ── Lime liquid header ──
+  header: {
     backgroundColor: colors.primary,
     alignItems: 'center',
-    paddingTop: Gap.xl,
+    paddingHorizontal: Gap.lg,
     paddingBottom: Gap.xxl,
-    paddingHorizontal: Gap.base,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    borderBottomLeftRadius: 34,
+    borderBottomRightRadius: 34,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  avatarRing: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    ...shadow.md,
   },
   identityName: {
     fontSize: FontSize.h1,
@@ -179,68 +208,85 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   identityEmail: {
-    fontSize: FontSize.body,
-    color: 'rgba(14,14,14,0.6)',
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    fontWeight: Font.semibold,
     marginTop: 3,
     textAlign: 'center',
   },
   ambassadorChip: {
     marginTop: Gap.md,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    backgroundColor: colors.ink,
     borderRadius: radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
   ambassadorChipText: {
     fontSize: FontSize.xs,
-    color: colors.ink,
-    fontWeight: Font.bold,
+    color: '#FFFFFF',
+    fontWeight: Font.black,
     letterSpacing: 2,
   },
 
-  // Form
-  formSection: {
+  // ── Cards ──
+  card: {
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xxl,
+    marginHorizontal: Gap.base,
+    marginTop: Gap.base,
     padding: Gap.base,
-    paddingTop: Gap.xl,
+    ...shadow.sm,
   },
   sectionTitle: {
     fontSize: FontSize.h2,
-    fontWeight: Font.bold,
-    color: colors.text,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.3,
     marginBottom: Gap.md,
   },
   saveBtn: {
     marginTop: Gap.sm,
   },
 
-  // Account
-  accountSection: {
-    backgroundColor: colors.surface,
-    marginTop: Gap.sm,
-    padding: Gap.base,
-    paddingTop: Gap.xl,
-    paddingBottom: Gap.xxl,
-  },
+  // ── Account ──
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
+  },
+  detailRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.background,
   },
   detailLabel: {
-    fontSize: FontSize.body,
-    color: colors.text,
-  },
-  detailValue: {
     fontSize: FontSize.body,
     color: colors.textSecondary,
     fontWeight: Font.medium,
   },
+  detailValue: {
+    fontSize: FontSize.body,
+    color: colors.ink,
+    fontWeight: Font.semibold,
+  },
+
+  // ── Sign out ──
   signOutBtn: {
-    marginTop: Gap.xl,
+    marginHorizontal: Gap.base,
+    marginTop: Gap.base,
+    backgroundColor: '#FEE2E2',
+    borderRadius: radius.full,
+    paddingVertical: 15,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signOutText: {
+    fontSize: 15,
+    fontWeight: Font.black,
+    color: '#991B1B',
   },
 });

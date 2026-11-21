@@ -1,3 +1,12 @@
+// ─── Theme (single source of truth) ─────────────────────────────────────────
+//
+// This module is the one place design values live — colours, type scale,
+// spacing, radii, shadows and the responsive layout helper. Screens and
+// components read from here instead of hardcoding numbers, so the whole app
+// stays consistent and adapts to every phone and tablet size.
+
+import { useWindowDimensions } from 'react-native';
+
 // ─── Colors ──────────────────────────────────────────────────────────────────
 //
 // UPSHOT / UBM brand — light editorial theme with lime-green accent.
@@ -167,3 +176,43 @@ export const shadow = {
     elevation: 6,
   },
 } as const;
+
+// ─── Responsive layout ────────────────────────────────────────────────────────
+//
+// One hook every screen uses so the app is never pinned to a single phone size.
+// It gives: a capped, centred content column (so tablets don't stretch a phone
+// layout edge-to-edge), the page gutter, and a clamped `scale()` for the few
+// values that should grow a little on big screens. Nothing hardcodes widths.
+
+export const BREAKPOINTS = { tablet: 600 } as const;
+
+/** The width the content column is designed against — scaling is relative to this. */
+const BASE_WIDTH = 390;
+/** Content never grows past this, so lines stay readable on tablets. */
+const MAX_CONTENT_WIDTH = 620;
+
+export interface Responsive {
+  width: number;
+  height: number;
+  /** >= 600pt wide. */
+  isTablet: boolean;
+  /** < 360pt wide (iPhone SE class). */
+  isSmall: boolean;
+  /** Capped, centred content width — use for carousels and column layout. */
+  contentWidth: number;
+  /** Horizontal page padding for the current size. */
+  gutter: number;
+  /** Clamped multiplier for sizes that should grow slightly on large screens. */
+  scale: (n: number) => number;
+}
+
+export function useResponsive(): Responsive {
+  const { width, height } = useWindowDimensions();
+  const isTablet = width >= BREAKPOINTS.tablet;
+  const isSmall = width < 360;
+  const contentWidth = isTablet ? Math.min(width, MAX_CONTENT_WIDTH) : width;
+  const gutter = isTablet ? 24 : 16;
+  const factor = Math.min(Math.max(contentWidth / BASE_WIDTH, 0.92), 1.12);
+  const scale = (n: number) => Math.round(n * factor);
+  return { width, height, isTablet, isSmall, contentWidth, gutter, scale };
+}

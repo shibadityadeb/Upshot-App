@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,9 +13,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { WorkforceProfile } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import {
   Button,
   CoinBadge,
@@ -26,10 +28,12 @@ import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const INFO_ROWS = (user: any) => [
   { label: 'Full Name', value: user?.full_name ?? '—' },
   { label: 'Email', value: user?.email ?? '—' },
+  { label: 'City', value: user?.city ?? '—' },
   {
     label: 'Member since',
     value: user?.created_at
@@ -45,6 +49,8 @@ const INFO_ROWS = (user: any) => [
 export default function PeopleProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
 
@@ -59,6 +65,7 @@ export default function PeopleProfile() {
   // Edit mode
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user?.full_name ?? '');
+  const [editCity, setEditCity] = useState(user?.city ?? '');
   const [editBio, setEditBio] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -134,6 +141,7 @@ export default function PeopleProfile() {
     if (isEditing) {
       setEditName(user?.full_name ?? '');
       setEditBio(workforceProfile?.bio ?? '');
+      setEditCity(user?.city ?? '');
     }
     setIsEditing((prev) => !prev);
   }, [isEditing, user, workforceProfile]);
@@ -147,7 +155,7 @@ export default function PeopleProfile() {
     setSaving(true);
     try {
       const [authRes] = await Promise.all([
-        api.auth.updateProfile(user.id, { full_name: editName.trim() }),
+        api.auth.updateProfile(user.id, { full_name: editName.trim(), city: editCity.trim() || null }),
         api.workforce.upsertProfile(user.id, {
           bio: editBio.trim() || undefined,
           full_name: editName.trim(),
@@ -163,7 +171,7 @@ export default function PeopleProfile() {
     } finally {
       setSaving(false);
     }
-  }, [user, editName, editBio, load]);
+  }, [user, editName, editCity, editBio, load]);
 
   const handleSignOut = useCallback(() => {
     Alert.alert('Sign Out', 'Are you sure?', [
@@ -203,22 +211,33 @@ export default function PeopleProfile() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── DARK HEADER ── */}
-          {/* Extra top padding stands in for the avatar that used to sit here,
-              so the name does not crowd the status bar. */}
-          <View style={[styles.header, { paddingTop: insets.top + 32 }]}>
-            <Text style={styles.headerName}>{user.full_name ?? 'User'}</Text>
-            <Text style={styles.headerEmail}>{user.email}</Text>
-            {(badges.length > 0 || showCoinBadge) && (
-              <View style={styles.badgeRow}>
-                {badges.map((b) => (
-                  <RoleBadge key={b} role={b} size="md" />
-                ))}
-                {showCoinBadge && <CoinBadge amount={balance} />}
+          {/* ── LIME LIQUID HEADER ── */}
+          <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+            <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+            <View style={[columnStyle, { alignItems: 'center' }]}>
+              <View style={styles.avatar}>
+                {user.avatar_url ? (
+                  <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} />
+                ) : (
+                  <Text style={styles.avatarText}>
+                    {(user.full_name ?? 'U').trim().charAt(0).toUpperCase()}
+                  </Text>
+                )}
               </View>
-            )}
+              <Text style={styles.headerName}>{user.full_name ?? 'User'}</Text>
+              <Text style={styles.headerEmail}>{user.email}</Text>
+              {(badges.length > 0 || showCoinBadge) && (
+                <View style={styles.badgeRow}>
+                  {badges.map((b) => (
+                    <RoleBadge key={b} role={b} size="md" />
+                  ))}
+                  {showCoinBadge && <CoinBadge amount={balance} />}
+                </View>
+              )}
+            </View>
           </View>
 
+          <View style={columnStyle}>
           {/* ── PROFILE INFO CARD ── */}
           <View style={styles.infoCard}>
             <View style={styles.infoCardHeader}>
@@ -235,6 +254,13 @@ export default function PeopleProfile() {
                   placeholder="Your full name"
                   value={editName}
                   onChangeText={setEditName}
+                  autoCapitalize="words"
+                />
+                <Input
+                  label="City"
+                  placeholder="Your city (for events near you)"
+                  value={editCity}
+                  onChangeText={setEditCity}
                   autoCapitalize="words"
                 />
                 <Input
@@ -274,8 +300,10 @@ export default function PeopleProfile() {
             onPress={handleSignOut}
             activeOpacity={0.8}
           >
+            <Ionicons name="log-out-outline" size={18} color="#991B1B" />
             <Text style={styles.signOutText}>Sign out</Text>
           </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -293,27 +321,44 @@ const styles = StyleSheet.create({
   },
   scrollContent: { paddingBottom: 100 },
 
-  // ── Lime header ──
+  // ── Lime liquid header ──
   header: {
     backgroundColor: colors.primary,
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 36,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingBottom: 32,
+    borderBottomLeftRadius: 34,
+    borderBottomRightRadius: 34,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  avatar: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.65)',
+    marginTop: 8,
+    ...shadow.md,
+  },
+  avatarImg: { width: 78, height: 78, borderRadius: 39 },
+  avatarText: { fontSize: 32, fontWeight: Font.black, color: '#FFFFFF' },
   headerName: {
-    fontSize: 22,
+    fontSize: 23,
     fontWeight: '900',
     color: colors.ink,
-    marginBottom: 4,
+    marginTop: 12,
+    marginBottom: 2,
     letterSpacing: -0.5,
   },
   headerEmail: {
     fontSize: 13,
     color: 'rgba(14,14,14,0.6)',
-    marginBottom: 16,
-    fontWeight: '500',
+    marginBottom: 14,
+    fontWeight: '600',
   },
   badgeRow: {
     flexDirection: 'row',
@@ -335,14 +380,13 @@ const styles = StyleSheet.create({
   infoCard: {
     backgroundColor: colors.surface,
     marginHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 12,
+    marginTop: 20,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    ...shadow.sm,
   },
   infoCardHeader: {
     flexDirection: 'row',
@@ -395,13 +439,16 @@ const styles = StyleSheet.create({
   signOutBtn: {
     marginHorizontal: 16,
     backgroundColor: '#FEE2E2',
-    borderRadius: 12,
+    borderRadius: radius.full,
     paddingVertical: 15,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   signOutText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#991B1B',
   },
 });

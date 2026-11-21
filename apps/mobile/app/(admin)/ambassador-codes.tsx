@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   Platform,
   RefreshControl,
@@ -13,18 +14,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { AmbassadorCode, CreateAmbassadorCodePayload, Vertical } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { verticalColors } from '../../src/constants/theme';
 import { Button, Card, EmptyState, Input } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 type FilterKey = 'all' | 'active' | 'claimed' | 'inactive';
 
@@ -54,6 +56,9 @@ const STATIC_VERTICAL_OPTIONS: VerticalOption[] = [
 export default function AmbassadorCodesScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [codes, setCodes] = useState<AmbassadorCode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -285,20 +290,23 @@ export default function AmbassadorCodesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.screenTitle}>Ambassador Codes</Text>
-          <Text style={styles.screenSubtitle}>Generate and manage invite codes</Text>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[styles.headerRow, columnStyle]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={20} color={colors.ink} />
+          </TouchableOpacity>
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle}>Ambassador Codes</Text>
+            <Text style={styles.headerSubtitle}>Generate and manage invite codes</Text>
+          </View>
         </View>
       </View>
 
       {/* Generate Button */}
-      <View style={styles.generateContainer}>
+      <View style={[styles.generateContainer, columnStyle]}>
         <Button
           title="Generate New Code"
           onPress={() => setModalVisible(true)}
@@ -310,7 +318,7 @@ export default function AmbassadorCodesScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
+        contentContainerStyle={[styles.filterRow, columnStyle]}
       >
         {FILTER_OPTIONS.map((opt) => {
           const active = filter === opt.key;
@@ -334,7 +342,7 @@ export default function AmbassadorCodesScreen() {
         data={filteredCodes}
         keyExtractor={(item) => item.id}
         renderItem={renderCode}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, columnStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -470,7 +478,7 @@ export default function AmbassadorCodesScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -485,37 +493,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
+  header: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.md,
-    paddingHorizontal: Gap.base,
-    paddingTop: Gap.base,
-    paddingBottom: Gap.sm,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.full,
-    backgroundColor: colors.border,
+    borderRadius: 19,
+    backgroundColor: 'rgba(14,14,14,0.08)',
   },
   headerText: {
     flex: 1,
   },
-  screenTitle: {
-    fontSize: FontSize.h1,
-    fontWeight: Font.bold,
-    color: colors.text,
+  headerTitle: {
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.7,
   },
-  screenSubtitle: {
+  headerSubtitle: {
     fontSize: FontSize.small,
-    color: colors.textSecondary,
-    marginTop: 1,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
   generateContainer: {
     paddingHorizontal: Gap.base,
+    paddingTop: Gap.base,
     paddingBottom: Gap.sm,
   },
   filterRow: {
@@ -524,13 +541,16 @@ const styles = StyleSheet.create({
     gap: Gap.sm,
   },
   filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: radius.full,
-    backgroundColor: colors.border,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   filterPillActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterPillText: {
     fontSize: FontSize.small,
@@ -539,15 +559,19 @@ const styles = StyleSheet.create({
   },
   filterPillTextActive: {
     color: colors.onPrimary,
+    fontWeight: Font.black,
   },
   listContent: {
     paddingHorizontal: Gap.base,
+    paddingTop: Gap.sm,
     paddingBottom: Gap.xl,
     flexGrow: 1,
   },
   codeCard: {
-    marginBottom: Gap.sm,
+    marginBottom: Gap.md,
     padding: Gap.base,
+    borderRadius: radius.xxl,
+    ...shadow.sm,
   },
   codeHeader: {
     flexDirection: 'row',

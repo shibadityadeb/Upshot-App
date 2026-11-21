@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   RefreshControl,
   ScrollView,
   Share,
@@ -9,20 +10,24 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador, Student } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { LoadingScreen, StatCard } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 export default function AmbassadorReferrals() {
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [ambassador, setAmbassador] = useState<Ambassador | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -105,22 +110,25 @@ export default function AmbassadorReferrals() {
   }).length;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Dark header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Referrals</Text>
-          {totalReferrals > 0 && (
-            <View style={styles.countPill}>
-              <Text style={styles.countText}>{totalReferrals} total</Text>
-            </View>
-          )}
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>Referrals</Text>
+            {totalReferrals > 0 && (
+              <View style={styles.countPill}>
+                <Text style={styles.countText}>{totalReferrals} total</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.headerSubtitle}>How many people joined using your code</Text>
         </View>
-        <Text style={styles.headerSubtitle}>How many people joined using your code</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[styles.listContainer, columnStyle]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -140,22 +148,25 @@ export default function AmbassadorReferrals() {
         {/* Referral code card */}
         {ambassador && (
           <View style={styles.codeCard}>
+            <View style={styles.codeIcon}>
+              <Ionicons name="gift-outline" size={20} color={colors.ink} />
+            </View>
             <Text style={styles.codeLabel}>YOUR REFERRAL CODE</Text>
             <Text style={styles.codeValue}>{ambassador.referral_code}</Text>
             <View style={styles.codeActions}>
-              <TouchableOpacity style={styles.codeBtn} onPress={handleCopy} activeOpacity={0.7}>
-                <Ionicons name="copy-outline" size={16} color={colors.primary} />
+              <TouchableOpacity style={styles.codeBtn} onPress={handleCopy} activeOpacity={0.85}>
+                <Ionicons name="copy-outline" size={16} color={colors.onPrimary} />
                 <Text style={styles.codeBtnText}>Copy</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.codeBtn} onPress={handleShare} activeOpacity={0.7}>
-                <Ionicons name="share-outline" size={16} color={colors.primary} />
-                <Text style={styles.codeBtnText}>Share</Text>
+              <TouchableOpacity style={styles.codeBtnDark} onPress={handleShare} activeOpacity={0.85}>
+                <Ionicons name="share-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.codeBtnDarkText}>Share</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -165,72 +176,89 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // Header
+  // Header (lime liquid)
   header: {
     backgroundColor: colors.primary,
-    paddingTop: Gap.lg,
     paddingHorizontal: Gap.base,
     paddingBottom: Gap.xl,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: FontSize.h1,
+    fontSize: FontSize.display,
     fontWeight: Font.black,
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   headerSubtitle: {
     fontSize: FontSize.small,
-    color: 'rgba(14,14,14,0.6)',
-    marginTop: 2,
-    fontWeight: Font.medium,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
   countPill: {
     backgroundColor: colors.ink,
     borderRadius: radius.full,
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
   countText: {
     fontSize: FontSize.small,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: '#FFFFFF',
+  },
+
+  // List
+  listContainer: {
+    paddingHorizontal: Gap.base,
+    paddingTop: Gap.xs,
+    paddingBottom: 100,
   },
 
   // Stats row
   statsRow: {
     flexDirection: 'row',
     gap: Gap.sm,
-    paddingHorizontal: Gap.base,
     paddingVertical: Gap.base,
   },
 
   // Code card
   codeCard: {
     backgroundColor: colors.surface,
-    marginHorizontal: Gap.base,
-    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xxl,
     padding: Gap.lg,
     alignItems: 'center',
     marginBottom: Gap.md,
     ...shadow.sm,
   },
+  codeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.md,
+  },
   codeLabel: {
     fontSize: FontSize.micro,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.textSecondary,
     letterSpacing: 2,
   },
   codeValue: {
     fontSize: FontSize.display,
     fontWeight: Font.black,
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: 4,
     marginTop: Gap.sm,
     marginBottom: Gap.base,
@@ -243,87 +271,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Gap.xs,
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    paddingHorizontal: Gap.base,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    paddingHorizontal: Gap.lg,
     paddingVertical: Gap.sm,
   },
   codeBtnText: {
     fontSize: FontSize.body,
-    fontWeight: Font.bold,
-    color: colors.ink,
+    fontWeight: Font.black,
+    color: colors.onPrimary,
   },
-
-  // Search
-  searchSection: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: Gap.base,
-    paddingVertical: Gap.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  searchWrapper: {
+  codeBtnDark: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    paddingHorizontal: Gap.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: Gap.sm,
+    gap: Gap.xs,
+    backgroundColor: colors.ink,
+    borderRadius: radius.full,
+    paddingHorizontal: Gap.lg,
+    paddingVertical: Gap.sm,
   },
-  searchInput: {
-    flex: 1,
+  codeBtnDarkText: {
     fontSize: FontSize.body,
-    color: colors.text,
-    paddingVertical: 11,
-  },
-
-  // List
-  listContainer: {
-    paddingHorizontal: Gap.base,
-    paddingTop: Gap.md,
-    paddingBottom: 100,
-  },
-  emptyContainer: {
-    flexGrow: 1,
-    paddingHorizontal: Gap.base,
-    paddingTop: Gap.xl,
-  },
-  listCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  studentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: Gap.md,
-  },
-  studentInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  studentName: {
-    fontSize: 14,
-    fontWeight: Font.bold,
-    color: colors.text,
-  },
-  studentSub: {
-    fontSize: FontSize.small,
-    color: colors.textSecondary,
-  },
-  studentDate: {
-    fontSize: FontSize.xs,
-    color: colors.textLight,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: 14,
+    fontWeight: Font.black,
+    color: '#FFFFFF',
   },
 });

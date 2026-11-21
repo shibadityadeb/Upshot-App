@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,12 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Ambassador, WalletBalance } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../../src/constants/theme';
 import {
   AvatarCircle,
   Button,
@@ -30,6 +31,7 @@ import { useAuthStore } from '../../../src/store/auth.store';
 import { showError } from '../../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../../assets/hero-liquid.png');
 
 interface Profile {
   id: string;
@@ -46,6 +48,9 @@ export default function AdminPersonDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const adminUser = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [balance, setBalance] = useState<WalletBalance | null>(null);
@@ -195,26 +200,36 @@ export default function AdminPersonDetail() {
 
   if (error || !profile) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </TouchableOpacity>
+      <View style={styles.safeArea}>
+        <View style={[styles.errorBackRow, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity style={styles.backPill} onPress={() => router.back()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={14} color="#fff" />
+            <Text style={styles.backPillText}>Back</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error ?? 'Profile not found'}</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Back */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-          <Text style={styles.backText}>People</Text>
-        </TouchableOpacity>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <TouchableOpacity style={styles.backPill} onPress={() => router.back()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={14} color="#fff" />
+            <Text style={styles.backPillText}>People</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Member</Text>
+          <Text style={styles.headerSubtitle}>Profile and rewards</Text>
+        </View>
+      </View>
 
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, columnStyle]}>
         {/* Identity */}
         <View style={styles.identitySection}>
           <AvatarCircle name={profile.full_name ?? '?'} size={80} avatarUrl={profile.avatar_url} />
@@ -360,7 +375,7 @@ export default function AdminPersonDetail() {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -383,23 +398,61 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
-  backBtn: {
+  // Lime liquid header
+  header: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+  },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  backPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Gap.xs,
-    paddingHorizontal: Gap.base,
-    paddingVertical: Gap.md,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(14,14,14,0.45)',
+    borderRadius: radius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    gap: 6,
+    marginBottom: Gap.md,
   },
-  backText: {
-    fontSize: FontSize.body,
-    color: colors.text,
-    fontWeight: Font.medium,
+  backPillText: {
+    fontSize: FontSize.small,
+    fontWeight: Font.semibold,
+    color: '#fff',
+  },
+  errorBackRow: {
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.md,
+    backgroundColor: colors.primary,
+  },
+  headerTitle: {
+    fontSize: FontSize.display,
+    fontWeight: Font.black,
+    color: colors.ink,
+    letterSpacing: -0.7,
+  },
+  headerSubtitle: {
+    fontSize: FontSize.small,
+    color: '#2c3326',
+    marginTop: 3,
+    fontWeight: Font.semibold,
   },
   identitySection: {
     alignItems: 'center',
     paddingVertical: Gap.xl,
-    backgroundColor: colors.surface,
+    paddingHorizontal: Gap.base,
+    marginHorizontal: Gap.base,
+    marginTop: Gap.base,
     marginBottom: Gap.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
   },
   profileName: {
     fontSize: FontSize.h2,
@@ -438,6 +491,8 @@ const styles = StyleSheet.create({
     margin: Gap.base,
     padding: Gap.base,
     gap: Gap.sm,
+    borderRadius: radius.xxl,
+    ...shadow.sm,
   },
   walletLabel: {
     fontSize: FontSize.small,
@@ -470,9 +525,11 @@ const styles = StyleSheet.create({
   },
   actionsCard: {
     marginHorizontal: Gap.base,
-    marginBottom: Gap.sm,
+    marginBottom: Gap.md,
     padding: Gap.base,
     gap: Gap.sm,
+    borderRadius: radius.xxl,
+    ...shadow.sm,
   },
   actionsTitle: {
     fontSize: FontSize.h3,
@@ -488,8 +545,10 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     marginHorizontal: Gap.base,
-    marginBottom: Gap.sm,
+    marginBottom: Gap.md,
     padding: Gap.base,
+    borderRadius: radius.xxl,
+    ...shadow.sm,
   },
   infoRow: {
     flexDirection: 'row',

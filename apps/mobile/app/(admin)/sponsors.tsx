@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
+  Image,
   Linking,
   RefreshControl,
   ScrollView,
@@ -10,17 +11,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { SponsorInquiry, SponsorInquiryStatus } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { FilterPills } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 import { showError } from '../../src/store/error.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 const STATUS_STYLE: Record<SponsorInquiryStatus, { bg: string; fg: string; label: string }> = {
   pending: { bg: '#FEF3C7', fg: '#92400E', label: 'New' },
@@ -33,6 +35,9 @@ type Filter = 'pending' | 'contacted' | 'accepted' | 'declined' | 'all';
 
 export default function AdminSponsorsScreen() {
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [inquiries, setInquiries] = useState<SponsorInquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,12 +83,16 @@ export default function AdminSponsorsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Sponsors</Text>
-        <Text style={styles.heroSub}>
-          {count('pending')} new · {inquiries.length} total
-        </Text>
+    <View style={styles.safeArea}>
+      {/* Lime liquid header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={columnStyle}>
+          <Text style={styles.heroTitle}>Sponsors</Text>
+          <Text style={styles.heroSub}>
+            {count('pending')} new · {inquiries.length} total
+          </Text>
+        </View>
       </View>
 
       <FilterPills
@@ -100,17 +109,19 @@ export default function AdminSponsorsScreen() {
 
       <ScrollView
         style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, columnStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />
         }
       >
         {loading ? (
           <ActivityIndicator size="large" color={colors.ink} style={{ marginTop: 40 }} />
         ) : visible.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="star-outline" size={48} color={colors.textLight} />
+            <View style={styles.emptyIcon}>
+              <Ionicons name="star-outline" size={34} color={colors.textLight} />
+            </View>
             <Text style={styles.emptyTitle}>No sponsor inquiries</Text>
             <Text style={styles.emptySubtitle}>
               When someone taps Sponsor on a workshop, it shows up here
@@ -199,32 +210,46 @@ export default function AdminSponsorsScreen() {
           })
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.primary },
+  safeArea: { flex: 1, backgroundColor: colors.background },
   scrollArea: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { padding: Gap.base, paddingBottom: 100, backgroundColor: colors.background },
-  hero: {
+  scrollContent: { padding: Gap.base, paddingBottom: 100 },
+
+  // ── Header (lime liquid) ──
+  header: {
     backgroundColor: colors.primary,
     paddingHorizontal: Gap.base,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: Gap.xl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
-  heroTitle: { fontSize: 28, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.5 },
-  heroSub: { fontSize: FontSize.small, color: 'rgba(14,14,14,0.6)', marginTop: 2, fontWeight: Font.medium },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  heroTitle: { fontSize: FontSize.display, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.7 },
+  heroSub: { fontSize: FontSize.small, color: '#2c3326', marginTop: 3, fontWeight: Font.semibold },
 
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyTitle: { fontSize: FontSize.h3, fontWeight: Font.bold, color: colors.text },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Gap.xs,
+  },
+  emptyTitle: { fontSize: FontSize.h3, fontWeight: Font.black, color: colors.text },
   emptySubtitle: { fontSize: FontSize.small, color: colors.textSecondary, textAlign: 'center' },
 
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     padding: Gap.base,
@@ -232,36 +257,36 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Gap.sm, marginBottom: Gap.md },
-  company: { fontSize: FontSize.h3, fontWeight: Font.black, color: colors.text, letterSpacing: -0.3 },
-  eventName: { fontSize: FontSize.small, color: colors.textSecondary, marginTop: 2 },
-  statusPill: { borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
-  statusPillText: { fontSize: FontSize.xs, fontWeight: Font.bold, letterSpacing: 0.3 },
+  company: { fontSize: FontSize.h2, fontWeight: Font.black, color: colors.ink, letterSpacing: -0.3 },
+  eventName: { fontSize: FontSize.small, color: colors.textSecondary, marginTop: 2, fontWeight: Font.medium },
+  statusPill: { borderRadius: radius.full, paddingHorizontal: 11, paddingVertical: 5 },
+  statusPillText: { fontSize: FontSize.xs, fontWeight: Font.black, letterSpacing: 0.3 },
   field: { marginBottom: Gap.sm },
   fieldLabel: {
     fontSize: FontSize.micro,
-    fontWeight: Font.bold,
+    fontWeight: Font.black,
     color: colors.textLight,
     letterSpacing: 1.5,
     marginBottom: 2,
   },
   fieldValue: { fontSize: FontSize.body, color: colors.text, lineHeight: 20 },
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  contactLink: { fontSize: FontSize.small, color: colors.info, flex: 1 },
+  contactLink: { fontSize: FontSize.small, color: colors.info, flex: 1, fontWeight: Font.medium },
   contactText: { fontSize: FontSize.small, color: colors.textSecondary, flex: 1 },
   date: { fontSize: FontSize.xs, color: colors.textLight, marginTop: Gap.sm },
 
   actions: { flexDirection: 'row', gap: Gap.sm, marginTop: Gap.md },
   actionBtn: {
     flex: 1,
-    height: 42,
+    height: 44,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionContacted: { backgroundColor: colors.ink },
-  actionContactedText: { fontSize: FontSize.small, fontWeight: Font.bold, color: '#FFFFFF' },
+  actionContactedText: { fontSize: FontSize.small, fontWeight: Font.black, color: '#FFFFFF' },
   actionAccept: { backgroundColor: colors.primary },
-  actionAcceptText: { fontSize: FontSize.small, fontWeight: Font.bold, color: colors.onPrimary },
+  actionAcceptText: { fontSize: FontSize.small, fontWeight: Font.black, color: colors.onPrimary },
   actionDecline: { backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border },
-  actionDeclineText: { fontSize: FontSize.small, fontWeight: Font.bold, color: colors.error },
+  actionDeclineText: { fontSize: FontSize.small, fontWeight: Font.black, color: colors.error },
 });

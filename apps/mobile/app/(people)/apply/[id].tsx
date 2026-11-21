@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Event } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius } from '../../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, useResponsive } from '../../../src/constants/theme';
 import { AvatarCircle, EventBanner, Input } from '../../../src/components/common';
 import { useAuthStore } from '../../../src/store/auth.store';
 import { showError } from '../../../src/store/error.store';
@@ -25,6 +26,8 @@ export default function PeopleApply() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,6 +153,11 @@ export default function PeopleApply() {
   // The person who created the event can't apply to their own workshop —
   // they see an ownership badge + how many participants the admin has accepted.
   const isOwner = !!user && event.created_by === user.id;
+  // External events are aggregated from other platforms — registration happens
+  // on the source, so we redirect out instead of taking an application.
+  const isExternal = !!event.is_external;
+  const sourceUrl = event.source_url ?? undefined;
+  const sourceName = event.source_name ?? 'the host';
   const participantsCount = event.current_attendees ?? 0;
   // Joining is automatic up to capacity; 'pending' means the event was full and
   // they are waiting for a seat. Someone who withdrew falls through to the
@@ -197,6 +205,7 @@ export default function PeopleApply() {
           )}
         </View>
 
+        <View style={columnStyle}>
         {/* 2 — Title block */}
         <View style={styles.titleBlock}>
           <Text style={styles.eventTitle}>{event.title}</Text>
@@ -215,8 +224,15 @@ export default function PeopleApply() {
 
           {event.coin_reward > 0 && isCartelMember && (
             <View style={styles.coinRow}>
-              <Ionicons name="diamond-outline" size={13} color="#92400E" />
+              <View style={styles.coinDot} />
               <Text style={styles.coinText}>Earn {event.coin_reward} coins</Text>
+            </View>
+          )}
+
+          {isExternal && !!event.source_name && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.ink, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, marginTop: 12 }}>
+              <Ionicons name="globe-outline" size={13} color="#fff" />
+              <Text style={{ fontSize: 12, fontWeight: Font.bold, color: '#fff' }}>via {event.source_name}</Text>
             </View>
           )}
         </View>
@@ -249,7 +265,7 @@ export default function PeopleApply() {
         )}
 
         {/* 6 — Note input (only if not already on the list and not the organiser) */}
-        {!isGoing && !isWaiting && !isRejected && !isOwner && (
+        {!isGoing && !isWaiting && !isRejected && !isOwner && !isExternal && (
           <View style={styles.noteBlock}>
             <Input
               label="Note (optional)"
@@ -264,7 +280,22 @@ export default function PeopleApply() {
 
         {/* 7 — Action area */}
         <View style={[styles.actionBlock, { paddingBottom: insets.bottom + 20 }]}>
-          {isOwner ? (
+          {isExternal ? (
+            <>
+              <TouchableOpacity
+                style={[styles.applyButton, { flexDirection: 'row', gap: 8 }]}
+                onPress={() => sourceUrl && Linking.openURL(sourceUrl).catch(() => {})}
+                activeOpacity={0.85}
+                disabled={!sourceUrl}
+              >
+                <Text style={styles.applyButtonText}>Register on {sourceName}</Text>
+                <Ionicons name="open-outline" size={18} color={colors.onPrimary} />
+              </TouchableOpacity>
+              <Text style={styles.waitingHint}>
+                You'll be taken to {sourceName} to register — Upshot just helps you discover it.
+              </Text>
+            </>
+          ) : isOwner ? (
             <View style={styles.ownerBlock}>
               <View style={styles.ownerBadge}>
                 <Ionicons name="ribbon-outline" size={16} color={colors.ink} />
@@ -313,6 +344,7 @@ export default function PeopleApply() {
               )}
             </TouchableOpacity>
           )}
+        </View>
         </View>
       </ScrollView>
     </View>
@@ -432,14 +464,22 @@ const styles = StyleSheet.create({
     gap: 6,
     alignSelf: 'flex-start',
     backgroundColor: '#FEF3C7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.full,
+    marginTop: 12,
+  },
+  coinDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#E3A017',
+    borderWidth: 1,
+    borderColor: '#c9881a',
   },
   coinText: {
     fontSize: 13,
-    fontWeight: Font.semibold,
+    fontWeight: Font.bold,
     color: '#92400E',
   },
 

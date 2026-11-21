@@ -239,7 +239,7 @@ export class AuthService {
 
   async updateProfile(
     userId: string,
-    updates: Partial<Pick<User, 'full_name' | 'avatar_url' | 'phone'>>,
+    updates: Partial<Pick<User, 'full_name' | 'avatar_url' | 'phone' | 'city'>>,
   ): Promise<ApiResponse<{ user: User }>> {
     const { data: profile, error } = await this.supabase
       .from('profiles')
@@ -247,6 +247,7 @@ export class AuthService {
         full_name: updates.full_name,
         avatar_url: updates.avatar_url,
         phone: updates.phone,
+        city: updates.city,
       })
       .eq('id', userId)
       .select()

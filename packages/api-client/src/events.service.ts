@@ -44,6 +44,33 @@ export class EventsService {
     };
   }
 
+  /**
+   * Upcoming events an admin has starred — the home "Special Events" rail.
+   */
+  async getFeaturedEvents(limit: number = 8): Promise<ApiResponse<Event[]>> {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await this.supabase
+      .from('events')
+      .select('*, company:companies(*), vertical:verticals(id, name, slug, color)')
+      .eq('status', 'approved')
+      .eq('is_featured', true)
+      .gte('event_date', today)
+      .order('event_date', { ascending: true })
+      .limit(limit);
+    if (error) return { data: null, error: { code: 'FETCH_FAILED', message: error.message } };
+    return { data: (data ?? []) as unknown as Event[], error: null };
+  }
+
+  /** Admin: star/unstar an event for the home Special Events rail. */
+  async toggleFeatured(eventId: string, isFeatured: boolean): Promise<ApiResponse<null>> {
+    const { error } = await this.supabase
+      .from('events')
+      .update({ is_featured: isFeatured })
+      .eq('id', eventId);
+    if (error) return { data: null, error: { code: 'UPDATE_FAILED', message: error.message } };
+    return { data: null, error: null };
+  }
+
   async getEventById(id: string): Promise<ApiResponse<Event>> {
     const { data, error } = await this.supabase
       .from('events')

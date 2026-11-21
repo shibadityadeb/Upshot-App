@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,11 +14,12 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createApiClient } from '@upshot/api-client';
 import type { Host } from '@upshot/types';
-import { colors, Font, FontSize, Gap, radius, shadow } from '../../src/constants/theme';
+import { colors, Font, FontSize, Gap, radius, shadow, useResponsive } from '../../src/constants/theme';
 import { AvatarCircle, roleBadgeMeta } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/auth.store';
 
 const api = createApiClient();
+const HERO_LIQUID = require('../../assets/hero-liquid.png');
 
 function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -30,6 +32,8 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
 
 export default function HostProfile() {
   const insets = useSafeAreaInsets();
+  const r = useResponsive();
+  const columnStyle = { width: '100%' as const, maxWidth: r.contentWidth, alignSelf: 'center' as const };
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
 
@@ -64,13 +68,16 @@ export default function HostProfile() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <AvatarCircle
-          name={user?.full_name ?? '?'}
-          avatarUrl={user?.avatar_url ?? undefined}
-          size={56}
-        />
-        <View style={styles.headerText}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <Image source={HERO_LIQUID} style={styles.headerBg} resizeMode="cover" />
+        <View style={[columnStyle, { alignItems: 'center' }]}>
+          <View style={styles.avatarWrap}>
+            <AvatarCircle
+              name={user?.full_name ?? '?'}
+              avatarUrl={user?.avatar_url ?? undefined}
+              size={78}
+            />
+          </View>
           <Text style={styles.headerName} numberOfLines={1}>{user?.full_name ?? 'Host'}</Text>
           {/* Hosting is something a community member does, not a category of
               its own — the label comes from the shared map so it cannot drift. */}
@@ -82,7 +89,7 @@ export default function HostProfile() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, columnStyle]} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={styles.loader}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -138,27 +145,35 @@ const styles = StyleSheet.create({
 
   header: {
     backgroundColor: colors.primary,
-    paddingHorizontal: Gap.base,
-    paddingBottom: Gap.lg,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: Gap.md,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingHorizontal: Gap.base,
+    paddingBottom: Gap.xxl,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
   },
-  headerText: { flex: 1, gap: 6 },
+  headerBg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  avatarWrap: {
+    borderRadius: radius.full,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.65)',
+    marginTop: 8,
+    ...shadow.md,
+  },
   headerName: {
     fontSize: FontSize.h1,
     fontWeight: Font.black,
     color: colors.ink,
     letterSpacing: -0.5,
+    marginTop: 12,
   },
   roleChip: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     backgroundColor: colors.ink,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginTop: 8,
   },
   roleChipText: {
     fontSize: 10,
@@ -177,11 +192,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: Gap.sm,
     marginTop: Gap.md,
+    marginLeft: 2,
   },
 
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: Gap.base,

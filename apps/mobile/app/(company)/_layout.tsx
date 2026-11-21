@@ -2,26 +2,12 @@ import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/auth.store';
 import { colors } from '../../src/constants/theme';
-
-const TAB_BAR_STYLE = {
-  backgroundColor: '#FFFFFF',
-  borderTopWidth: 1,
-  borderTopColor: colors.border,
-  height: 66,
-  paddingBottom: 10,
-  paddingTop: 8,
-};
-
-const LABEL_STYLE = {
-  fontSize: 10,
-  fontWeight: '700' as const,
-  letterSpacing: 0.3,
-  marginTop: 3,
-};
+import { useTabBarStyle, TAB_LABEL_STYLE } from '../../src/hooks/useTabBarStyle';
 
 export default function CompanyLayout() {
   const user = useAuthStore((s) => s.user);
   const status = useAuthStore((s) => s.status);
+  const tabBarStyle = useTabBarStyle();
 
   // Hold while the persisted session is still being restored. Redirecting here
   // on a not-yet-populated user is what bounced signed-in people to the login
@@ -37,8 +23,8 @@ export default function CompanyLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.ink,
         tabBarInactiveTintColor: colors.textLight,
-        tabBarStyle: TAB_BAR_STYLE,
-        tabBarLabelStyle: LABEL_STYLE,
+        tabBarStyle,
+        tabBarLabelStyle: TAB_LABEL_STYLE,
       }}
     >
       <Tabs.Screen
